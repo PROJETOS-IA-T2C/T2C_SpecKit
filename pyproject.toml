@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "t2c-speckit"
+version = "0.1.0"
+description = "Toolkit completo para Spec-Driven Development de RPA com Framework T2C"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "T2C SpecKit Team"}
+]
+keywords = ["rpa", "automation", "spec-driven", "t2c", "framework"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "click>=8.0.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0",
+    "python-pptx>=0.6.21",
+    "cookiecutter>=2.1.0",
+]
+
+[project.scripts]
+t2c = "rpa_speckit.cli:main"
+t2c-speckit = "rpa_speckit.cli:main"
+
+[tool.setuptools]
+packages = ["rpa_speckit"]
+
+[tool.setuptools.package-data]
+rpa_speckit = ["templates/**/*"]
+

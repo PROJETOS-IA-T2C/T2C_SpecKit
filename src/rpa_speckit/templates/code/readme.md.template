@@ -1,0 +1,30 @@
+# {{PROJECT_NAME}}
+
+{{PROJECT_DESCRIPTION}}
+
+## Instalação
+
+```bash
+pip install -e .
+```
+
+## Execução
+
+```bash
+python -m {{PROJECT_NAME}}.bot
+```
+
+## Configuração
+
+Edite o arquivo `resources/config/Config.xlsx` para configurar o robô.
+
+## Estrutura
+
+- `{{PROJECT_NAME}}/bot.py` - Ponto de entrada principal
+- `{{PROJECT_NAME}}/classes_t2c/` - Framework T2C
+- `{{PROJECT_NAME}}/resources/` - Recursos e configurações
+
+## Framework T2C
+
+Este projeto utiliza o Framework T2C versão 2.2.3.
+

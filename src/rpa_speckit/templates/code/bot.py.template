@@ -1,0 +1,96 @@
+"""
+VERSÃO FRAMEWORK: 2.2.3
+
+AVISO:
+
+Certifique-se de instalar o bot com `pip install -e .` para obter todas as dependências
+em seu ambiente Python.
+
+Além disso, se você estiver usando PyCharm ou outro IDE, certifique-se de usar o MESMO interpretador Python
+como seu IDE.
+
+Se você receber um erro como:
+```
+ModuleNotFoundError: No module named 'botcity'
+```
+
+Isso significa que você provavelmente está usando um interpretador Python diferente daquele usado para instalar o bot.
+Para corrigir isso, você pode:
+- Use o mesmo intérprete do seu IDE e instale seu bot com `pip install -e .`
+- Use o mesmo intérprete usado para instalar o bot (`pip install -e .`)
+
+Consulte a documentação para obter mais informações em https://documentation.botcity.dev/
+"""
+# Imports dos modulos T2C 
+# Carrega o InitAllSettingsSettings Precisa ser o primeiro a ser carregado
+from {{PROJECT_NAME}}.classes_t2c.framework.T2CInitAllSettings import T2CInitAllSettings as InitAllSettings
+from {{PROJECT_NAME}}.classes_t2c.utils.T2CMaestro import T2CMaestro as Maestro
+from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import *
+from {{PROJECT_NAME}}.classes_t2c.framework.T2CInitialization import T2CInitialization as Initialization
+from {{PROJECT_NAME}}.classes_t2c.framework.T2CLoopStation import T2CLoopStation as LoopStation
+from {{PROJECT_NAME}}.classes_t2c.framework.T2CEndProcess import T2CEndProcess as EndProcess
+from {{PROJECT_NAME}}.classes_t2c.dados_execucao.T2CDadosExecucao import T2CDadosExecucao as DadosExecucao
+from {{PROJECT_NAME}}.classes_t2c.utils.T2CTracker import T2CTracker as Tracker
+
+# Imports dos pacotes externos
+import traceback, sys
+from botcity.web import WebBot
+
+
+class Bot(WebBot):
+    """
+    Classe que utiliza as funcionalidades da classe WebBot.
+    
+    Parâmetros:
+
+    Retorna:
+    """
+
+    def action(self, execution=None):
+        """
+        Método principal para execução do bot.
+
+        Parâmetros:
+        - execution (objeto): objeto de execução (opcional, default=None).
+
+        Retorna:
+        """
+        try:
+            Maestro.create_conexao_maestro(execution)
+            Maestro.write_log("Iniciando execução do processo: " + Maestro.var_strNomeProcesso)
+
+            Initialization.execute()
+
+            LoopStation.execute()
+          
+        except TerminateException as err:
+            var_strTracebackErro = traceback.format_exc()
+            print(var_strTracebackErro)
+        except Exception as err:
+            var_strTracebackErro = traceback.format_exc()
+            if InitAllSettings.var_excExceptionInitialization is None:
+                InitAllSettings.var_excExceptionProcess = err
+            print(var_strTracebackErro)
+        
+
+        try:
+            EndProcess.execute()
+                                                
+        except Exception as err:
+            # 486 Fim do Processamento com Falha
+            if (InitAllSettings.var_dictConfig["AtivarT2CTracker"].upper() == "SIM"): 
+                Tracker.finish_process(arg_intStep=486)
+
+            var_strTracebackErro = traceback.format_exc()
+            print(var_strTracebackErro)
+            Maestro.send_error(err)
+            DadosExecucao.refresh_counting_items()
+            Maestro.finish_task(arg_boolSucesso=False, arg_strMensagem=f"Task finalizada com erros. Motivo: {var_strTracebackErro}")
+            
+
+if __name__ == '__main__':
+    if len(sys.argv) >= 5 and str(sys.argv[1]).lower() == "--execution".lower():
+        Bot.action(None)
+    else:
+        Bot.main()
+

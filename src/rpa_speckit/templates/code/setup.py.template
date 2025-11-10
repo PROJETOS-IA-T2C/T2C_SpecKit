@@ -1,0 +1,19 @@
+from setuptools import setup, find_packages
+
+setup(
+    name="{{PROJECT_NAME}}",
+    version="1.0.0",
+    description="{{PROJECT_DESCRIPTION}}",
+    packages=find_packages(),
+    install_requires=[
+        "botcity-framework-core>=1.0.0",
+        "botcity-framework-web>=1.0.0",
+        "botcity-framework-desktop>=1.0.0",
+        "clicknium>=1.0.0",
+        "pandas>=1.5.0",
+        "openpyxl>=3.0.0",
+        "python-dotenv>=0.19.0",
+    ],
+    python_requires=">=3.8",
+)
+

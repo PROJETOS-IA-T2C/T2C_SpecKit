@@ -1,0 +1,52 @@
+# Imports dos modulos T2C 
+# Carrega o InitAllSettingsSettings Precisa ser o primeiro a ser carregado
+from {{PROJECT_NAME}}.classes_t2c.framework.T2CInitAllSettings import T2CInitAllSettings as InitAllSettings
+from {{PROJECT_NAME}}.classes_t2c.utils.T2CMaestro import T2CMaestro as Maestro, LogLevel, ErrorType
+from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import BusinessRuleException, TerminateException
+from {{PROJECT_NAME}}.classes_t2c.framework.T2CGetTransaction import T2CGetTransaction as GetTransaction
+
+# Imports dos pacotes externos
+{{IMPORTS}}
+
+
+# Classe responsável pelo processamento principal, necessário preencher com o seu código no método execute
+class T2CProcess:
+    """
+    Classe responsável pelo processamento principal.
+
+    Parâmetros:
+    
+    Retorna:
+    """
+    _var_dictConfig = InitAllSettings.var_dictConfig
+    _var_botWebbot = InitAllSettings.var_botWebbot
+    _var_botDesktopbot = InitAllSettings.var_botDesktopbot
+
+
+    #Parte principal do código, deve ser preenchida pelo desenvolvedor
+    #Acesse o item a ser processado pelo arg_tplQueueItem
+    @classmethod
+    def execute(cls):
+        """
+        Método principal para execução do código.
+
+        Parâmetros:
+
+
+        Retorna:
+        """
+        # Obter item atual da fila
+        var_dictItem = GetTransaction.var_dictQueueItem
+        var_strReferencia = var_dictItem['referencia']
+        var_dictInfoAdicional = var_dictItem['info_adicionais']
+        
+        Maestro.write_log(f'Processando item: {var_strReferencia}')
+
+        # {{VALIDACOES_ENTRADA}}
+        
+        # {{CONDICOES_ESPECIAIS}}
+        
+        # {{PROCESSAMENTO_PRINCIPAL}}
+        
+        Maestro.write_log('Process Finished')
+
