@@ -71,17 +71,24 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
 
 
 def _copy_constitution(project_path: Path):
-    """Copia a constitution do framework T2C"""
+    """Copia a constitution do framework T2C do template interno"""
     constitution_path = project_path / ".specify/memory/constitution.md"
     
-    # Tentar ler constitution do projeto de referência
-    ref_constitution = Path("C:/Robôs/projeto_ia_spec/memory/constitution.md")
+    # Obter caminho do template interno
+    template_dir = Path(__file__).parent.parent.parent / "templates"
+    template_constitution = template_dir / "constitution.md"
     
-    if ref_constitution.exists():
-        shutil.copy2(ref_constitution, constitution_path)
+    if template_constitution.exists():
+        # Copiar do template interno
+        shutil.copy2(template_constitution, constitution_path)
     else:
-        # Se não encontrar, criar uma versão básica com instruções
-        basic_constitution = """# Constitution do Framework T2C
+        # Fallback: tentar do projeto de referência (para compatibilidade)
+        ref_constitution = Path("C:/Robôs/projeto_ia_spec/memory/constitution.md")
+        if ref_constitution.exists():
+            shutil.copy2(ref_constitution, constitution_path)
+        else:
+            # Se não encontrar nenhum, criar versão básica
+            basic_constitution = """# Constitution do Framework T2C
 
 Este documento define TODAS as regras, especificações, padrões, exemplos e templates que a IA deve seguir ao gerar código para o framework T2C.
 
@@ -89,15 +96,11 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 ## Nota
 
-A constitution completa do framework T2C deve ser copiada do projeto de referência ou obtida do repositório do framework.
-
-Para obter a constitution completa:
-1. Copie de: C:/Robôs/projeto_ia_spec/memory/constitution.md
-2. Ou obtenha do repositório do framework T2C
+A constitution completa do framework T2C deve estar disponível no template do SpecKit.
 
 A constitution contém todas as regras, padrões e templates necessários para geração de código.
 """
-        constitution_path.write_text(basic_constitution, encoding="utf-8")
+            constitution_path.write_text(basic_constitution, encoding="utf-8")
 
 
 def _create_templates(project_path: Path):
