@@ -318,36 +318,29 @@ class DDPExtractor:
         return content
 
 
-def extract_ddp(pptx_path: str, output_dir: str):
+def extract_ddp(pptx_path: str) -> str:
     """
-    Função principal para extrair DDP
+    Função principal para extrair texto do DDP
     
     Args:
         pptx_path: Caminho para o DDP.pptx
-        output_dir: Diretório onde salvar os arquivos gerados
+        
+    Returns:
+        Texto extraído de todos os slides formatado para a LLM
     """
     extractor = DDPExtractor(pptx_path)
-    extractor.extract_from_pptx()
+    extractor.extract_text_from_slides()
     
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
+    # Formatar texto para apresentar à LLM
+    formatted_text = "# Conteúdo Extraído do DDP\n\n"
+    formatted_text += f"**Arquivo:** {pptx_path}\n\n"
+    formatted_text += f"**Total de slides:** {len(extractor.slides_text)}\n\n"
+    formatted_text += "---\n\n"
     
-    # Gerar arquivos
-    spec_content = extractor.fill_spec_md(output_path)
-    plan_content = extractor.fill_plan_md(output_path)
-    selectors_content = extractor.fill_selectors_md(output_path)
-    rules_content = extractor.fill_business_rules_md(output_path)
+    for i, slide_text in enumerate(extractor.slides_text, 1):
+        formatted_text += f"## Slide {i}\n\n"
+        formatted_text += f"{slide_text}\n\n"
+        formatted_text += "---\n\n"
     
-    # Salvar arquivos
-    (output_path / "spec.md").write_text(spec_content, encoding="utf-8")
-    (output_path / "plan.md").write_text(plan_content, encoding="utf-8")
-    (output_path / "selectors.md").write_text(selectors_content, encoding="utf-8")
-    (output_path / "business-rules.md").write_text(rules_content, encoding="utf-8")
-    
-    return {
-        'spec.md': spec_content,
-        'plan.md': plan_content,
-        'selectors.md': selectors_content,
-        'business-rules.md': rules_content
-    }
+    return formatted_text
 

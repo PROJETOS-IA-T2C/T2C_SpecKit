@@ -308,7 +308,7 @@ def _create_cursor_commands(project_path: Path):
     # t2c.extract-ddp.md
     (commands_dir / "t2c.extract-ddp.md").write_text("""# Extrair DDP
 
-Extrai informações de um arquivo DDP.pptx e preenche automaticamente os arquivos de especificação.
+Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa preencher os arquivos de especificação.
 
 ## Uso
 
@@ -326,25 +326,33 @@ Extrai informações de um arquivo DDP.pptx e preenche automaticamente os arquiv
 
 1. Lê o arquivo PPTX usando python-pptx
 2. Extrai texto de todos os slides
-3. Identifica informações de:
-   - Especificação (spec.md)
-   - Plano técnico (plan.md)
-   - Seletores (selectors.md)
-   - Regras de negócio (business-rules.md)
-4. Preenche os arquivos automaticamente
-5. Marca o que foi preenchido automaticamente vs. o que precisa completar manualmente
+3. Apresenta o texto extraído para a LLM
+4. **A LLM preenche os arquivos de especificação** baseado no texto extraído:
+   - \`specs/001-[nome]/spec.md\` - Especificação completa
+   - \`specs/001-[nome]/plan.md\` - Plano técnico
+   - \`specs/001-[nome]/selectors.md\` - Seletores Clicknium
+   - \`specs/001-[nome]/business-rules.md\` - Regras de negócio
 
-## Arquivos Gerados
+## Instruções para a LLM
 
-- \`specs/001-[nome]/spec.md\`
-- \`specs/001-[nome]/plan.md\`
-- \`specs/001-[nome]/selectors.md\`
-- \`specs/001-[nome]/business-rules.md\`
+Após extrair o texto do DDP, você deve:
+
+1. **Ler todo o texto extraído** dos slides do PPTX
+2. **Criar ou atualizar** os arquivos de especificação na pasta \`specs/001-[nome]/\`
+3. **Preencher** cada arquivo baseado no conteúdo do DDP:
+   - **spec.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
+   - **plan.md**: Definir stack tecnológica (T2C Framework, Clicknium, BotCity), arquitetura do robô, integrações
+   - **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
+   - **business-rules.md**: Extrair validações (VAL*), condições especiais (COND*), regras de processamento (REG*)
+
+4. **Usar os templates** em \`.specify/templates/\` como referência para a estrutura
+5. **Manter a numeração** das regras (VAL001, VAL002, etc.) e tarefas (Task 1.1, Task 2.1, etc.)
 
 ## Notas
 
-- O desenvolvedor deve revisar e completar manualmente os arquivos gerados
-- Informações extraídas automaticamente são marcadas com \`[AUTO]\`
+- Este comando apenas extrai o texto. A LLM é responsável por analisar e preencher os arquivos
+- Se os arquivos já existirem, atualize-os com as novas informações do DDP
+- Mantenha a estrutura e formatação dos templates
 """, encoding="utf-8")
     
     # t2c.tasks.md
