@@ -42,5 +42,8 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-rpa_speckit = ["templates/**/*"]
+rpa_speckit = [
+    "templates/**/*",
+    "templates/constitution.md"
+]
 
