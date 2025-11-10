@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Toolkit completo para Spec-Driven Development de RPA com Framework T2C"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "T2C SpecKit Team"}
 ]
@@ -37,7 +37,10 @@ t2c = "rpa_speckit.cli:main"
 t2c-speckit = "rpa_speckit.cli:main"
 
 [tool.setuptools]
-packages = ["rpa_speckit"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 rpa_speckit = ["templates/**/*"]
