@@ -32,6 +32,7 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
     directories = [
         ".specify/memory",
         ".specify/templates",
+        ".specify/scripts",
         "specs",
         "generated",
         "DDP",
@@ -53,6 +54,10 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
     # Criar templates vazios
     console.print("[cyan]Criando templates...[/cyan]")
     _create_templates(project_path)
+    
+    # Criar script de extração de DDP
+    console.print("[cyan]Criando script de extração de DDP...[/cyan]")
+    _create_extract_ddp_script(project_path)
     
     # Criar comandos Cursor/VS Code
     if ai_assistant == "cursor":
@@ -153,6 +158,90 @@ def _create_templates(project_path: Path):
                 dest_template.write_text(f"# {template_file}\n\n[Template não encontrado]", encoding="utf-8")
 
 
+def _create_extract_ddp_script(project_path: Path):
+    """Cria script Python pronto para extração de DDP"""
+    scripts_dir = project_path / ".specify/scripts"
+    
+    extract_script = scripts_dir / "extract-ddp.py"
+    extract_script.write_text("""#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+\"\"\"
+Script para extração de texto de arquivos DDP.pptx
+Este script já está pronto e não deve ser modificado.
+\"\"\"
+import sys
+from pathlib import Path
+
+try:
+    from pptx import Presentation
+except ImportError:
+    print("Erro: python-pptx não está instalado. Instale com: pip install python-pptx", file=sys.stderr)
+    sys.exit(1)
+
+
+def extract_ddp(pptx_path: str) -> str:
+    \"\"\"
+    Extrai texto de todos os slides de um arquivo DDP.pptx
+    
+    Args:
+        pptx_path: Caminho para o arquivo DDP.pptx
+        
+    Returns:
+        Texto formatado com conteúdo de todos os slides
+    \"\"\"
+    pptx_file = Path(pptx_path)
+    if not pptx_file.exists():
+        raise FileNotFoundError(f"DDP não encontrado: {pptx_path}")
+    
+    presentation = Presentation(str(pptx_file))
+    
+    # Formatar texto para apresentar à LLM
+    formatted_text = "# Conteúdo Extraído do DDP\n\n"
+    formatted_text += f"**Arquivo:** {pptx_path}\n\n"
+    formatted_text += f"**Total de slides:** {len(presentation.slides)}\n\n"
+    formatted_text += "---\n\n"
+    
+    # Passar slide por slide e extrair texto
+    for i, slide in enumerate(presentation.slides, 1):
+        slide_text = []
+        
+        # Extrair texto de todas as formas no slide
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.text.strip():
+                slide_text.append(shape.text.strip())
+        
+        # Adicionar slide ao texto formatado
+        formatted_text += f"## Slide {i}\n\n"
+        formatted_text += "\n".join(slide_text)
+        formatted_text += "\n\n---\n\n"
+    
+    return formatted_text
+
+
+def main():
+    \"\"\"CLI para extração de DDP\"\"\"
+    if len(sys.argv) < 2:
+        print("Uso: python .specify/scripts/extract-ddp.py <caminho_do_ddp>", file=sys.stderr)
+        sys.exit(1)
+    
+    ddp_path = sys.argv[1]
+    
+    try:
+        extracted_text = extract_ddp(ddp_path)
+        print(extracted_text)
+    except FileNotFoundError as e:
+        print(f"Erro: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Erro ao extrair DDP: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+""", encoding="utf-8")
+
+
 def _create_cursor_commands(project_path: Path):
     """Cria comandos Cursor"""
     commands_dir = project_path / ".cursor/commands"
@@ -174,39 +263,59 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 /t2c.extract-ddp specs/001-automacao-exemplo/DDP/ddp.pptx
 \`\`\`
 
-## O que faz
+## ⚠️ REGRA ABSOLUTA - LEIA ANTES DE QUALQUER AÇÃO
 
-1. **EXECUTA o script pronto**: `python -m rpa_speckit.utils.ddp_extractor [caminho_do_ddp]`
-2. O script extrai texto de todos os slides do PPTX usando python-pptx
-3. Apresenta o texto extraído para a LLM
-4. **A LLM preenche os arquivos de especificação** baseado no texto extraído:
-   - \`specs/001-[nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
-   - \`specs/001-[nome]/tests.md\` - Cenários de teste e validações
-   - \`specs/001-[nome]/selectors.md\` - Seletores Clicknium
-   - \`specs/001-[nome]/business-rules.md\` - Regras de negócio
+**VOCÊ NÃO DEVE CRIAR NENHUM SCRIPT PYTHON. NUNCA. EM NENHUMA CIRCUNSTÂNCIA.**
 
-## Instruções para a LLM
+- ❌ NÃO crie scripts temporários
+- ❌ NÃO crie arquivos `_temp_extract_ddp.py` ou similares
+- ❌ NÃO crie scripts alternativos
+- ❌ NÃO tente "resolver" problemas criando código
+- ✅ APENAS execute o script pronto que já existe no projeto
 
-**IMPORTANTE**: NÃO crie um novo script Python. Use o script pronto que já existe:
+## O que fazer
 
-1. **Execute o comando**: `python -m rpa_speckit.utils.ddp_extractor [caminho_do_ddp]`
-2. **Leia o texto extraído** que será exibido no output
-3. **Crie ou atualize** os arquivos de especificação na pasta \`specs/001-[nome]/\`
-4. **Preencha** cada arquivo baseado no conteúdo do DDP:
-   - **spec.md**: ARQUIVO PRINCIPAL - Definir arquitetura completa (INIT, FILA, LOOP STATION, END PROCESS), stack tecnológica, integrações, estrutura de dados
-   - **tests.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
-   - **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
-   - **business-rules.md**: Extrair validações (VAL*), condições especiais (COND*), regras de processamento (REG*)
+**PASSO 1 - Execute APENAS este comando:**
 
-5. **Use os templates** em \`.specify/templates/\` como referência para a estrutura
-6. **Mantenha a numeração** das regras (VAL001, VAL002, etc.) e tarefas (Task 1.1, Task 2.1, etc.)
+\`\`\`bash
+python .specify/scripts/extract-ddp.py [caminho_do_ddp]
+\`\`\`
 
-## Notas
+**PASSO 2 - Se python-pptx não estiver instalado:**
 
-- **NÃO crie novos scripts** - use o script pronto: `python -m rpa_speckit.utils.ddp_extractor`
-- O script já está instalado e pronto para uso
+Se você receber erro sobre `python-pptx` não estar instalado, informe ao usuário:
+
+"O pacote python-pptx não está instalado. Instale com: `pip install python-pptx`"
+
+**NÃO crie scripts alternativos. Apenas informe o usuário.**
+
+**PASSO 3 - Se o comando funcionar:**
+
+1. Leia o texto extraído que será exibido no output
+2. Crie ou atualize os arquivos de especificação na pasta \`specs/001-[nome]/\`
+3. Preencha cada arquivo baseado no conteúdo do DDP
+
+## Arquivos a preencher
+
+- \`specs/001-[nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
+- \`specs/001-[nome]/tests.md\` - Cenários de teste e validações
+- \`specs/001-[nome]/selectors.md\` - Seletores Clicknium
+- \`specs/001-[nome]/business-rules.md\` - Regras de negócio
+
+## Detalhes dos arquivos
+
+- **spec.md**: ARQUIVO PRINCIPAL - Definir arquitetura completa (INIT, FILA, LOOP STATION, END PROCESS), stack tecnológica, integrações, estrutura de dados
+- **tests.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
+- **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
+- **business-rules.md**: Extrair validações (VAL*), condições especiais (COND*), regras de processamento (REG*)
+
+## Lembre-se
+
+- O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto
+- Você apenas precisa EXECUTÁ-LO, não criá-lo
+- Use os templates em \`.specify/templates/\` como referência para a estrutura
+- Mantenha a numeração das regras (VAL001, VAL002, etc.) e tarefas (Task 1.1, Task 2.1, etc.)
 - Se os arquivos já existirem, atualize-os com as novas informações do DDP
-- Mantenha a estrutura e formatação dos templates
 """, encoding="utf-8")
     
     # t2c.tasks.md
@@ -382,7 +491,8 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 {project_name}/
 ├── .specify/          # Configurações e templates
 │   ├── memory/        # Constitution do framework T2C
-│   └── templates/     # Templates de especificação
+│   ├── templates/     # Templates de especificação
+│   └── scripts/       # Scripts prontos (extract-ddp.py)
 ├── specs/             # Especificações de automações
 │   └── 001-[nome]/    # Primeira automação
 │       ├── spec.md     # ARQUIVO PRINCIPAL - Arquitetura completa
