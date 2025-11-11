@@ -8,6 +8,11 @@ import json
 from pathlib import Path
 from typing import Dict, List, Optional
 import re
+try:
+    from importlib.resources import files as resource_files
+except ImportError:
+    # Python < 3.9 fallback
+    from importlib_resources import files as resource_files
 
 
 class T2CFrameworkGenerator:
@@ -273,18 +278,25 @@ class T2CFrameworkGenerator:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 dst.write_text(f"# Arquivo do framework T2C\n# TODO: Copiar de {file_path}\n", encoding="utf-8")
     
-    def generate_custom_files(self, templates_dir: Path):
+    def generate_custom_files(self, templates_dir):
         """
         Gera arquivos customizados
         
         Args:
-            templates_dir: Diretório com templates
+            templates_dir: Diretório com templates (pode ser Path ou Traversable)
         """
+        # Helper para ler templates - suporta tanto Path quanto Traversable (importlib.resources)
+        def read_template(template_path):
+            if hasattr(template_path, 'read_text'):
+                return template_path.read_text(encoding="utf-8")
+            else:
+                return Path(template_path).read_text(encoding="utf-8")
+        
         # Ler templates
-        bot_template = (templates_dir / "bot.py.template").read_text(encoding="utf-8")
-        process_template = (templates_dir / "t2c_process.py.template").read_text(encoding="utf-8")
-        init_template = (templates_dir / "t2c_init_apps.py.template").read_text(encoding="utf-8")
-        close_template = (templates_dir / "t2c_close_apps.py.template").read_text(encoding="utf-8")
+        bot_template = read_template(templates_dir / "bot.py.template")
+        process_template = read_template(templates_dir / "t2c_process.py.template")
+        init_template = read_template(templates_dir / "t2c_init_apps.py.template")
+        close_template = read_template(templates_dir / "t2c_close_apps.py.template")
         
         # Gerar código baseado nas specs
         imports = self._generate_imports()
@@ -472,19 +484,34 @@ class T2CFrameworkGenerator:
     
     def generate_requirements_txt(self, templates_dir: Path):
         """Gera requirements.txt"""
-        template = (templates_dir / "requirements.txt.template").read_text(encoding="utf-8")
+        def read_template(template_path):
+            if hasattr(template_path, 'read_text'):
+                return template_path.read_text(encoding="utf-8")
+            else:
+                return Path(template_path).read_text(encoding="utf-8")
+        template = read_template(templates_dir / "requirements.txt.template")
         (self.generated_dir / "requirements.txt").write_text(template, encoding="utf-8")
     
     def generate_setup_py(self, templates_dir: Path):
         """Gera setup.py"""
-        template = (templates_dir / "setup.py.template").read_text(encoding="utf-8")
+        def read_template(template_path):
+            if hasattr(template_path, 'read_text'):
+                return template_path.read_text(encoding="utf-8")
+            else:
+                return Path(template_path).read_text(encoding="utf-8")
+        template = read_template(templates_dir / "setup.py.template")
         content = template.replace("{{PROJECT_NAME}}", self.project_name)
         content = content.replace("{{PROJECT_DESCRIPTION}}", f"Automação RPA - {self.project_name}")
         (self.generated_dir / "setup.py").write_text(content, encoding="utf-8")
     
     def generate_readme(self, templates_dir: Path):
         """Gera README.md"""
-        template = (templates_dir / "readme.md.template").read_text(encoding="utf-8")
+        def read_template(template_path):
+            if hasattr(template_path, 'read_text'):
+                return template_path.read_text(encoding="utf-8")
+            else:
+                return Path(template_path).read_text(encoding="utf-8")
+        template = read_template(templates_dir / "readme.md.template")
         content = template.replace("{{PROJECT_NAME}}", self.project_name)
         content = content.replace("{{PROJECT_DESCRIPTION}}", f"Automação RPA gerada com RPA Spec-Kit")
         (self.generated_dir / "README.md").write_text(content, encoding="utf-8")
@@ -524,7 +551,15 @@ class T2CFrameworkGenerator:
             self.copy_framework_files(framework_dir)
         
         # Gerar arquivos customizados
-        templates_dir = Path(__file__).parent.parent / "templates" / "code"
+        # Usar importlib.resources para acessar templates do pacote instalado
+        try:
+            from rpa_speckit import templates
+            templates_resource = resource_files(templates) / "code"
+            templates_dir = Path(templates_resource)
+        except (ImportError, AttributeError):
+            # Fallback: tentar caminho relativo (modo desenvolvimento)
+            templates_dir = Path(__file__).parent.parent / "templates" / "code"
+        
         self.generate_custom_files(templates_dir)
         
         # Gerar Config.xlsx

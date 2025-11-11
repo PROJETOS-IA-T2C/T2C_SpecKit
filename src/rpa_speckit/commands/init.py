@@ -5,6 +5,11 @@ import os
 import shutil
 from pathlib import Path
 from rich.console import Console
+try:
+    from importlib.resources import files as resource_files
+except ImportError:
+    # Python < 3.9 fallback
+    from importlib_resources import files as resource_files
 
 
 def init_project(project_name: str, ai_assistant: str, console: Console):
@@ -74,16 +79,27 @@ def _copy_constitution(project_path: Path):
     """Copia a constitution do framework T2C do template interno"""
     constitution_path = project_path / ".specify/memory/constitution.md"
     
-    # Obter caminho do template interno
-    memory_dir = Path(__file__).parent.parent.parent / "memory"
-    internal_constitution = memory_dir / "constitution.md"
-    
-    if internal_constitution.exists():
-        # Copiar do template interno
-        shutil.copy2(internal_constitution, constitution_path)
-    else:
-        # Se não encontrar, criar versão básica
-        basic_constitution = """# Constitution do Framework T2C
+    try:
+        # Usar importlib.resources para acessar arquivos do pacote instalado
+        from rpa_speckit import memory
+        constitution_resource = resource_files(memory) / "constitution.md"
+        
+        if constitution_resource.is_file():
+            # Ler conteúdo do recurso do pacote
+            constitution_content = constitution_resource.read_text(encoding="utf-8")
+            constitution_path.write_text(constitution_content, encoding="utf-8")
+        else:
+            raise FileNotFoundError("Constitution não encontrada no pacote")
+    except (ImportError, FileNotFoundError, AttributeError):
+        # Fallback: tentar caminho relativo (modo desenvolvimento)
+        memory_dir = Path(__file__).parent.parent.parent / "memory"
+        internal_constitution = memory_dir / "constitution.md"
+        
+        if internal_constitution.exists():
+            shutil.copy2(internal_constitution, constitution_path)
+        else:
+            # Se não encontrar, criar versão básica
+            basic_constitution = """# Constitution do Framework T2C
 
 Este documento define TODAS as regras, especificações, padrões, exemplos e templates que a IA deve seguir ao gerar código para o framework T2C.
 
@@ -95,15 +111,12 @@ A constitution completa do framework T2C deve estar disponível no SpecKit.
 
 A constitution contém todas as regras, padrões e templates necessários para geração de código.
 """
-        constitution_path.write_text(basic_constitution, encoding="utf-8")
+            constitution_path.write_text(basic_constitution, encoding="utf-8")
 
 
 def _create_templates(project_path: Path):
     """Cria templates vazios para o desenvolvedor preencher"""
     templates_dir = project_path / ".specify/templates"
-    
-    # Obter caminho dos templates internos
-    internal_templates_dir = Path(__file__).parent.parent.parent / "templates"
     
     # Lista de templates para copiar
     template_files = [
@@ -114,16 +127,36 @@ def _create_templates(project_path: Path):
         "tasks-template.md"
     ]
     
-    # Copiar cada template do diretório interno
-    for template_file in template_files:
-        source_template = internal_templates_dir / template_file
-        dest_template = templates_dir / template_file
+    try:
+        # Usar importlib.resources para acessar templates do pacote instalado
+        from rpa_speckit import templates
+        templates_resource = resource_files(templates)
         
-        if source_template.exists():
-            shutil.copy2(source_template, dest_template)
-        else:
-            # Fallback: criar arquivo vazio se template não existir
-            dest_template.write_text(f"# {template_file}\n\n[Template não encontrado]", encoding="utf-8")
+        # Copiar cada template do pacote
+        for template_file in template_files:
+            dest_template = templates_dir / template_file
+            template_resource = templates_resource / template_file
+            
+            if template_resource.is_file():
+                # Ler conteúdo do recurso do pacote
+                template_content = template_resource.read_text(encoding="utf-8")
+                dest_template.write_text(template_content, encoding="utf-8")
+            else:
+                # Fallback: criar arquivo vazio se template não existir
+                dest_template.write_text(f"# {template_file}\n\n[Template não encontrado no pacote]", encoding="utf-8")
+    except (ImportError, AttributeError):
+        # Fallback: tentar caminho relativo (modo desenvolvimento)
+        internal_templates_dir = Path(__file__).parent.parent.parent / "templates"
+        
+        for template_file in template_files:
+            source_template = internal_templates_dir / template_file
+            dest_template = templates_dir / template_file
+            
+            if source_template.exists():
+                shutil.copy2(source_template, dest_template)
+            else:
+                # Fallback: criar arquivo vazio se template não existir
+                dest_template.write_text(f"# {template_file}\n\n[Template não encontrado]", encoding="utf-8")
 
 
 def _create_cursor_commands(project_path: Path):
