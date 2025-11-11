@@ -175,13 +175,22 @@ Este script já está pronto e não deve ser modificado.
 """
 import sys
 import os
+import subprocess
 from pathlib import Path
 
 try:
     from pptx import Presentation
 except ImportError:
-    print("Erro: python-pptx não está instalado. Instale com: pip install python-pptx", file=sys.stderr)
-    sys.exit(1)
+    print("python-pptx não está instalado. Instalando automaticamente...", file=sys.stderr)
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "python-pptx>=0.6.21"], 
+                             stdout=sys.stderr, stderr=sys.stderr)
+        from pptx import Presentation
+        print("python-pptx instalado com sucesso!", file=sys.stderr)
+    except Exception as e:
+        print(f"Erro ao instalar python-pptx: {e}", file=sys.stderr)
+        print("Tente instalar manualmente: pip install python-pptx", file=sys.stderr)
+        sys.exit(1)
 
 
 def extract_ddp(pptx_path: str) -> str:
@@ -338,22 +347,6 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 ## O que fazer
 
-**PASSO 0 - Verificar/Instalar dependências (se necessário):**
-
-Se você receber erro sobre `python-pptx` não estar instalado, execute:
-
-\`\`\`bash
-pip install -r requirements.txt
-\`\`\`
-
-Ou apenas:
-
-\`\`\`bash
-pip install python-pptx
-\`\`\`
-
-**NÃO crie scripts alternativos. Apenas instale as dependências ou informe o usuário.**
-
 **PASSO 1 - Execute APENAS este comando (SIMPLES):**
 
 \`\`\`bash
@@ -369,7 +362,8 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 **Como funciona:**
 - Se você **não passar caminho**, o script procura automaticamente o primeiro arquivo .pptx em `DDP/` ou `specs/*/DDP/`
 - Se você **passar caminho**, pode ser relativo ou absoluto - o script resolve automaticamente
-- **SIMPLES**: Apenas execute o comando, o script faz o resto
+- **Instala dependências automaticamente** se necessário (python-pptx)
+- **SIMPLES**: Apenas execute o comando, o script faz TUDO sozinho
 
 **PASSO 2 - Se o comando funcionar:**
 
@@ -590,8 +584,8 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 ## Fluxo de Trabalho
 
 1. **Inicialização**: Projeto já inicializado ✓
-2. **Instalar dependências**: Execute `pip install -r requirements.txt` para instalar python-pptx
-3. **Extrair DDP**: Coloque DDP.pptx em `specs/001-[nome]/DDP/` e execute `/t2c.extract-ddp`
+2. **Extrair DDP**: Coloque DDP.pptx em `specs/001-[nome]/DDP/` ou `DDP/` e execute `/t2c.extract-ddp`
+   - O script instala dependências automaticamente se necessário
 4. **Completar Specs**: Revise e complete os arquivos .md gerados
 5. **Gerar Tasks** (Opcional): Execute `/t2c.tasks` para gerar tasks.md
 6. **Implementar**: Execute `/t2c.implement` para gerar o framework T2C completo
