@@ -35,8 +35,7 @@ class T2CFrameworkGenerator:
             Dicionário com todas as specs
         """
         required_files = {
-            'spec': 'spec.md',
-            'plan': 'plan.md',
+            'spec': 'spec.md',  # ARQUIVO PRINCIPAL - Arquitetura completa
             'selectors': 'selectors.md',
             'business_rules': 'business-rules.md',
             'tasks': 'tasks.md'
@@ -68,20 +67,18 @@ class T2CFrameworkGenerator:
         errors = []
         
         # Verificar se arquivos existem
-        required_files = ['spec', 'plan', 'selectors', 'business_rules', 'tasks']
+        required_files = ['spec', 'selectors', 'business_rules', 'tasks']
         for key in required_files:
             if key not in self.specs:
                 errors.append(f"Arquivo {key} não encontrado")
         
-        # Verificar se spec não está vazio
+        # Verificar se spec não está vazio (ARQUIVO PRINCIPAL)
         if 'spec' in self.specs:
             if len(self.specs['spec'].strip()) < 100:
-                errors.append("spec.md parece estar vazio ou incompleto")
-        
-        # Verificar se plan tem stack definida
-        if 'plan' in self.specs:
-            if 'T2C Framework' not in self.specs['plan']:
-                errors.append("plan.md não menciona T2C Framework")
+                errors.append("spec.md (ARQUIVO PRINCIPAL) parece estar vazio ou incompleto")
+            # Verificar se spec tem stack definida
+            if 'T2C Framework' not in self.specs['spec']:
+                errors.append("spec.md (ARQUIVO PRINCIPAL) não menciona T2C Framework")
         
         return errors
     
@@ -335,14 +332,14 @@ class T2CFrameworkGenerator:
             imports.append("from clicknium import clicknium as cc, locator")
         
         # Verificar se usa pandas
-        if 'plan' in self.specs and 'pandas' in self.specs['plan'].lower():
+        if 'spec' in self.specs and 'pandas' in self.specs['spec'].lower():
             imports.append("import pandas as pd")
         
         # Verificar se usa time
         imports.append("from time import sleep")
         
         # Verificar se usa Browser
-        if 'plan' in self.specs and ('navegador' in self.specs['plan'].lower() or 'browser' in self.specs['plan'].lower()):
+        if 'spec' in self.specs and ('navegador' in self.specs['spec'].lower() or 'browser' in self.specs['spec'].lower()):
             imports.append("from botcity.web import Browser")
         
         return '\n'.join(imports) if imports else "# Nenhum import adicional necessário"

@@ -45,19 +45,19 @@ O comando irá:
 Coloque o arquivo `DDP.pptx` em `specs/001-[nome]/DDP/` e execute:
 
 ```
-/rpa.extract-ddp specs/001-[nome]/DDP/ddp.pptx
+/t2c.extract-ddp specs/001-[nome]/DDP/ddp.pptx
 ```
 
 O comando irá:
 - Extrair informações do PPTX
-- Preencher automaticamente: `spec.md`, `plan.md`, `selectors.md`, `business-rules.md`
+- Preencher automaticamente: `spec.md` (ARQUIVO PRINCIPAL), `tests.md`, `selectors.md`, `business-rules.md`
 - Marcar o que foi preenchido automaticamente vs. o que precisa completar
 
 ### 3. Completar Especificações
 
 Revise e complete manualmente os arquivos gerados:
-- `spec.md` - Especificação completa
-- `plan.md` - Plano técnico
+- `spec.md` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
+- `tests.md` - Cenários de teste e validações
 - `selectors.md` - Seletores Clicknium
 - `business-rules.md` - Regras de negócio
 - `tasks.md` - Breakdown de tarefas (opcional, pode ser gerado)
@@ -65,7 +65,7 @@ Revise e complete manualmente os arquivos gerados:
 ### 4. Gerar Tasks (Opcional)
 
 ```
-/rpa.tasks specs/001-[nome]
+/t2c.tasks specs/001-[nome]
 ```
 
 Gera `tasks.md` baseado nas outras especificações.
@@ -73,7 +73,7 @@ Gera `tasks.md` baseado nas outras especificações.
 ### 5. Implementar Framework
 
 ```
-/rpa.implement specs/001-[nome]
+/t2c.implement specs/001-[nome]
 ```
 
 O comando irá:
@@ -95,14 +95,14 @@ meu-projeto/
 │       └── bash/
 ├── .cursor/              # Comandos Cursor (se escolhido)
 │   └── commands/
-│       ├── rpa.extract-ddp.md
-│       ├── rpa.tasks.md
-│       ├── rpa.implement.md
-│       └── rpa.validate.md
+│       ├── t2c.extract-ddp.md
+│       ├── t2c.tasks.md
+│       ├── t2c.implement.md
+│       └── t2c.validate.md
 ├── specs/                 # Especificações de automações
 │   └── 001-[nome]/
-│       ├── spec.md
-│       ├── plan.md
+│       ├── spec.md     # ARQUIVO PRINCIPAL
+│       ├── tests.md
 │       ├── selectors.md
 │       ├── business-rules.md
 │       ├── tasks.md

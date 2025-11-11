@@ -75,20 +75,15 @@ def _copy_constitution(project_path: Path):
     constitution_path = project_path / ".specify/memory/constitution.md"
     
     # Obter caminho do template interno
-    template_dir = Path(__file__).parent.parent.parent / "templates"
-    template_constitution = template_dir / "constitution.md"
+    memory_dir = Path(__file__).parent.parent.parent / "memory"
+    internal_constitution = memory_dir / "constitution.md"
     
-    if template_constitution.exists():
+    if internal_constitution.exists():
         # Copiar do template interno
-        shutil.copy2(template_constitution, constitution_path)
+        shutil.copy2(internal_constitution, constitution_path)
     else:
-        # Fallback: tentar do projeto de referência (para compatibilidade)
-        ref_constitution = Path("C:/Robôs/projeto_ia_spec/memory/constitution.md")
-        if ref_constitution.exists():
-            shutil.copy2(ref_constitution, constitution_path)
-        else:
-            # Se não encontrar nenhum, criar versão básica
-            basic_constitution = """# Constitution do Framework T2C
+        # Se não encontrar, criar versão básica
+        basic_constitution = """# Constitution do Framework T2C
 
 Este documento define TODAS as regras, especificações, padrões, exemplos e templates que a IA deve seguir ao gerar código para o framework T2C.
 
@@ -96,212 +91,39 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 ## Nota
 
-A constitution completa do framework T2C deve estar disponível no template do SpecKit.
+A constitution completa do framework T2C deve estar disponível no SpecKit.
 
 A constitution contém todas as regras, padrões e templates necessários para geração de código.
 """
-            constitution_path.write_text(basic_constitution, encoding="utf-8")
+        constitution_path.write_text(basic_constitution, encoding="utf-8")
 
 
 def _create_templates(project_path: Path):
     """Cria templates vazios para o desenvolvedor preencher"""
     templates_dir = project_path / ".specify/templates"
     
-    # spec-template.md
-    (templates_dir / "spec-template.md").write_text("""# Especificação de Automação RPA
-
-## User Scenarios
-
-### Scenario 1: [Nome do Cenário]
-**Como** [persona]  
-**Eu quero** [ação]  
-**Para que** [objetivo]
-
-**Dado que** [condição inicial]  
-**Quando** [ação do usuário]  
-**Então** [resultado esperado]
-
-## Requirements
-
-### Funcionais
-- [ ] RF001: [Descrição]
-- [ ] RF002: [Descrição]
-
-### Não Funcionais
-- [ ] RNF001: [Descrição]
-- [ ] RNF002: [Descrição]
-
-## Success Criteria
-
-- [ ] SC001: [Critério de sucesso]
-- [ ] SC002: [Critério de sucesso]
-
-## Key Entities
-
-### Entidade 1: [Nome]
-- Campo1: [Tipo/Descrição]
-- Campo2: [Tipo/Descrição]
-
-### Entidade 2: [Nome]
-- Campo1: [Tipo/Descrição]
-- Campo2: [Tipo/Descrição]
-
-## Observações
-
-[Observações adicionais]
-""", encoding="utf-8")
+    # Obter caminho dos templates internos
+    internal_templates_dir = Path(__file__).parent.parent.parent / "templates"
     
-    # plan-template.md
-    (templates_dir / "plan-template.md").write_text("""# Plano Técnico de Implementação
-
-## Stack Tecnológica
-
-- **Framework:** T2C Framework (v2.2.3)
-- **Automação Web:** Clicknium
-- **Plataforma:** BotCity
-- **Linguagem:** Python 3.8+
-
-## Arquitetura do Robô
-
-### Componentes Principais
-
-1. **T2CProcess**
-   - Responsabilidade: [Descrição]
-   - Fluxo: [Descrição do fluxo]
-
-2. **T2CInitAllApplications**
-   - Responsabilidade: [Descrição]
-   - Aplicações a inicializar: [Lista]
-
-3. **T2CCloseAllApplications**
-   - Responsabilidade: [Descrição]
-   - Aplicações a fechar: [Lista]
-
-## Integrações
-
-- [ ] Maestro (BotCity)
-- [ ] T2CTracker
-- [ ] Clicknium
-- [ ] E-mail
-
-## Estrutura de Dados
-
-### Fila de Processamento
-- Referência: [Campo identificador]
-- Info Adicionais: [Estrutura JSON]
-
-## Fluxo de Execução
-
-1. [Passo 1]
-2. [Passo 2]
-3. [Passo 3]
-""", encoding="utf-8")
+    # Lista de templates para copiar
+    template_files = [
+        "spec-template.md",
+        "tests-template.md",
+        "selectors-template.md",
+        "business-rules-template.md",
+        "tasks-template.md"
+    ]
     
-    # selectors-template.md
-    (templates_dir / "selectors-template.md").write_text("""# Seletores Clicknium
-
-## Estrutura de Locators
-
-### Pasta: [nome_pasta]
-
-#### [nome_elemento]
-- **Tipo:** [button/input/div/etc]
-- **Seletor:** [descrição do seletor]
-- **Uso:** [onde é usado]
-
-#### [nome_elemento2]
-- **Tipo:** [button/input/div/etc]
-- **Seletor:** [descrição do seletor]
-- **Uso:** [onde é usado]
-
-## Notas
-
-- Todos os seletores devem ser criados no Clicknium Recorder
-- Manter nomenclatura consistente
-- Documentar mudanças de UI que afetam seletores
-""", encoding="utf-8")
-    
-    # business-rules-template.md
-    (templates_dir / "business-rules-template.md").write_text("""# Regras de Negócio
-
-## Validações (VAL*)
-
-### VAL001: [Nome da Validação]
-- **Descrição:** [Descrição completa]
-- **Condição:** [Quando aplicar]
-- **Ação em Erro:** [O que fazer se falhar]
-- **Exceção:** BusinessRuleException
-
-### VAL002: [Nome da Validação]
-- **Descrição:** [Descrição completa]
-- **Condição:** [Quando aplicar]
-- **Ação em Erro:** [O que fazer se falhar]
-- **Exceção:** BusinessRuleException
-
-## Condições Especiais (COND*)
-
-### COND001: [Nome da Condição]
-- **Descrição:** [Descrição completa]
-- **Condição:** [Quando aplicar]
-- **Ação:** [O que fazer]
-
-### COND002: [Nome da Condição]
-- **Descrição:** [Descrição completa]
-- **Condição:** [Quando aplicar]
-- **Ação:** [O que fazer]
-
-## Regras de Processamento (REG*)
-
-### REG001: [Nome da Regra]
-- **Descrição:** [Descrição completa]
-- **Aplicação:** [Quando aplicar]
-- **Resultado:** [Resultado esperado]
-
-### REG002: [Nome da Regra]
-- **Descrição:** [Descrição completa]
-- **Aplicação:** [Quando aplicar]
-- **Resultado:** [Resultado esperado]
-""", encoding="utf-8")
-    
-    # tasks-template.md
-    (templates_dir / "tasks-template.md").write_text("""# Breakdown de Tarefas
-
-## Fase 1: Init
-
-### Task 1.1: [Nome da Tarefa]
-- **Descrição:** [Descrição]
-- **Arquivo:** T2CInitAllApplications.py
-- **Método:** execute()
-- **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
-
-### Task 1.2: [Nome da Tarefa]
-- **Descrição:** [Descrição]
-- **Arquivo:** T2CInitAllApplications.py
-- **Método:** add_to_queue()
-- **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
-
-## Fase 2: Process
-
-### Task 2.1: [Nome da Tarefa]
-- **Descrição:** [Descrição]
-- **Arquivo:** T2CProcess.py
-- **Método:** execute()
-- **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
-
-### Task 2.2: [Nome da Tarefa]
-- **Descrição:** [Descrição]
-- **Arquivo:** T2CProcess.py
-- **Método:** execute()
-- **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
-
-## Fase 3: End Process
-
-### Task 3.1: [Nome da Tarefa]
-- **Descrição:** [Descrição]
-- **Arquivo:** T2CCloseAllApplications.py
-- **Método:** execute()
-- **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
-""", encoding="utf-8")
+    # Copiar cada template do diretório interno
+    for template_file in template_files:
+        source_template = internal_templates_dir / template_file
+        dest_template = templates_dir / template_file
+        
+        if source_template.exists():
+            shutil.copy2(source_template, dest_template)
+        else:
+            # Fallback: criar arquivo vazio se template não existir
+            dest_template.write_text(f"# {template_file}\n\n[Template não encontrado]", encoding="utf-8")
 
 
 def _create_cursor_commands(project_path: Path):
@@ -331,8 +153,8 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 2. Extrai texto de todos os slides
 3. Apresenta o texto extraído para a LLM
 4. **A LLM preenche os arquivos de especificação** baseado no texto extraído:
-   - \`specs/001-[nome]/spec.md\` - Especificação completa
-   - \`specs/001-[nome]/plan.md\` - Plano técnico
+   - \`specs/001-[nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
+   - \`specs/001-[nome]/tests.md\` - Cenários de teste e validações
    - \`specs/001-[nome]/selectors.md\` - Seletores Clicknium
    - \`specs/001-[nome]/business-rules.md\` - Regras de negócio
 
@@ -343,8 +165,8 @@ Após extrair o texto do DDP, você deve:
 1. **Ler todo o texto extraído** dos slides do PPTX
 2. **Criar ou atualizar** os arquivos de especificação na pasta \`specs/001-[nome]/\`
 3. **Preencher** cada arquivo baseado no conteúdo do DDP:
-   - **spec.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
-   - **plan.md**: Definir stack tecnológica (T2C Framework, Clicknium, BotCity), arquitetura do robô, integrações
+   - **spec.md**: ARQUIVO PRINCIPAL - Definir arquitetura completa (INIT, FILA, LOOP STATION, END PROCESS), stack tecnológica, integrações, estrutura de dados
+   - **tests.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
    - **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
    - **business-rules.md**: Extrair validações (VAL*), condições especiais (COND*), regras de processamento (REG*)
 
@@ -361,7 +183,7 @@ Após extrair o texto do DDP, você deve:
     # t2c.tasks.md
     (commands_dir / "t2c.tasks.md").write_text("""# Gerar Tasks
 
-Gera o arquivo tasks.md baseado em spec.md, plan.md e business-rules.md.
+Gera o arquivo tasks.md baseado em spec.md e business-rules.md.
 
 ## Uso
 
@@ -377,7 +199,7 @@ Gera o arquivo tasks.md baseado em spec.md, plan.md e business-rules.md.
 
 ## O que faz
 
-1. Lê spec.md, plan.md e business-rules.md
+1. Lê spec.md e business-rules.md
 2. Analisa os requisitos e regras
 3. Gera breakdown de tarefas organizado por fases:
    - Init (T2CInitAllApplications)
@@ -415,8 +237,7 @@ Gera o framework T2C completo baseado nas especificações preenchidas.
 ## O que faz
 
 1. Valida se todos os arquivos necessários estão preenchidos:
-   - spec.md
-   - plan.md
+   - spec.md (ARQUIVO PRINCIPAL - arquitetura completa)
    - selectors.md
    - business-rules.md
    - tasks.md
@@ -470,8 +291,7 @@ Valida a estrutura e completude dos arquivos de especificação.
 ## O que faz
 
 1. Verifica se todos os arquivos necessários existem:
-   - spec.md
-   - plan.md
+   - spec.md (ARQUIVO PRINCIPAL)
    - selectors.md
    - business-rules.md
    - tasks.md
@@ -589,7 +409,7 @@ New-Item -ItemType Directory -Path (Join-Path $featureDir "DDP") -Force | Out-Nu
 # Copiar templates
 $templatesDir = Join-Path $projectRoot ".specify/templates"
 Copy-Item (Join-Path $templatesDir "spec-template.md") (Join-Path $featureDir "spec.md")
-Copy-Item (Join-Path $templatesDir "plan-template.md") (Join-Path $featureDir "plan.md")
+Copy-Item (Join-Path $templatesDir "tests-template.md") (Join-Path $featureDir "tests.md")
 Copy-Item (Join-Path $templatesDir "selectors-template.md") (Join-Path $featureDir "selectors.md")
 Copy-Item (Join-Path $templatesDir "business-rules-template.md") (Join-Path $featureDir "business-rules.md")
 Copy-Item (Join-Path $templatesDir "tasks-template.md") (Join-Path $featureDir "tasks.md")
@@ -706,7 +526,7 @@ mkdir -p "$FEATURE_DIR/DDP"
 # Copiar templates
 TEMPLATES_DIR="$PROJECT_ROOT/.specify/templates"
 cp "$TEMPLATES_DIR/spec-template.md" "$FEATURE_DIR/spec.md"
-cp "$TEMPLATES_DIR/plan-template.md" "$FEATURE_DIR/plan.md"
+cp "$TEMPLATES_DIR/tests-template.md" "$FEATURE_DIR/tests.md"
 cp "$TEMPLATES_DIR/selectors-template.md" "$FEATURE_DIR/selectors.md"
 cp "$TEMPLATES_DIR/business-rules-template.md" "$FEATURE_DIR/business-rules.md"
 cp "$TEMPLATES_DIR/tasks-template.md" "$FEATURE_DIR/tasks.md"
@@ -773,8 +593,8 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 │   └── scripts/       # Scripts de automação
 ├── specs/             # Especificações de automações
 │   └── 001-[nome]/    # Primeira automação
-│       ├── spec.md
-│       ├── plan.md
+│       ├── spec.md     # ARQUIVO PRINCIPAL - Arquitetura completa
+│       ├── tests.md    # Cenários de teste e validações
 │       ├── selectors.md
 │       ├── business-rules.md
 │       ├── tasks.md

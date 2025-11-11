@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich import box
+from rich.align import Align
 
 from rpa_speckit.commands.init import init_project
 
@@ -13,20 +14,86 @@ console = Console()
 
 
 def print_banner():
-    """Exibe o banner do T2C SpecKit"""
-    banner_text = Text()
-    banner_text.append("╔══════════════════════════════════════════════════════════╗\n", style="bold cyan")
-    banner_text.append("║                                                          ║\n", style="bold cyan")
-    banner_text.append("║", style="bold cyan")
-    banner_text.append("        T2C SpecKit - Spec-Driven Development Toolkit      ", style="bold white")
-    banner_text.append("║\n", style="bold cyan")
-    banner_text.append("║", style="bold cyan")
-    banner_text.append("              Framework T2C Integration                  ", style="bold yellow")
-    banner_text.append("║\n", style="bold cyan")
-    banner_text.append("║                                                          ║\n", style="bold cyan")
-    banner_text.append("╚══════════════════════════════════════════════════════════╝", style="bold cyan")
+    """Exibe o banner do T2C SpecKit com ASCII Art e degradê"""
     
-    console.print(banner_text)
+    # ASCII Art do T2C SpecKit (T2C em cima, SPECKIT embaixo)
+    ascii_art = """
+    ╔═══════════════════════════════════════════════════════════════════════╗
+    ║                                                                       ║
+    ║              ████████╗██████╗  ██████╗                                ║
+    ║              ╚══██╔══╝╚════██╗██╔════╝                                ║
+    ║                 ██║    █████╔╝██║                                     ║
+    ║                 ██║   ██╔══██╗██║                                     ║
+    ║                 ██║   ██████╔╝╚██████╗                                ║
+    ║                 ╚═╝   ╚═════╝  ╚═════╝                                ║
+    ║                                                                       ║
+    ║         ███████╗██████╗ ███████╗ ██████╗██╗  ██╗██╗████████╗          ║
+    ║         ██╔════╝██╔══██╗██╔════╝██╔════╝██║ ██╔╝██║╚══██╔══╝          ║
+    ║         ███████╗██████╔╝█████╗  ██║     █████╔╝ ██║   ██║             ║
+    ║         ╚════██║██╔═══╝ ██╔══╝  ██║     ██╔═██╗ ██║   ██║             ║
+    ║         ███████║██║     ███████╗╚██████╗██║  ██╗██║   ██║             ║
+    ║         ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝   ╚═╝             ║
+    ║                                                                       ║
+    ║         ════════════════════════════════════════════════════          ║
+    ║           Spec-Driven Development Toolkit for RPA                     ║
+    ║           Framework T2C SPECKIT v0.1.0                                ║
+    ║         ════════════════════════════════════════════════════          ║
+    ║                                                                       ║
+    ╚═══════════════════════════════════════════════════════════════════════╝
+    """
+    
+    # Criar texto com degradê de cores suave
+    lines = ascii_art.strip().split('\n')
+    banner_text = Text()
+    
+    # Paleta de cores para degradê suave (cyan -> blue -> purple -> cyan)
+    color_palette = [
+        "bright_cyan", "cyan", "bright_blue", "blue",
+        "bright_magenta", "magenta", "bright_blue", "cyan",
+        "bright_cyan", "cyan", "bright_blue", "blue"
+    ]
+    
+    for i, line in enumerate(lines):
+        # Calcular índice de cor baseado na posição (degradê suave)
+        color_index = int((i / len(lines)) * len(color_palette))
+        color_index = min(color_index, len(color_palette) - 1)
+        color = color_palette[color_index]
+        
+        # Aplicar estilos especiais
+        if i == 0 or i == len(lines) - 1:
+            # Bordas superiores e inferiores
+            banner_text.append(line + "\n", style=f"bold {color}")
+        elif "═══" in line:
+            # Linhas decorativas
+            banner_text.append(line + "\n", style=f"bold bright_{color}")
+        elif any(keyword in line for keyword in ["T2C", "SpecKit", "Spec-Driven", "Framework", "Toolkit", "Integration"]):
+            # Textos importantes
+            banner_text.append(line + "\n", style=f"bold bright_{color}")
+        else:
+            # Linhas normais
+            banner_text.append(line + "\n", style=color)
+    
+    # Criar painel com borda decorativa
+    panel = Panel(
+        banner_text,
+        border_style="bright_cyan",
+        box=box.DOUBLE_EDGE,
+        padding=(1, 1),
+    )
+    
+    console.print()
+    console.print(Align.center(panel))
+    console.print()
+    
+    # Mensagem de boas-vindas com estilo e emoji
+    welcome = Text()
+    welcome.append("🚀 ", style="bold yellow")
+    welcome.append("Bem-vindo ao ", style="bright_white")
+    welcome.append("T2C SpecKit", style="bold bright_cyan")
+    welcome.append(" - Crie automações RPA de forma estruturada e eficiente! ", style="bright_white")
+    welcome.append("✨", style="bold yellow")
+    
+    console.print(Align.center(welcome))
     console.print()
 
 
