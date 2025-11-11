@@ -60,6 +60,27 @@ Liste todos os sistemas/aplicações que precisam ser iniciados:
 
 ## FILA: Preenchimento da Fila (T2CInitAllApplications.add_to_queue)
 
+### ⚠️ PRINCÍPIO FUNDAMENTAL: Fila como Fonte Única de Dados
+
+**REGRA ABSOLUTA:** Tudo que o robô precisa para processar um item no LOOP STATION deve estar no item da fila.
+
+**O que isso significa:**
+- Se o robô precisa ler um Excel para realizar o processo, ele deve:
+  1. **Na FILA:** Ler o Excel, fazer conciliações, validações e processamentos necessários
+  2. **Na FILA:** Criar itens na fila com TODOS os dados necessários para processamento
+  3. **No LOOP STATION:** Usar APENAS os dados do item da fila - o Excel não é mais consultado
+
+**Exceções (o que NÃO vai na fila):**
+- Credenciais de login (vão em Config.xlsx)
+- Configurações gerais do sistema (vão em Config.xlsx)
+- Informações de ambiente/infraestrutura
+
+**Por que isso é importante:**
+- Garante que cada item da fila seja independente e processável isoladamente
+- Facilita retentativas (não precisa re-ler o Excel)
+- Permite rastreabilidade completa (tudo está na fila)
+- Simplifica o código do LOOP STATION (sempre consulta a mesma fonte)
+
 ### Estrutura do Item da Fila
 
 **Referência (identificador único):**
@@ -69,12 +90,15 @@ Liste todos os sistemas/aplicações que precisam ser iniciados:
 
 **Info Adicionais (dados do item):**
 - Tipo: `dict` (JSON)
+- **IMPORTANTE:** Deve conter TODOS os dados necessários para processar o item no LOOP STATION
 - Estrutura:
 ```json
 {
   "campo1": "valor1",
   "campo2": "valor2",
-  "campo3": 123
+  "campo3": 123,
+  "dados_conciliados": {...},
+  "valores_calculados": {...}
 }
 ```
 
@@ -82,8 +106,9 @@ Liste todos os sistemas/aplicações que precisam ser iniciados:
 
 **IMPORTANTE:** A lógica de preenchimento da fila deve ser **SIMPLE e DIRETA**:
 - Normalmente é apenas uma leitura (Excel, CSV, API, Banco de Dados)
-- Sem muitas funções ou lógica complexa
-- Se precisar de lógica complexa, considere criar um robô separado (conceito de **Dispatcher** e **Performer**)
+- **Mas pode incluir:** Conciliações, validações, cálculos, enriquecimento de dados
+- **O objetivo:** Criar itens na fila com TODOS os dados necessários para o LOOP STATION
+- Se precisar de lógica muito complexa, considere criar um robô separado (conceito de **Dispatcher** e **Performer**)
 
 **Exemplos de fontes de dados:**
 - [ ] Arquivo Excel/CSV
@@ -105,6 +130,42 @@ Liste todos os sistemas/aplicações que precisam ser iniciados:
 ## LOOP STATION: Processamento Principal (T2CProcess.execute)
 
 **Este é o coração do robô.** Aqui deve estar TODO o código principal que processa cada item da fila.
+
+### ⚠️ PRINCÍPIO FUNDAMENTAL: Item da Fila como Fonte de Dados
+
+**REGRA ABSOLUTA:** No LOOP STATION, o robô deve usar **APENAS** as informações do item da fila para processar.
+
+**O que isso significa:**
+- **Base de consulta é sempre o item da fila:** `var_dictItem['info_adicionais']`
+- Pode buscar informações em outros lugares (sistemas, APIs, etc.), mas a **base** sempre é a fila
+- **NÃO deve ler Excel/CSV/arquivos externos** durante o LOOP STATION - isso já foi feito na FILA
+- **NÃO deve fazer conciliações complexas** - isso já foi feito na FILA
+- Tudo que precisa para processar o item deve estar em `info_adicionais`
+
+**Exemplo correto:**
+```python
+# ✅ CORRETO: Usar dados da fila
+var_dictItem = GetTransaction.var_dictQueueItem
+var_strReferencia = var_dictItem['referencia']
+var_dictInfo = var_dictItem['info_adicionais']
+
+# Usar dados do item
+cnpj = var_dictInfo['cnpj']
+valor = var_dictInfo['valor']
+empresa = var_dictInfo['empresa']
+```
+
+**Exemplo incorreto:**
+```python
+# ❌ INCORRETO: Ler Excel durante o LOOP STATION
+df = pd.read_excel('dados.xlsx')  # NÃO FAZER ISSO!
+row = df[df['id'] == var_strReferencia]
+```
+
+**Se precisar de dados adicionais:**
+- Busque em sistemas/APIs usando a referência do item da fila
+- Mas sempre parta do item da fila como base
+- Se os dados são necessários para TODOS os itens, considere enriquecer a fila antes do LOOP STATION
 
 ### Etapas de Execução
 
