@@ -37,16 +37,22 @@ uvx --from git+https://github.com/PROJETOS-IA-T2C/T2C_SpecKit.git t2c init meu-p
 O comando irá:
 - Criar estrutura completa do projeto
 - Configurar templates e constitution do framework T2C
-- Criar comandos Cursor/VS Code conforme escolha
+- Criar comandos Cursor/VS Code conforme escolha (Cursor, VS Code + GitHub Copilot, ou VS Code + Claude)
 - Configurar scripts de automação
 
 ### 2. Extrair DDP
 
 Coloque o arquivo `DDP.pptx` em `specs/001-[nome]/DDP/` e execute:
 
+**No Cursor:**
 ```
 /t2c.extract-ddp specs/001-[nome]/DDP/ddp.pptx
 ```
+
+**No VS Code + GitHub Copilot:**
+- Mencione ao Copilot: "Execute t2c.extract-ddp" ou "Extrair DDP usando t2c.extract-ddp"
+- Ou use a task: `Ctrl+Shift+P` > "Tasks: Run Task" > "T2C: Extract DDP"
+- Ou execute diretamente: `python .specify/scripts/extract-ddp.py`
 
 O comando irá:
 - Extrair informações do PPTX
@@ -64,17 +70,25 @@ Revise e complete manualmente os arquivos gerados:
 
 ### 4. Gerar Tasks (Opcional)
 
+**No Cursor:**
 ```
 /t2c.tasks specs/001-[nome]
 ```
+
+**No VS Code + GitHub Copilot:**
+- Mencione ao Copilot: "Execute t2c.tasks para specs/001-[nome]"
 
 Gera `tasks.md` baseado nas outras especificações.
 
 ### 5. Implementar Framework
 
+**No Cursor:**
 ```
 /t2c.implement specs/001-[nome]
 ```
+
+**No VS Code + GitHub Copilot:**
+- Mencione ao Copilot: "Execute t2c.implement para specs/001-[nome]"
 
 O comando irá:
 - Validar todas as specs
@@ -96,6 +110,15 @@ meu-projeto/
 │       ├── t2c.tasks.md
 │       ├── t2c.implement.md
 │       └── t2c.validate.md
+├── .vscode/              # Configurações VS Code (se escolhido)
+│   ├── commands/         # Comandos para GitHub Copilot
+│   │   ├── t2c.extract-ddp.md
+│   │   ├── t2c.tasks.md
+│   │   ├── t2c.implement.md
+│   │   └── t2c.validate.md
+│   ├── tasks.json        # Tasks para executar scripts
+│   ├── settings.json     # Configurações do VS Code
+│   └── README.md         # Como usar os comandos
 ├── specs/                 # Especificações de automações
 │   └── 001-[nome]/
 │       ├── spec.md     # ARQUIVO PRINCIPAL
@@ -110,20 +133,43 @@ meu-projeto/
 
 ## 🔧 Comandos Disponíveis
 
-### Cursor/VS Code
+### Cursor
 
+No Cursor, use os comandos slash diretamente:
 - `/t2c.extract-ddp [caminho]` - Extrai informações de DDP.pptx
 - `/t2c.tasks [caminho]` - Gera tasks.md
 - `/t2c.implement [caminho]` - Gera framework T2C completo
 - `/t2c.validate [caminho]` - Valida estrutura e completude
 
+### VS Code + GitHub Copilot
+
+No VS Code com GitHub Copilot, você pode:
+
+1. **Mencionar ao Copilot**: "Execute o comando t2c.extract-ddp" ou "Use t2c.extract-ddp para extrair o DDP"
+2. **Usar Tasks do VS Code**: `Ctrl+Shift+P` > "Tasks: Run Task" > "T2C: Extract DDP"
+3. **Executar diretamente**: `python .specify/scripts/extract-ddp.py`
+
+Comandos disponíveis:
+- `t2c.extract-ddp` - Extrai informações de DDP.pptx
+- `t2c.tasks` - Gera tasks.md
+- `t2c.implement` - Gera framework T2C completo
+- `t2c.validate` - Valida estrutura e completude
+
+Consulte `.vscode/README.md` para mais detalhes sobre como usar os comandos com GitHub Copilot.
+
 ## 🎯 Fluxo de Trabalho Completo
 
 1. **Inicialização**: `t2c init meu-projeto` ou via uvx
-2. **Extrair DDP**: Coloque DDP.pptx e execute `/t2c.extract-ddp`
+2. **Extrair DDP**: Coloque DDP.pptx e execute o comando apropriado:
+   - **Cursor**: `/t2c.extract-ddp`
+   - **VS Code + Copilot**: "Execute t2c.extract-ddp" ou use a task do VS Code
 3. **Completar Specs**: Revise e complete os arquivos .md
-4. **Gerar Tasks** (Opcional): Execute `/t2c.tasks`
-5. **Implementar**: Execute `/t2c.implement` para gerar framework
+4. **Gerar Tasks** (Opcional): Execute o comando apropriado:
+   - **Cursor**: `/t2c.tasks`
+   - **VS Code + Copilot**: "Execute t2c.tasks"
+5. **Implementar**: Execute o comando apropriado para gerar framework:
+   - **Cursor**: `/t2c.implement`
+   - **VS Code + Copilot**: "Execute t2c.implement"
 6. **Testar**: Teste o framework gerado em `generated/`
 
 ## 🏗️ Framework T2C
