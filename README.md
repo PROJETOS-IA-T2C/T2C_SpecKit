@@ -50,7 +50,7 @@ Coloque o arquivo `DDP.pptx` em `specs/001-[nome]/DDP/` e execute:
 ```
 
 **No VS Code + GitHub Copilot:**
-- Mencione ao Copilot: "Execute t2c.extract-ddp" ou "Extrair DDP usando t2c.extract-ddp"
+- Use slash command: `/t2c.extract-ddp` ou `/t2c.extract-ddp specs/001-[nome]/DDP/ddp.pptx` (igual ao Cursor!)
 - Ou use a task: `Ctrl+Shift+P` > "Tasks: Run Task" > "T2C: Extract DDP"
 - Ou execute diretamente: `python .specify/scripts/extract-ddp.py`
 
@@ -76,7 +76,7 @@ Revise e complete manualmente os arquivos gerados:
 ```
 
 **No VS Code + GitHub Copilot:**
-- Mencione ao Copilot: "Execute t2c.tasks para specs/001-[nome]"
+- Use slash command: `/t2c.tasks specs/001-[nome]` (igual ao Cursor!)
 
 Gera `tasks.md` baseado nas outras especificações.
 
@@ -88,7 +88,7 @@ Gera `tasks.md` baseado nas outras especificações.
 ```
 
 **No VS Code + GitHub Copilot:**
-- Mencione ao Copilot: "Execute t2c.implement para specs/001-[nome]"
+- Use slash command: `/t2c.implement specs/001-[nome]` (igual ao Cursor!)
 
 O comando irá:
 - Validar todas as specs
@@ -111,7 +111,7 @@ meu-projeto/
 │       ├── t2c.implement.md
 │       └── t2c.validate.md
 ├── .vscode/              # Configurações VS Code (se escolhido)
-│   ├── commands/         # Comandos para GitHub Copilot
+│   ├── commands/         # Comandos slash para GitHub Copilot (igual ao Cursor)
 │   │   ├── t2c.extract-ddp.md
 │   │   ├── t2c.tasks.md
 │   │   ├── t2c.implement.md
@@ -119,6 +119,8 @@ meu-projeto/
 │   ├── tasks.json        # Tasks para executar scripts
 │   ├── settings.json     # Configurações do VS Code
 │   └── README.md         # Como usar os comandos
+├── .github/              # Instruções do Copilot (se VS Code escolhido)
+│   └── copilot-instructions.md  # Instruções para slash commands
 ├── specs/                 # Especificações de automações
 │   └── 001-[nome]/
 │       ├── spec.md     # ARQUIVO PRINCIPAL
@@ -143,17 +145,18 @@ No Cursor, use os comandos slash diretamente:
 
 ### VS Code + GitHub Copilot
 
-No VS Code com GitHub Copilot, você pode:
+No VS Code com GitHub Copilot, use os slash commands **EXATAMENTE como no Cursor**:
 
-1. **Mencionar ao Copilot**: "Execute o comando t2c.extract-ddp" ou "Use t2c.extract-ddp para extrair o DDP"
-2. **Usar Tasks do VS Code**: `Ctrl+Shift+P` > "Tasks: Run Task" > "T2C: Extract DDP"
-3. **Executar diretamente**: `python .specify/scripts/extract-ddp.py`
+- `/t2c.extract-ddp [caminho]` - Extrai informações de DDP.pptx
+- `/t2c.tasks [caminho]` - Gera tasks.md
+- `/t2c.implement [caminho]` - Gera framework T2C completo
+- `/t2c.validate [caminho]` - Valida estrutura e completude
 
-Comandos disponíveis:
-- `t2c.extract-ddp` - Extrai informações de DDP.pptx
-- `t2c.tasks` - Gera tasks.md
-- `t2c.implement` - Gera framework T2C completo
-- `t2c.validate` - Valida estrutura e completude
+**Experiência idêntica ao Cursor!** O Copilot reconhece os slash commands e lê automaticamente os arquivos em `.vscode/commands/`.
+
+Alternativas:
+- **Tasks do VS Code**: `Ctrl+Shift+P` > "Tasks: Run Task" > "T2C: Extract DDP"
+- **Executar diretamente**: `python .specify/scripts/extract-ddp.py`
 
 Consulte `.vscode/README.md` para mais detalhes sobre como usar os comandos com GitHub Copilot.
 
@@ -162,14 +165,14 @@ Consulte `.vscode/README.md` para mais detalhes sobre como usar os comandos com 
 1. **Inicialização**: `t2c init meu-projeto` ou via uvx
 2. **Extrair DDP**: Coloque DDP.pptx e execute o comando apropriado:
    - **Cursor**: `/t2c.extract-ddp`
-   - **VS Code + Copilot**: "Execute t2c.extract-ddp" ou use a task do VS Code
+   - **VS Code + Copilot**: `/t2c.extract-ddp` (mesmo comando slash!)
 3. **Completar Specs**: Revise e complete os arquivos .md
 4. **Gerar Tasks** (Opcional): Execute o comando apropriado:
    - **Cursor**: `/t2c.tasks`
-   - **VS Code + Copilot**: "Execute t2c.tasks"
+   - **VS Code + Copilot**: `/t2c.tasks` (mesmo comando slash!)
 5. **Implementar**: Execute o comando apropriado para gerar framework:
    - **Cursor**: `/t2c.implement`
-   - **VS Code + Copilot**: "Execute t2c.implement"
+   - **VS Code + Copilot**: `/t2c.implement` (mesmo comando slash!)
 6. **Testar**: Teste o framework gerado em `generated/`
 
 ## 🏗️ Framework T2C

@@ -314,12 +314,10 @@ python-pptx>=0.6.21
     (project_path / "requirements.txt").write_text(requirements_content, encoding="utf-8")
 
 
-def _create_cursor_commands(project_path: Path):
-    """Cria comandos Cursor"""
-    commands_dir = project_path / ".cursor/commands"
-    
-    # t2c.extract-ddp.md
-    (commands_dir / "t2c.extract-ddp.md").write_text("""# Extrair DDP
+def _get_command_content(command_name: str) -> str:
+    """Retorna o conteúdo completo de um comando (reutilizável para Cursor e VS Code)"""
+    commands = {
+        "t2c.extract-ddp": """# Extrair DDP
 
 Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa preencher os arquivos de especificação.
 
@@ -391,11 +389,8 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 - Você apenas precisa EXECUTÁ-LO, não criá-lo
 - Use os templates em \`.specify/templates/\` como referência para a estrutura
 - Mantenha a numeração das regras (VAL001, VAL002, etc.) e tarefas (Task 1.1, Task 2.1, etc.)
-- Se os arquivos já existirem, atualize-os com as novas informações do DDP
-""", encoding="utf-8")
-    
-    # t2c.tasks.md
-    (commands_dir / "t2c.tasks.md").write_text("""# Gerar Tasks
+- Se os arquivos já existirem, atualize-os com as novas informações do DDP""",
+        "t2c.tasks": """# Gerar Tasks
 
 Gera o arquivo tasks.md baseado em spec.md e business-rules.md.
 
@@ -428,11 +423,8 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md.
 ## Notas
 
 - Este comando é opcional - o desenvolvedor pode criar tasks.md manualmente
-- As tarefas geradas devem ser revisadas e ajustadas conforme necessário
-""", encoding="utf-8")
-    
-    # t2c.implement.md
-    (commands_dir / "t2c.implement.md").write_text("""# Implementar Framework T2C
+- As tarefas geradas devem ser revisadas e ajustadas conforme necessário""",
+        "t2c.implement": """# Implementar Framework T2C
 
 Gera o framework T2C completo baseado nas especificações preenchidas.
 
@@ -482,11 +474,8 @@ Estrutura completa do framework T2C em \`generated/[nome-automacao]/\`
 
 - O framework é gerado do zero a cada execução
 - Arquivos customizados são gerados baseados nas specs
-- Arquivos do framework base são copiados (não modificados)
-""", encoding="utf-8")
-    
-    # t2c.validate.md
-    (commands_dir / "t2c.validate.md").write_text("""# Validar Especificações
+- Arquivos do framework base são copiados (não modificados)""",
+        "t2c.validate": """# Validar Especificações
 
 Valida a estrutura e completude dos arquivos de especificação.
 
@@ -525,8 +514,19 @@ Relatório indicando:
 ## Notas
 
 - Execute antes de /t2c.implement para garantir que tudo está pronto
-- Corrija os problemas indicados antes de prosseguir
-""", encoding="utf-8")
+- Corrija os problemas indicados antes de prosseguir"""
+    }
+    return commands.get(command_name, "")
+
+
+def _create_cursor_commands(project_path: Path):
+    """Cria comandos Cursor"""
+    commands_dir = project_path / ".cursor/commands"
+    
+    # Usar a mesma função para garantir conteúdo idêntico
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+        content = _get_command_content(cmd_name)
+        (commands_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
 
 
 def _create_vscode_config(project_path: Path, ai_assistant: str):
@@ -534,6 +534,10 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
     vscode_dir = project_path / ".vscode"
     commands_dir = vscode_dir / "commands"
     commands_dir.mkdir(exist_ok=True)
+    
+    # Criar diretório .github para copilot-instructions
+    github_dir = project_path / ".github"
+    github_dir.mkdir(exist_ok=True)
     
     # Criar settings.json
     settings = {
@@ -556,8 +560,11 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
         encoding="utf-8"
     )
     
-    # Criar comandos markdown (para o Copilot ler)
+    # Criar comandos markdown (EXATAMENTE como no Cursor, com slash commands)
     _create_vscode_commands(commands_dir)
+    
+    # Criar arquivo de instruções do Copilot
+    _create_copilot_instructions(github_dir, commands_dir)
     
     # Criar tasks.json (para executar scripts)
     _create_vscode_tasks(vscode_dir)
@@ -567,223 +574,81 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
 
 
 def _create_vscode_commands(commands_dir: Path):
-    """Cria arquivos markdown de comandos para o GitHub Copilot ler"""
+    """Cria arquivos markdown de comandos EXATAMENTE como no Cursor (com slash commands)"""
     
-    # t2c.extract-ddp.md
-    (commands_dir / "t2c.extract-ddp.md").write_text("""# Extrair DDP
+    # Usar a mesma função para garantir conteúdo idêntico
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+        content = _get_command_content(cmd_name)
+        (commands_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
 
-Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa preencher os arquivos de especificação.
 
-## Uso
+def _create_copilot_instructions(github_dir: Path, commands_dir: Path):
+    """Cria arquivo de instruções do Copilot para suportar slash commands"""
+    instructions_content = """# GitHub Copilot Instructions - T2C Commands
 
-Mencione este comando ao GitHub Copilot:
-- "Execute o comando t2c.extract-ddp"
-- "Extrair DDP usando t2c.extract-ddp"
-- "Use t2c.extract-ddp para extrair o DDP"
+Este projeto usa comandos slash customizados (similar ao Cursor) que devem ser reconhecidos pelo GitHub Copilot Chat.
 
-Ou execute a task do VS Code: `Ctrl+Shift+P` > "Tasks: Run Task" > "T2C: Extract DDP"
+## Comandos Disponíveis
 
-## Exemplo
+Quando o usuário digitar um comando slash no chat do Copilot, você deve:
+
+1. **Reconhecer o comando**: Se o usuário digitar `/t2c.extract-ddp`, `/t2c.tasks`, `/t2c.implement`, ou `/t2c.validate`
+2. **Ler o arquivo correspondente**: Consulte `.vscode/commands/[nome-do-comando].md` para entender o que fazer
+3. **Executar as instruções**: Siga EXATAMENTE as instruções do arquivo markdown
+
+## Comandos Slash Customizados
+
+### `/t2c.extract-ddp [caminho]`
+- **Arquivo de referência**: `.vscode/commands/t2c.extract-ddp.md`
+- **Função**: Extrai texto de arquivos DDP.pptx
+- **Uso**: `/t2c.extract-ddp` ou `/t2c.extract-ddp specs/001-exemplo/DDP/ddp.pptx`
+
+### `/t2c.tasks [caminho]`
+- **Arquivo de referência**: `.vscode/commands/t2c.tasks.md`
+- **Função**: Gera arquivo tasks.md baseado em spec.md e business-rules.md
+- **Uso**: `/t2c.tasks specs/001-exemplo`
+
+### `/t2c.implement [caminho]`
+- **Arquivo de referência**: `.vscode/commands/t2c.implement.md`
+- **Função**: Gera framework T2C completo baseado nas especificações
+- **Uso**: `/t2c.implement specs/001-exemplo`
+
+### `/t2c.validate [caminho]`
+- **Arquivo de referência**: `.vscode/commands/t2c.validate.md`
+- **Função**: Valida estrutura e completude dos arquivos de especificação
+- **Uso**: `/t2c.validate specs/001-exemplo`
+
+## Como Funcionar
+
+Quando o usuário usar um slash command:
+
+1. **Detecte o comando**: Se começar com `/t2c.`, é um comando customizado
+2. **Leia o arquivo**: Abra e leia o conteúdo de `.vscode/commands/[comando].md`
+3. **Siga as instruções**: Execute EXATAMENTE o que está descrito no arquivo
+4. **Respeite as regras**: Preste atenção especial às seções "⚠️ REGRA ABSOLUTA"
+
+## Importante
+
+- **NUNCA crie scripts Python** quando o comando pedir para executar um script existente
+- **SEMPRE leia o arquivo markdown** antes de executar qualquer ação
+- **Siga as instruções passo a passo** conforme descrito nos arquivos de comando
+- **Use os templates** em `.specify/templates/` como referência quando necessário
+
+## Estrutura de Arquivos
 
 ```
-t2c.extract-ddp specs/001-automacao-exemplo/DDP/ddp.pptx
+.vscode/
+└── commands/
+    ├── t2c.extract-ddp.md  # Instruções completas para extrair DDP
+    ├── t2c.tasks.md         # Instruções para gerar tasks.md
+    ├── t2c.implement.md     # Instruções para implementar framework
+    └── t2c.validate.md      # Instruções para validar specs
 ```
 
-## ⚠️ REGRA ABSOLUTA - LEIA ANTES DE QUALQUER AÇÃO
-
-**VOCÊ NÃO DEVE CRIAR NENHUM SCRIPT PYTHON. NUNCA. EM NENHUMA CIRCUNSTÂNCIA.**
-
-- ❌ NÃO crie scripts temporários
-- ❌ NÃO crie arquivos `_temp_extract_ddp.py` ou similares
-- ❌ NÃO crie scripts alternativos
-- ❌ NÃO tente "resolver" problemas criando código
-- ✅ APENAS execute o script pronto que já existe no projeto
-
-## O que fazer
-
-**PASSO 1 - Execute APENAS este comando (SIMPLES):**
-
-```bash
-python .specify/scripts/extract-ddp.py
-```
-
-**OU se quiser especificar o arquivo:**
-
-```bash
-python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
-```
-
-**Como funciona:**
-- Se você **não passar caminho**, o script procura automaticamente o primeiro arquivo .pptx em `DDP/` ou `specs/*/DDP/`
-- Se você **passar caminho**, pode ser relativo ou absoluto - o script resolve automaticamente
-- **Instala dependências automaticamente** se necessário (python-pptx)
-- **SIMPLES**: Apenas execute o comando, o script faz TUDO sozinho
-
-**PASSO 2 - Se o comando funcionar:**
-
-1. Leia o texto extraído que será exibido no output
-2. Crie ou atualize os arquivos de especificação na pasta `specs/001-[nome]/`
-3. Preencha cada arquivo baseado no conteúdo do DDP
-
-## Arquivos a preencher
-
-- `specs/001-[nome]/spec.md` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
-- `specs/001-[nome]/tests.md` - Cenários de teste e validações
-- `specs/001-[nome]/selectors.md` - Seletores Clicknium
-- `specs/001-[nome]/business-rules.md` - Regras de negócio
-
-## Detalhes dos arquivos
-
-- **spec.md**: ARQUIVO PRINCIPAL - Definir arquitetura completa (INIT, FILA, LOOP STATION, END PROCESS), stack tecnológica, integrações, estrutura de dados
-- **tests.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
-- **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
-- **business-rules.md**: Extrair validações (VAL*), condições especiais (COND*), regras de processamento (REG*)
-
-## Lembre-se
-
-- O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto
-- Você apenas precisa EXECUTÁ-LO, não criá-lo
-- Use os templates em `.specify/templates/` como referência para a estrutura
-- Mantenha a numeração das regras (VAL001, VAL002, etc.) e tarefas (Task 1.1, Task 2.1, etc.)
-- Se os arquivos já existirem, atualize-os com as novas informações do DDP
-""", encoding="utf-8")
+Cada arquivo contém instruções detalhadas sobre como executar o comando correspondente.
+"""
     
-    # t2c.tasks.md
-    (commands_dir / "t2c.tasks.md").write_text("""# Gerar Tasks
-
-Gera o arquivo tasks.md baseado em spec.md e business-rules.md.
-
-## Uso
-
-Mencione este comando ao GitHub Copilot:
-- "Execute o comando t2c.tasks"
-- "Gerar tasks usando t2c.tasks"
-- "Use t2c.tasks para gerar o arquivo de tasks"
-
-## Exemplo
-
-```
-t2c.tasks specs/001-automacao-exemplo
-```
-
-## O que faz
-
-1. Lê spec.md e business-rules.md
-2. Analisa os requisitos e regras
-3. Gera breakdown de tarefas organizado por fases:
-   - Init (T2CInitAllApplications)
-   - Process (T2CProcess)
-   - End Process (T2CCloseAllApplications)
-4. Cria tasks.md com todas as tarefas identificadas
-
-## Arquivo Gerado
-
-- `specs/001-[nome]/tasks.md`
-
-## Notas
-
-- Este comando é opcional - o desenvolvedor pode criar tasks.md manualmente
-- As tarefas geradas devem ser revisadas e ajustadas conforme necessário
-""", encoding="utf-8")
-    
-    # t2c.implement.md
-    (commands_dir / "t2c.implement.md").write_text("""# Implementar Framework T2C
-
-Gera o framework T2C completo baseado nas especificações preenchidas.
-
-## Uso
-
-Mencione este comando ao GitHub Copilot:
-- "Execute o comando t2c.implement"
-- "Implementar framework usando t2c.implement"
-- "Use t2c.implement para gerar o framework T2C"
-
-## Exemplo
-
-```
-t2c.implement specs/001-automacao-exemplo
-```
-
-## O que faz
-
-1. Valida se todos os arquivos necessários estão preenchidos:
-   - spec.md (ARQUIVO PRINCIPAL - arquitetura completa)
-   - selectors.md
-   - business-rules.md
-   - tasks.md
-   - config/*.md
-2. Baixa o framework T2C do GitHub (organização privada)
-3. Gera estrutura completa em `generated/[nome-automacao]/`
-4. Copia arquivos do framework base
-5. Gera arquivos customizados:
-   - bot.py
-   - T2CProcess.py
-   - T2CInitAllApplications.py
-   - T2CCloseAllApplications.py
-   - Config.xlsx
-6. Substitui variáveis de template
-7. Gera requirements.txt, setup.py, README.md
-
-## Arquivos Gerados
-
-Estrutura completa do framework T2C em `generated/[nome-automacao]/`
-
-## Pré-requisitos
-
-- Acesso ao repositório privado do framework T2C
-- Git configurado
-- Python 3.8+ instalado
-
-## Notas
-
-- O framework é gerado do zero a cada execução
-- Arquivos customizados são gerados baseados nas specs
-- Arquivos do framework base são copiados (não modificados)
-""", encoding="utf-8")
-    
-    # t2c.validate.md
-    (commands_dir / "t2c.validate.md").write_text("""# Validar Especificações
-
-Valida a estrutura e completude dos arquivos de especificação.
-
-## Uso
-
-Mencione este comando ao GitHub Copilot:
-- "Execute o comando t2c.validate"
-- "Validar specs usando t2c.validate"
-- "Use t2c.validate para validar as especificações"
-
-## Exemplo
-
-```
-t2c.validate specs/001-automacao-exemplo
-```
-
-## O que faz
-
-1. Verifica se todos os arquivos necessários existem:
-   - spec.md (ARQUIVO PRINCIPAL)
-   - selectors.md
-   - business-rules.md
-   - tasks.md
-   - config/*.md
-2. Valida estrutura dos arquivos
-3. Verifica se campos obrigatórios estão preenchidos
-4. Gera relatório de validação
-
-## Saída
-
-Relatório indicando:
-- ✓ Arquivos presentes
-- ✓ Campos preenchidos
-- ✗ Arquivos faltando
-- ✗ Campos obrigatórios vazios
-
-## Notas
-
-- Execute antes de t2c.implement para garantir que tudo está pronto
-- Corrija os problemas indicados antes de prosseguir
-""", encoding="utf-8")
+    (github_dir / "copilot-instructions.md").write_text(instructions_content, encoding="utf-8")
 
 
 def _create_vscode_tasks(vscode_dir: Path):
@@ -852,18 +717,29 @@ Este diretório contém os comandos T2C disponíveis para uso com GitHub Copilot
 
 ## Como Usar
 
-### Método 1: Mencionar ao GitHub Copilot
+### Método 1: Slash Commands (Igual ao Cursor) ⭐
 
-Abra o chat do GitHub Copilot e mencione o comando desejado:
+No chat do GitHub Copilot, use os slash commands diretamente:
+
+- **Extrair DDP**: `/t2c.extract-ddp` ou `/t2c.extract-ddp specs/001-exemplo/DDP/ddp.pptx`
+- **Gerar Tasks**: `/t2c.tasks specs/001-exemplo`
+- **Implementar Framework**: `/t2c.implement specs/001-exemplo`
+- **Validar Specs**: `/t2c.validate specs/001-exemplo`
+
+O Copilot reconhecerá os slash commands e lerá automaticamente os arquivos em `.vscode/commands/` para entender o que fazer.
+
+**Nota**: O arquivo `.github/copilot-instructions.md` contém instruções para o Copilot sobre como processar esses comandos.
+
+### Método 2: Mencionar ao GitHub Copilot
+
+Você também pode mencionar o comando diretamente:
 
 - **Extrair DDP**: "Execute o comando t2c.extract-ddp" ou "Extrair DDP usando t2c.extract-ddp"
 - **Gerar Tasks**: "Execute o comando t2c.tasks" ou "Gerar tasks usando t2c.tasks"
 - **Implementar Framework**: "Execute o comando t2c.implement" ou "Implementar framework usando t2c.implement"
 - **Validar Specs**: "Execute o comando t2c.validate" ou "Validar specs usando t2c.validate"
 
-O Copilot lerá os arquivos em `.vscode/commands/` para entender o que fazer.
-
-### Método 2: Usar Tasks do VS Code
+### Método 3: Usar Tasks do VS Code
 
 1. Pressione `Ctrl+Shift+P` (ou `Cmd+Shift+P` no Mac)
 2. Digite "Tasks: Run Task"
@@ -871,7 +747,7 @@ O Copilot lerá os arquivos em `.vscode/commands/` para entender o que fazer.
    - **T2C: Extract DDP** - Extrai DDP automaticamente
    - **T2C: Extract DDP (with file)** - Extrai DDP de um arquivo específico
 
-### Método 3: Executar Scripts Diretamente
+### Método 4: Executar Scripts Diretamente
 
 Você também pode executar os scripts diretamente no terminal:
 
