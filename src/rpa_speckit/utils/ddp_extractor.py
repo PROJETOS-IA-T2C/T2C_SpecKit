@@ -42,3 +42,28 @@ def extract_ddp(pptx_path: str) -> str:
         formatted_text += "\n\n---\n\n"
     
     return formatted_text
+
+
+def main():
+    """CLI para extração de DDP"""
+    import sys
+    
+    if len(sys.argv) < 2:
+        print("Uso: python -m rpa_speckit.utils.ddp_extractor <caminho_do_ddp>", file=sys.stderr)
+        sys.exit(1)
+    
+    ddp_path = sys.argv[1]
+    
+    try:
+        extracted_text = extract_ddp(ddp_path)
+        print(extracted_text)
+    except FileNotFoundError as e:
+        print(f"Erro: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Erro ao extrair DDP: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
