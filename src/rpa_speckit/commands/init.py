@@ -32,8 +32,6 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
     directories = [
         ".specify/memory",
         ".specify/templates",
-        ".specify/scripts/powershell",
-        ".specify/scripts/bash",
         "specs",
         "generated",
         "DDP",
@@ -63,10 +61,6 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
     elif ai_assistant in ["vscode-copilot", "vscode-claude"]:
         console.print("[cyan]Criando configurações VS Code...[/cyan]")
         _create_vscode_config(project_path, ai_assistant)
-    
-    # Criar scripts de automação
-    console.print("[cyan]Criando scripts de automação...[/cyan]")
-    _create_automation_scripts(project_path)
     
     # Criar arquivos iniciais
     console.print("[cyan]Criando arquivos iniciais...[/cyan]")
@@ -182,8 +176,8 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 ## O que faz
 
-1. Lê o arquivo PPTX usando python-pptx
-2. Extrai texto de todos os slides
+1. **EXECUTA o script pronto**: `python -m rpa_speckit.utils.ddp_extractor [caminho_do_ddp]`
+2. O script extrai texto de todos os slides do PPTX usando python-pptx
 3. Apresenta o texto extraído para a LLM
 4. **A LLM preenche os arquivos de especificação** baseado no texto extraído:
    - \`specs/001-[nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
@@ -193,22 +187,24 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 ## Instruções para a LLM
 
-Após extrair o texto do DDP, você deve:
+**IMPORTANTE**: NÃO crie um novo script Python. Use o script pronto que já existe:
 
-1. **Ler todo o texto extraído** dos slides do PPTX
-2. **Criar ou atualizar** os arquivos de especificação na pasta \`specs/001-[nome]/\`
-3. **Preencher** cada arquivo baseado no conteúdo do DDP:
+1. **Execute o comando**: `python -m rpa_speckit.utils.ddp_extractor [caminho_do_ddp]`
+2. **Leia o texto extraído** que será exibido no output
+3. **Crie ou atualize** os arquivos de especificação na pasta \`specs/001-[nome]/\`
+4. **Preencha** cada arquivo baseado no conteúdo do DDP:
    - **spec.md**: ARQUIVO PRINCIPAL - Definir arquitetura completa (INIT, FILA, LOOP STATION, END PROCESS), stack tecnológica, integrações, estrutura de dados
    - **tests.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
    - **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
    - **business-rules.md**: Extrair validações (VAL*), condições especiais (COND*), regras de processamento (REG*)
 
-4. **Usar os templates** em \`.specify/templates/\` como referência para a estrutura
-5. **Manter a numeração** das regras (VAL001, VAL002, etc.) e tarefas (Task 1.1, Task 2.1, etc.)
+5. **Use os templates** em \`.specify/templates/\` como referência para a estrutura
+6. **Mantenha a numeração** das regras (VAL001, VAL002, etc.) e tarefas (Task 1.1, Task 2.1, etc.)
 
 ## Notas
 
-- Este comando apenas extrai o texto. A LLM é responsável por analisar e preencher os arquivos
+- **NÃO crie novos scripts** - use o script pronto: `python -m rpa_speckit.utils.ddp_extractor`
+- O script já está instalado e pronto para uso
 - Se os arquivos já existirem, atualize-os com as novas informações do DDP
 - Mantenha a estrutura e formatação dos templates
 """, encoding="utf-8")
@@ -373,242 +369,6 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
     )
 
 
-def _create_automation_scripts(project_path: Path):
-    """Cria scripts de automação PowerShell e Bash"""
-    ps_dir = project_path / ".specify/scripts/powershell"
-    bash_dir = project_path / ".specify/scripts/bash"
-    
-    # PowerShell: check-prerequisites.ps1
-    (ps_dir / "check-prerequisites.ps1").write_text("""# Verifica pré-requisitos do projeto
-
-Write-Host "Verificando pré-requisitos..." -ForegroundColor Cyan
-
-# Verificar Python
-$pythonVersion = python --version 2>&1
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✓ Python encontrado: $pythonVersion" -ForegroundColor Green
-} else {
-    Write-Host "✗ Python não encontrado!" -ForegroundColor Red
-    exit 1
-}
-
-# Verificar Git
-$gitVersion = git --version 2>&1
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "✓ Git encontrado: $gitVersion" -ForegroundColor Green
-} else {
-    Write-Host "✗ Git não encontrado!" -ForegroundColor Red
-    exit 1
-}
-
-# Verificar acesso ao repositório do framework T2C
-Write-Host "Verificando acesso ao repositório do framework T2C..." -ForegroundColor Cyan
-# TODO: Adicionar verificação específica
-
-Write-Host "`nTodos os pré-requisitos estão instalados!" -ForegroundColor Green
-""", encoding="utf-8")
-    
-    # PowerShell: create-new-feature.ps1
-    (ps_dir / "create-new-feature.ps1").write_text("""# Cria nova feature (specs/001-[nome]/)
-
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$FeatureName
-)
-
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$projectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptPath))
-$specsDir = Join-Path $projectRoot "specs"
-
-# Encontrar próximo número disponível
-$existingSpecs = Get-ChildItem -Path $specsDir -Directory | Where-Object { $_.Name -match '^\d{3}-' }
-$maxNumber = 0
-
-foreach ($spec in $existingSpecs) {
-    $number = [int]($spec.Name -split '-')[0]
-    if ($number -gt $maxNumber) {
-        $maxNumber = $number
-    }
-}
-
-$nextNumber = $maxNumber + 1
-$featureNumber = $nextNumber.ToString("000")
-$featureDir = Join-Path $specsDir "$featureNumber-$FeatureName"
-
-# Criar estrutura
-New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $featureDir "DDP") -Force | Out-Null
-
-# Copiar templates
-$templatesDir = Join-Path $projectRoot ".specify/templates"
-Copy-Item (Join-Path $templatesDir "spec-template.md") (Join-Path $featureDir "spec.md")
-Copy-Item (Join-Path $templatesDir "tests-template.md") (Join-Path $featureDir "tests.md")
-Copy-Item (Join-Path $templatesDir "selectors-template.md") (Join-Path $featureDir "selectors.md")
-Copy-Item (Join-Path $templatesDir "business-rules-template.md") (Join-Path $featureDir "business-rules.md")
-Copy-Item (Join-Path $templatesDir "tasks-template.md") (Join-Path $featureDir "tasks.md")
-
-Write-Host "Feature criada: $featureDir" -ForegroundColor Green
-""", encoding="utf-8")
-    
-    # PowerShell: extract-ddp.ps1
-    (ps_dir / "extract-ddp.ps1").write_text("""# Script auxiliar para extração de DDP
-
-param(
-    [Parameter(Mandatory=$true)]
-    [string]$DdpPath
-)
-
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$projectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptPath))
-
-# Chamar Python para processar PPT
-python -m rpa_speckit.utils.ddp_extractor "$DdpPath"
-
-Write-Host "Extração concluída!" -ForegroundColor Green
-""", encoding="utf-8")
-    
-    # PowerShell: common.ps1
-    (ps_dir / "common.ps1").write_text("""# Funções comuns para scripts PowerShell
-
-function Get-ProjectRoot {
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-    return Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptPath))
-}
-
-function Test-ProjectStructure {
-    $root = Get-ProjectRoot
-    $requiredDirs = @(
-        ".specify",
-        "specs",
-        "generated",
-        "DDP"
-    )
-    
-    foreach ($dir in $requiredDirs) {
-        $path = Join-Path $root $dir
-        if (-not (Test-Path $path)) {
-            Write-Host "✗ Diretório faltando: $dir" -ForegroundColor Red
-            return $false
-        }
-    }
-    
-    return $true
-}
-""", encoding="utf-8")
-    
-    # Bash: check-prerequisites.sh
-    (bash_dir / "check-prerequisites.sh").write_text("""#!/bin/bash
-# Verifica pré-requisitos do projeto
-
-echo "Verificando pré-requisitos..."
-
-# Verificar Python
-if command -v python3 &> /dev/null; then
-    PYTHON_VERSION=$(python3 --version)
-    echo "✓ Python encontrado: $PYTHON_VERSION"
-else
-    echo "✗ Python não encontrado!"
-    exit 1
-fi
-
-# Verificar Git
-if command -v git &> /dev/null; then
-    GIT_VERSION=$(git --version)
-    echo "✓ Git encontrado: $GIT_VERSION"
-else
-    echo "✗ Git não encontrado!"
-    exit 1
-fi
-
-echo ""
-echo "Todos os pré-requisitos estão instalados!"
-""", encoding="utf-8")
-    
-    # Bash: create-new-feature.sh
-    (bash_dir / "create-new-feature.sh").write_text("""#!/bin/bash
-# Cria nova feature (specs/001-[nome]/)
-
-if [ -z "$1" ]; then
-    echo "Uso: $0 <nome-da-feature>"
-    exit 1
-fi
-
-FEATURE_NAME="$1"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-SPECS_DIR="$PROJECT_ROOT/specs"
-
-# Encontrar próximo número disponível
-MAX_NUMBER=0
-for spec_dir in "$SPECS_DIR"/[0-9][0-9][0-9]-*; do
-    if [ -d "$spec_dir" ]; then
-        NUMBER=$(basename "$spec_dir" | cut -d'-' -f1 | sed 's/^0*//')
-        if [ "$NUMBER" -gt "$MAX_NUMBER" ]; then
-            MAX_NUMBER=$NUMBER
-        fi
-    fi
-done
-
-NEXT_NUMBER=$((MAX_NUMBER + 1))
-FEATURE_NUMBER=$(printf "%03d" $NEXT_NUMBER)
-FEATURE_DIR="$SPECS_DIR/$FEATURE_NUMBER-$FEATURE_NAME"
-
-# Criar estrutura
-mkdir -p "$FEATURE_DIR/DDP"
-
-# Copiar templates
-TEMPLATES_DIR="$PROJECT_ROOT/.specify/templates"
-cp "$TEMPLATES_DIR/spec-template.md" "$FEATURE_DIR/spec.md"
-cp "$TEMPLATES_DIR/tests-template.md" "$FEATURE_DIR/tests.md"
-cp "$TEMPLATES_DIR/selectors-template.md" "$FEATURE_DIR/selectors.md"
-cp "$TEMPLATES_DIR/business-rules-template.md" "$FEATURE_DIR/business-rules.md"
-cp "$TEMPLATES_DIR/tasks-template.md" "$FEATURE_DIR/tasks.md"
-
-echo "Feature criada: $FEATURE_DIR"
-""", encoding="utf-8")
-    
-    # Bash: extract-ddp.sh
-    (bash_dir / "extract-ddp.sh").write_text("""#!/bin/bash
-# Script auxiliar para extração de DDP
-
-if [ -z "$1" ]; then
-    echo "Uso: $0 <caminho-do-ddp>"
-    exit 1
-fi
-
-DDP_PATH="$1"
-
-# Chamar Python para processar PPT
-python3 -m rpa_speckit.utils.ddp_extractor "$DDP_PATH"
-
-echo "Extração concluída!"
-""", encoding="utf-8")
-    
-    # Bash: common.sh
-    (bash_dir / "common.sh").write_text("""#!/bin/bash
-# Funções comuns para scripts Bash
-
-get_project_root() {
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    echo "$(cd "$SCRIPT_DIR/../../.." && pwd)"
-}
-
-test_project_structure() {
-    ROOT=$(get_project_root)
-    REQUIRED_DIRS=(".specify" "specs" "generated" "DDP")
-    
-    for dir in "${REQUIRED_DIRS[@]}"; do
-        if [ ! -d "$ROOT/$dir" ]; then
-            echo "✗ Diretório faltando: $dir"
-            return 1
-        fi
-    done
-    
-    return 0
-}
-""", encoding="utf-8")
-
-
 def _create_initial_files(project_path: Path, project_name: str):
     """Cria arquivos iniciais do projeto"""
     # README.md
@@ -622,8 +382,7 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 {project_name}/
 ├── .specify/          # Configurações e templates
 │   ├── memory/        # Constitution do framework T2C
-│   ├── templates/     # Templates de especificação
-│   └── scripts/       # Scripts de automação
+│   └── templates/     # Templates de especificação
 ├── specs/             # Especificações de automações
 │   └── 001-[nome]/    # Primeira automação
 │       ├── spec.md     # ARQUIVO PRINCIPAL - Arquitetura completa

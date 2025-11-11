@@ -89,10 +89,7 @@ meu-projeto/
 ├── .specify/              # Configurações e templates
 │   ├── memory/
 │   │   └── constitution.md # Constitution do framework T2C
-│   ├── templates/         # Templates de especificação
-│   └── scripts/          # Scripts de automação
-│       ├── powershell/
-│       └── bash/
+│   └── templates/         # Templates de especificação
 ├── .cursor/              # Comandos Cursor (se escolhido)
 │   └── commands/
 │       ├── t2c.extract-ddp.md
@@ -119,12 +116,6 @@ meu-projeto/
 - `/t2c.tasks [caminho]` - Gera tasks.md
 - `/t2c.implement [caminho]` - Gera framework T2C completo
 - `/t2c.validate [caminho]` - Valida estrutura e completude
-
-### Scripts PowerShell/Bash
-
-- `check-prerequisites.ps1/sh` - Verifica pré-requisitos
-- `create-new-feature.ps1/sh` - Cria nova feature
-- `extract-ddp.ps1/sh` - Script auxiliar para extração
 
 ## 🎯 Fluxo de Trabalho Completo
 
