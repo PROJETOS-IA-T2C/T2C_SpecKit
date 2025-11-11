@@ -535,10 +535,6 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
     commands_dir = vscode_dir / "commands"
     commands_dir.mkdir(exist_ok=True)
     
-    # Criar diretório .github para copilot-instructions
-    github_dir = project_path / ".github"
-    github_dir.mkdir(exist_ok=True)
-    
     # Criar settings.json
     settings = {
         "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
@@ -553,6 +549,8 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
         settings["github.copilot.enable"] = {
             "*": True
         }
+        # Configurações para Copilot Chat reconhecer slash commands
+        settings["github.copilot.chat.enable"] = True
     
     import json
     (vscode_dir / "settings.json").write_text(
@@ -563,8 +561,8 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
     # Criar comandos markdown (EXATAMENTE como no Cursor, com slash commands)
     _create_vscode_commands(commands_dir)
     
-    # Criar arquivo de instruções do Copilot
-    _create_copilot_instructions(github_dir, commands_dir)
+    # Criar arquivo de instruções do Copilot dentro de .vscode
+    _create_copilot_instructions(vscode_dir, commands_dir)
     
     # Criar tasks.json (para executar scripts)
     _create_vscode_tasks(vscode_dir)
@@ -582,8 +580,8 @@ def _create_vscode_commands(commands_dir: Path):
         (commands_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
 
 
-def _create_copilot_instructions(github_dir: Path, commands_dir: Path):
-    """Cria arquivo de instruções do Copilot para suportar slash commands"""
+def _create_copilot_instructions(vscode_dir: Path, commands_dir: Path):
+    """Cria arquivo de instruções do Copilot dentro de .vscode para suportar slash commands"""
     instructions_content = """# GitHub Copilot Instructions - T2C Commands
 
 Este projeto usa comandos slash customizados (similar ao Cursor) que devem ser reconhecidos pelo GitHub Copilot Chat.
@@ -648,7 +646,7 @@ Quando o usuário usar um slash command:
 Cada arquivo contém instruções detalhadas sobre como executar o comando correspondente.
 """
     
-    (github_dir / "copilot-instructions.md").write_text(instructions_content, encoding="utf-8")
+    (vscode_dir / "copilot-instructions.md").write_text(instructions_content, encoding="utf-8")
 
 
 def _create_vscode_tasks(vscode_dir: Path):
@@ -728,7 +726,7 @@ No chat do GitHub Copilot, use os slash commands diretamente:
 
 O Copilot reconhecerá os slash commands e lerá automaticamente os arquivos em `.vscode/commands/` para entender o que fazer.
 
-**Nota**: O arquivo `.github/copilot-instructions.md` contém instruções para o Copilot sobre como processar esses comandos.
+**Nota**: O arquivo `.vscode/copilot-instructions.md` contém instruções para o Copilot sobre como processar esses comandos.
 
 ### Método 2: Mencionar ao GitHub Copilot
 

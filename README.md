@@ -116,11 +116,10 @@ meu-projeto/
 │   │   ├── t2c.tasks.md
 │   │   ├── t2c.implement.md
 │   │   └── t2c.validate.md
+│   ├── copilot-instructions.md  # Instruções para slash commands
 │   ├── tasks.json        # Tasks para executar scripts
 │   ├── settings.json     # Configurações do VS Code
 │   └── README.md         # Como usar os comandos
-├── .github/              # Instruções do Copilot (se VS Code escolhido)
-│   └── copilot-instructions.md  # Instruções para slash commands
 ├── specs/                 # Especificações de automações
 │   └── 001-[nome]/
 │       ├── spec.md     # ARQUIVO PRINCIPAL
