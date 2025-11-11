@@ -189,44 +189,37 @@ def extract_ddp(pptx_path: str) -> str:
     Extrai texto de todos os slides de um arquivo DDP.pptx
     
     Args:
-        pptx_path: Caminho para o arquivo DDP.pptx (pode ser relativo ou absoluto)
+        pptx_path: Caminho para o arquivo DDP.pptx (pode ser relativo, absoluto ou apenas nome do arquivo)
         
     Returns:
         Texto formatado com conteúdo de todos os slides
     """
-    # Normalizar caminho: resolver relativos para absolutos e lidar com encoding
-    try:
-        # Tentar criar Path diretamente
-        pptx_file = Path(pptx_path)
-        
-        # Se for caminho relativo, resolver para absoluto
-        if not pptx_file.is_absolute():
-            pptx_file = pptx_file.resolve()
-        
-        # Verificar se existe
-        if not pptx_file.exists():
-            # Tentar com encoding diferente se falhar
-            try:
-                # Tentar normalizar o caminho como string
-                normalized_path = os.path.normpath(pptx_path)
-                pptx_file = Path(normalized_path).resolve()
-            except:
-                pass
-            
-            if not pptx_file.exists():
-                raise FileNotFoundError(f"DDP não encontrado: {pptx_path}")
-        
-        # Converter para string absoluta para garantir encoding correto
-        pptx_file_str = str(pptx_file.absolute())
-        
-    except Exception as e:
-        raise FileNotFoundError(f"Erro ao processar caminho '{pptx_path}': {e}")
+    # Converter para Path e resolver para absoluto (simples e direto)
+    pptx_file = Path(pptx_path).resolve()
     
-    # Abrir apresentação usando caminho absoluto
-    try:
-        presentation = Presentation(pptx_file_str)
-    except Exception as e:
-        raise FileNotFoundError(f"Erro ao abrir arquivo DDP '{pptx_file_str}': {e}")
+    # Se não encontrar, procurar automaticamente nas pastas comuns
+    if not pptx_file.exists():
+        # Procurar em DDP/ primeiro
+        ddp_dir = Path("DDP")
+        if ddp_dir.exists():
+            pptx_files = list(ddp_dir.glob("*.pptx"))
+            if pptx_files:
+                pptx_file = pptx_files[0].resolve()
+        
+        # Se não encontrou, procurar em specs/*/DDP/
+        if not pptx_file.exists():
+            for spec_dir in Path("specs").glob("*/DDP"):
+                if spec_dir.exists():
+                    pptx_files = list(spec_dir.glob("*.pptx"))
+                    if pptx_files:
+                        pptx_file = pptx_files[0].resolve()
+                        break
+        
+        if not pptx_file.exists():
+            raise FileNotFoundError(f"DDP não encontrado: {pptx_path}")
+    
+    # Usar caminho absoluto sempre (simples)
+    presentation = Presentation(str(pptx_file.absolute()))
     
     # Formatar texto para apresentar à LLM
     formatted_text = "# Conteúdo Extraído do DDP\n\n"
@@ -253,40 +246,46 @@ def extract_ddp(pptx_path: str) -> str:
 
 def main():
     """CLI para extração de DDP"""
-    # Configurar encoding UTF-8 para stdout/stderr
-    import io
-    
-    # Tentar configurar encoding UTF-8 no Windows
+    # Configurar encoding UTF-8 para stdout/stderr no Windows
     if sys.platform == 'win32':
+        import io
         try:
             sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
             sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
         except:
             pass
     
+    # Se não passou caminho, procurar automaticamente
     if len(sys.argv) < 2:
-        print("Uso: python .specify/scripts/extract-ddp.py <caminho_do_ddp>", file=sys.stderr)
-        print("", file=sys.stderr)
-        print("O caminho pode ser relativo (ex: DDP/arquivo.pptx) ou absoluto.", file=sys.stderr)
-        sys.exit(1)
-    
-    ddp_path = sys.argv[1]
+        # Procurar arquivos .pptx nas pastas comuns
+        search_dirs = [Path("DDP")]
+        for spec_dir in Path("specs").glob("*/DDP"):
+            search_dirs.append(spec_dir)
+        
+        pptx_file = None
+        for search_dir in search_dirs:
+            if search_dir.exists():
+                pptx_files = list(search_dir.glob("*.pptx"))
+                if pptx_files:
+                    pptx_file = pptx_files[0].resolve()
+                    break
+        
+        if not pptx_file:
+            print("Erro: Nenhum arquivo .pptx encontrado. Use: python .specify/scripts/extract-ddp.py <caminho>", file=sys.stderr)
+            sys.exit(1)
+        
+        ddp_path = str(pptx_file)
+    else:
+        ddp_path = sys.argv[1]
     
     try:
         extracted_text = extract_ddp(ddp_path)
         print(extracted_text)
     except FileNotFoundError as e:
         print(f"Erro: {e}", file=sys.stderr)
-        print("", file=sys.stderr)
-        print("Dicas:", file=sys.stderr)
-        print("  - Use caminho relativo: DDP/arquivo.pptx", file=sys.stderr)
-        print("  - Use caminho absoluto se o relativo não funcionar", file=sys.stderr)
-        print("  - Verifique se o arquivo existe e se o nome está correto", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         print(f"Erro ao extrair DDP: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
         sys.exit(1)
 
 
@@ -355,16 +354,22 @@ pip install python-pptx
 
 **NÃO crie scripts alternativos. Apenas instale as dependências ou informe o usuário.**
 
-**PASSO 1 - Execute APENAS este comando:**
+**PASSO 1 - Execute APENAS este comando (SIMPLES):**
 
 \`\`\`bash
-python .specify/scripts/extract-ddp.py [caminho_do_ddp]
+python .specify/scripts/extract-ddp.py
 \`\`\`
 
-**Importante sobre o caminho:**
-- Use caminho **relativo** ao diretório do projeto: `DDP/arquivo.pptx` ou `specs/001-nome/DDP/arquivo.pptx`
-- Se o caminho relativo não funcionar (erro de encoding), use o caminho **absoluto** completo
-- O script normaliza automaticamente caminhos relativos para absolutos
+**OU se quiser especificar o arquivo:**
+
+\`\`\`bash
+python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
+\`\`\`
+
+**Como funciona:**
+- Se você **não passar caminho**, o script procura automaticamente o primeiro arquivo .pptx em `DDP/` ou `specs/*/DDP/`
+- Se você **passar caminho**, pode ser relativo ou absoluto - o script resolve automaticamente
+- **SIMPLES**: Apenas execute o comando, o script faz o resto
 
 **PASSO 2 - Se o comando funcionar:**
 
