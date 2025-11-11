@@ -59,6 +59,10 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
     console.print("[cyan]Criando script de extração de DDP...[/cyan]")
     _create_extract_ddp_script(project_path)
     
+    # Criar requirements.txt
+    console.print("[cyan]Criando requirements.txt...[/cyan]")
+    _create_requirements_txt(project_path)
+    
     # Criar comandos Cursor/VS Code
     if ai_assistant == "cursor":
         console.print("[cyan]Criando comandos Cursor...[/cyan]")
@@ -162,13 +166,13 @@ def _create_extract_ddp_script(project_path: Path):
     """Cria script Python pronto para extração de DDP"""
     scripts_dir = project_path / ".specify/scripts"
     
-    extract_script = scripts_dir / "extract-ddp.py"
-    extract_script.write_text("""#!/usr/bin/env python
+    # Usar raw string para evitar problemas com escape e encoding
+    script_content = r'''#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-\"\"\"
+"""
 Script para extração de texto de arquivos DDP.pptx
 Este script já está pronto e não deve ser modificado.
-\"\"\"
+"""
 import sys
 from pathlib import Path
 
@@ -180,7 +184,7 @@ except ImportError:
 
 
 def extract_ddp(pptx_path: str) -> str:
-    \"\"\"
+    """
     Extrai texto de todos os slides de um arquivo DDP.pptx
     
     Args:
@@ -188,7 +192,7 @@ def extract_ddp(pptx_path: str) -> str:
         
     Returns:
         Texto formatado com conteúdo de todos os slides
-    \"\"\"
+    """
     pptx_file = Path(pptx_path)
     if not pptx_file.exists():
         raise FileNotFoundError(f"DDP não encontrado: {pptx_path}")
@@ -219,7 +223,7 @@ def extract_ddp(pptx_path: str) -> str:
 
 
 def main():
-    \"\"\"CLI para extração de DDP\"\"\"
+    """CLI para extração de DDP"""
     if len(sys.argv) < 2:
         print("Uso: python .specify/scripts/extract-ddp.py <caminho_do_ddp>", file=sys.stderr)
         sys.exit(1)
@@ -239,7 +243,18 @@ def main():
 
 if __name__ == "__main__":
     main()
-""", encoding="utf-8")
+'''
+    
+    extract_script = scripts_dir / "extract-ddp.py"
+    extract_script.write_text(script_content, encoding="utf-8")
+
+
+def _create_requirements_txt(project_path: Path):
+    """Cria requirements.txt com dependências necessárias"""
+    requirements_content = """# Dependências para scripts do projeto
+python-pptx>=0.6.21
+"""
+    (project_path / "requirements.txt").write_text(requirements_content, encoding="utf-8")
 
 
 def _create_cursor_commands(project_path: Path):
@@ -275,21 +290,29 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 ## O que fazer
 
+**PASSO 0 - Verificar/Instalar dependências (se necessário):**
+
+Se você receber erro sobre `python-pptx` não estar instalado, execute:
+
+\`\`\`bash
+pip install -r requirements.txt
+\`\`\`
+
+Ou apenas:
+
+\`\`\`bash
+pip install python-pptx
+\`\`\`
+
+**NÃO crie scripts alternativos. Apenas instale as dependências ou informe o usuário.**
+
 **PASSO 1 - Execute APENAS este comando:**
 
 \`\`\`bash
 python .specify/scripts/extract-ddp.py [caminho_do_ddp]
 \`\`\`
 
-**PASSO 2 - Se python-pptx não estiver instalado:**
-
-Se você receber erro sobre `python-pptx` não estar instalado, informe ao usuário:
-
-"O pacote python-pptx não está instalado. Instale com: `pip install python-pptx`"
-
-**NÃO crie scripts alternativos. Apenas informe o usuário.**
-
-**PASSO 3 - Se o comando funcionar:**
+**PASSO 2 - Se o comando funcionar:**
 
 1. Leia o texto extraído que será exibido no output
 2. Crie ou atualize os arquivos de especificação na pasta \`specs/001-[nome]/\`
@@ -508,10 +531,11 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 ## Fluxo de Trabalho
 
 1. **Inicialização**: Projeto já inicializado ✓
-2. **Extrair DDP**: Coloque DDP.pptx em `specs/001-[nome]/DDP/` e execute `/t2c.extract-ddp`
-3. **Completar Specs**: Revise e complete os arquivos .md gerados
-4. **Gerar Tasks** (Opcional): Execute `/t2c.tasks` para gerar tasks.md
-5. **Implementar**: Execute `/t2c.implement` para gerar o framework T2C completo
+2. **Instalar dependências**: Execute `pip install -r requirements.txt` para instalar python-pptx
+3. **Extrair DDP**: Coloque DDP.pptx em `specs/001-[nome]/DDP/` e execute `/t2c.extract-ddp`
+4. **Completar Specs**: Revise e complete os arquivos .md gerados
+5. **Gerar Tasks** (Opcional): Execute `/t2c.tasks` para gerar tasks.md
+6. **Implementar**: Execute `/t2c.implement` para gerar o framework T2C completo
 
 ## Comandos Disponíveis
 
