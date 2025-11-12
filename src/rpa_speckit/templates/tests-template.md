@@ -1,5 +1,7 @@
 # Especificação de Automação RPA
 
+> **⚠️ IMPORTANTE:** Ao criar o arquivo final, replique apenas a estrutura do template. Remova todas as anotações, exemplos e informações que não sejam do processo real. Mantenha apenas as informações reais do processo para reduzir a quantidade de informação no documento.
+
 ## User Scenarios
 
 ### Scenario 1: [Nome do Cenário]

@@ -146,6 +146,344 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
   - Implementar loop de tentativas para fechamento
 - **Ver PARTE 2 e PARTE 5 para exemplos completos**
 
+### 13. Arquitetura de Robôs - Decisão e Estruturação
+
+**⚠️ DECISÃO CRÍTICA:** Durante a análise do DDP (ao executar `/t2c.extract-ddp` e preencher as specs), a LLM DEVE decidir se o processo será:
+- **Standalone**: Um único robô faz todo o processo
+- **Múltiplos robôs**: Dispatcher + Performer ou Performer + Performer
+
+#### Quando Separar em Múltiplos Robôs
+
+**SEPARE quando:**
+- O LOOP STATION é muito extenso/complexo e não pode ser feito em um único robô
+- O processo de execução tem múltiplas fases que podem ser divididas logicamente
+- Há múltiplas regras de negócio complexas que podem ser separadas
+- A separação facilita organização e manutenção
+- Um robô precisa preparar dados complexos (conciliações, validações extensas, enriquecimento) para outro processar
+- O processo tem duas partes distintas: preparação de dados (complexa) e execução (mais simples)
+- Durante a análise, identificar que seria mais fácil e organizado separar em dois ou mais robôs
+
+**NÃO SEPARE quando:**
+- O processo é simples e direto (leitura de Excel, processamento único, validações simples)
+- A lógica cabe confortavelmente em um único robô
+- Não há benefício claro em separar
+- Processos que são apenas leitura ou coisas simples do tipo
+
+#### Tipos de Arquitetura
+
+**1. Standalone (1 robô)**
+- **Estrutura:** `specs/001-[nome]/spec.md` (na raiz)
+- Um único robô executa: INIT → FILA → LOOP STATION → END PROCESS
+- Todos os arquivos na raiz: `spec.md`, `selectors.md`, `business-rules.md`, `tests.md`, `tasks.md`
+- **Quando usar:** Processos simples, diretos, que não justificam separação
+
+**2. Dispatcher + Performer**
+- **Dispatcher** (`robot1/`):
+  - **Função:** Prepara dados e popula a fila do performer
+  - **OBRIGATÓRIO:** Criar item vazio na própria fila para executar (framework precisa de pelo menos 1 item)
+  - **Estrutura completa:** INIT → FILA (cria item vazio + popula fila do performer) → LOOP STATION → END PROCESS
+  - **Nomenclatura:** `prj_AFYA_ID15_01_SAP_DISP` (usar sufixo `_DISP`)
+  - **Características:**
+    - Lógica de preenchimento da fila é complexa (múltiplas fontes, conciliações, validações extensas)
+    - Pode ser um robô mais simples que apenas prepara dados
+    - Usa framework para preparar dados e popular fila do performer
+- **Performer** (`robot2/`):
+  - **Função:** Processa itens da fila populada pelo dispatcher
+  - **Fila compartilhada:** 
+    - O dispatcher popula usando `FilaProcessamentoPerformer` no seu Config.xlsx
+    - O performer lê usando `FilaProcessamento` no seu Config.xlsx (mesma tabela, nomes diferentes)
+    - Ambos usam o mesmo `CaminhoBancoSqlite` (mesmo banco SQLite)
+  - **Nomenclatura:** `prj_AFYA_ID15_02_TOTVS_PERF` (usar sufixo `_PERF`)
+  - **Características:**
+    - Recebe dados já preparados do dispatcher
+    - Foca apenas em processar os itens da fila
+
+**3. Performer + Performer (Cadeia Sequencial)**
+- **Performer 1** (`robot1/`):
+  - **Função:** Processa itens e pode popular fila do Performer 2
+  - **Nomenclatura:** `prj_AFYA_ID15_01_SAP` (apenas numeração sequencial, sem sufixo)
+  - **Características:**
+    - Processa seus próprios itens
+    - Pode ter função de output que será usada no Performer 2
+    - Pode popular diretamente a fila do Performer 2
+- **Performer 2** (`robot2/`):
+  - **Função:** Processa itens da fila do Performer 1
+  - **Nomenclatura:** `prj_AFYA_ID15_02_TOTVS` (apenas numeração sequencial, sem sufixo)
+  - **Características:**
+    - Recebe dados do Performer 1
+    - Executa processamento sequencial após o Performer 1
+- **Nota importante:** Se Performer 1 tem função principal de alimentar Performer 2, ele se torna um Dispatcher (usar nomenclatura com `_DISP`)
+
+#### Estrutura de Pastas e Arquivos
+
+**Standalone:**
+```
+specs/001-[nome]/
+├── spec.md              # ARQUIVO PRINCIPAL
+├── selectors.md
+├── business-rules.md
+├── tests.md
+├── tasks.md
+└── DDP/
+```
+
+**Múltiplos Robôs:**
+```
+specs/001-[nome]/
+├── robot1/              # Robô 1 (Dispatcher ou Performer)
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 1
+│   ├── selectors.md     # Seletores específicos do robô 1
+│   ├── business-rules.md # Regras de negócio específicas do robô 1
+│   └── tests.md         # Testes específicos do robô 1
+├── robot2/              # Robô 2 (Performer)
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 2
+│   ├── selectors.md     # Seletores específicos do robô 2
+│   ├── business-rules.md # Regras de negócio específicas do robô 2
+│   └── tests.md         # Testes específicos do robô 2
+├── tasks.md             # Compartilhado - lista plana com referência ao robô
+└── DDP/                 # Compartilhado
+```
+
+#### Regras Específicas por Tipo
+
+**Para Dispatcher:**
+- **OBRIGATÓRIO:** No método `add_to_queue()`, criar um item vazio na própria fila ANTES de popular a fila do performer:
+  ```python
+  @classmethod
+  def add_to_queue(cls):
+      # OBRIGATÓRIO: Criar item vazio para que o framework execute
+      # O framework precisa de pelo menos 1 item na fila para executar
+      QueueManager.insert_new_queue_item(
+          arg_strReferencia="DISPATCHER_INIT",
+          arg_dictInfAdicional={}
+      )
+      
+      # Depois, popular fila do performer
+      # ... código para ler dados, fazer conciliações, validações ...
+      # ... código para popular fila do performer usando fila compartilhada ...
+  ```
+- **Fila compartilhada (para popular o performer):**
+  - No Config.xlsx do dispatcher existe a configuração `FilaProcessamentoPerformer` (ou similar)
+  - Essa é a fila que o dispatcher deve preencher para o performer processar
+  - Usar o mesmo `CaminhoBancoSqlite` configurado no Config.xlsx
+  - O dispatcher popula essa fila usando `FilaProcessamentoPerformer` como nome da tabela
+- **Fila própria do dispatcher:**
+  - O dispatcher também tem sua própria `FilaProcessamento` no Config.xlsx (para o item vazio)
+- **Item vazio:** Pode ter qualquer referência (ex: "DISPATCHER_INIT"), mas deve existir na fila própria do dispatcher para o framework executar
+
+**Para Performer:**
+- **Fila compartilhada (recebe do dispatcher/performer anterior):**
+  - No Config.xlsx do performer, a configuração `FilaProcessamento` é a mesma fila que o dispatcher/performer anterior preencheu
+  - O dispatcher/performer anterior preenche usando `FilaProcessamentoPerformer` (ou similar)
+  - O performer lê usando `FilaProcessamento` (mesma tabela, nomes diferentes nos configs)
+  - Usar o mesmo `CaminhoBancoSqlite` configurado no Config.xlsx (mesmo banco SQLite)
+- **Configuração no Config.xlsx do Performer:**
+  - `CaminhoBancoSqlite`: Mesmo caminho do dispatcher/performer anterior
+  - `FilaProcessamento`: Nome da tabela que corresponde à `FilaProcessamentoPerformer` do dispatcher/performer anterior
+- **Não precisa criar item vazio:** Recebe itens da fila compartilhada populada pelo robô anterior
+- **Se recebe de outro Performer:** Pode receber dados diretamente do Performer anterior (função de output)
+
+**Para Tasks.md (compartilhado):**
+- **Estrutura:** Lista plana de tasks
+- **Campo obrigatório:** Cada task deve ter campo "Robô:" indicando:
+  - `robot1` - se a task é do robô 1
+  - `robot2` - se a task é do robô 2
+  - `raiz` - se standalone
+- **Organização:** Agrupar visualmente - todas tasks do robot1 primeiro, depois robot2
+- **Exemplo:**
+  ```markdown
+  ### Task 1.1: Inicializar Sistemas
+  - **Robô:** robot1
+  - **Descrição:** ...
+  
+  ### Task 1.2: Preencher Fila
+  - **Robô:** robot1
+  - **Descrição:** ...
+  
+  ### Task 2.1: Processar Item
+  - **Robô:** robot2
+  - **Descrição:** ...
+  ```
+
+**Para Spec.md (cada robô tem o seu):**
+- **Seção obrigatória:** "Arquitetura de Robôs" no início do spec.md deve conter:
+  - **Tipo:** Standalone / Dispatcher / Performer
+  - **Este robô é:** [Descrição breve do papel deste robô]
+  - **Recebe dados de:** [Nome do robô anterior que alimenta este robô, se Performer. Ex: "robot1" ou "N/A" se Standalone/Dispatcher]
+  - **Alimenta:** [Nome do robô seguinte que este robô alimenta, se Dispatcher ou Performer que alimenta outro. Ex: "robot2" ou "N/A" se não alimenta nenhum]
+  - **Ordem na cadeia:** [1/2/3... se parte de múltiplos robôs, ou "1" se Standalone]
+  - **Nome da pasta do robô:** [robot1 / robot2 / etc. ou "raiz" se standalone]
+- **Observações sobre arquitetura:**
+  - Se Dispatcher: mencionar que precisa criar item vazio na própria fila para executar
+  - Se Performer: mencionar de onde recebe os dados e como acessa a fila compartilhada
+  - Se parte de cadeia: mencionar a ordem de execução e dependências
+
+#### Nomenclatura de Projetos
+
+**Dispatcher + Performer:**
+- Usar sufixos `_DISP` e `_PERF`
+- Exemplo: `prj_AFYA_ID15_01_SAP_DISP` → `prj_AFYA_ID15_02_TOTVS_PERF`
+
+**Performer + Performer:**
+- Apenas numeração sequencial (sem sufixos)
+- Exemplo: `prj_AFYA_ID15_01_SAP` → `prj_AFYA_ID15_02_TOTVS`
+
+**Standalone:**
+- Nomenclatura normal sem sufixos especiais
+- Exemplo: `prj_AFYA_ID15`
+
+#### Geração de Framework
+
+- **Standalone:** Gera em `generated/[nome-automacao]/`
+- **Múltiplos:** Gera em `generated/[nome-automacao]-robot1/`, `generated/[nome-automacao]-robot2/`, etc.
+- **Comando:** `/t2c.implement` detecta automaticamente a estrutura
+- **Geração seletiva:** Pode gerar todos ou apenas um robô específico:
+  - `/t2c.implement specs/001-[nome]` - Gera todos os robôs
+  - `/t2c.implement specs/001-[nome] --robot robot1` - Gera apenas robot1
+
+#### Checklist para Decisão de Arquitetura
+
+Ao analisar o DDP, a LLM deve considerar:
+
+1. **Complexidade do LOOP STATION:**
+   - [ ] É muito extenso? (muitas etapas, muitas regras de negócio)
+   - [ ] Pode ser dividido logicamente em fases distintas?
+
+2. **Complexidade da FILA:**
+   - [ ] A lógica de preenchimento é simples (leitura direta) ou complexa (conciliações, validações extensas)?
+   - [ ] Seria melhor ter um dispatcher preparando dados?
+
+3. **Separação lógica:**
+   - [ ] O processo tem fases distintas que podem ser separadas?
+   - [ ] Um robô processa e outro executa ações diferentes?
+
+4. **Manutenção e organização:**
+   - [ ] A separação facilitaria manutenção?
+   - [ ] Cada robô teria responsabilidades claras e distintas?
+
+5. **Decisão final:**
+   - [ ] Se respondeu SIM para maioria das questões acima → **Múltiplos robôs**
+   - [ ] Se respondeu NÃO para maioria → **Standalone**
+
+#### Exemplos Práticos
+
+**Exemplo 1: Standalone**
+- Processo: Ler Excel, validar CPF, inserir no sistema SAP
+- Decisão: Standalone (processo simples e direto)
+- Estrutura: `specs/001-inserir-cpf/spec.md` (na raiz)
+
+**Exemplo 2: Dispatcher + Performer**
+- Processo: Ler múltiplos Excels, fazer conciliação complexa entre eles, validar dados, enriquecer com API, depois processar no SAP
+- Decisão: Dispatcher + Performer
+- Estrutura:
+  - `specs/001-processo/robot1/` (Dispatcher - prepara dados)
+  - `specs/001-processo/robot2/` (Performer - processa no SAP)
+
+**Exemplo 3: Performer + Performer**
+- Processo: Processar notas fiscais no sistema A, depois processar no sistema B
+- Decisão: Performer + Performer
+- Estrutura:
+  - `specs/001-processo/robot1/` (Performer 1 - sistema A)
+  - `specs/001-processo/robot2/` (Performer 2 - sistema B)
+
+### 14. Estimativas de Tempo para Tasks
+
+**⚠️ IMPORTANTE:** Ao gerar tasks.md (comando `/t2c.tasks`), a LLM DEVE incluir estimativas de tempo realistas para cada tarefa.
+
+#### Base de Estimativa
+
+- **Perfil considerado:** Desenvolvedor pleno (não mencionar isso no documento, apenas usar como referência interna)
+- **Formato:** Horas (ex: "2 horas", "4 horas", "0.5 horas", "8 horas")
+- **Precisão:** Usar valores inteiros ou meias horas (0.5, 1, 1.5, 2, etc.)
+
+#### Fatores a Considerar na Estimativa
+
+**1. Complexidade da Tarefa:**
+- **Simples (0.5-2h):** Leitura de arquivo, validação simples, configuração básica
+- **Média (2-4h):** Integração com sistema, múltiplas validações, lógica de negócio moderada
+- **Complexa (4-8h):** Conciliações, múltiplas integrações, lógica complexa, tratamento de erros extenso
+- **Muito Complexa (8h+):** Arquitetura complexa, múltiplos sistemas, regras de negócio extensas
+
+**2. Número de Etapas:**
+- Cada etapa do DDP adiciona tempo
+- Considerar: navegação, preenchimento de formulários, validações, tratamento de erros
+- Estimativa base: 0.5-1h por etapa simples, 1-2h por etapa complexa
+
+**3. Integrações:**
+- **Clicknium/Seletores:** +0.5-1h (criação e teste de seletores)
+- **APIs:** +1-2h (integração e tratamento de erros)
+- **Banco de Dados:** +1-2h (queries e tratamento)
+- **E-mail:** +0.5h (configuração e template)
+- **T2CTracker:** +0.5-1h (configuração de steps)
+
+**4. Regras de Negócio:**
+- **Cada validação (VAL*):** +0.5-1h
+- **Cada condição especial (COND*):** +1-2h
+- **Cada regra de processamento (REG*):** +1-3h
+
+**5. Tratamento de Erros:**
+- Tratamento básico: +0.5h por tipo de erro
+- Tratamento complexo: +1-2h por tipo de erro
+
+**6. Testes e Ajustes:**
+- Incluir 20-30% do tempo de desenvolvimento para testes e ajustes
+
+#### Estimativas de Referência por Tipo de Task
+
+**INIT - Inicialização:**
+- **Inicializar 1 sistema simples:** 1-2h
+- **Inicializar 1 sistema complexo:** 2-4h
+- **Inicializar múltiplos sistemas:** 3-6h
+- **Preencher fila simples (leitura Excel/CSV):** 1-2h
+- **Preencher fila complexa (conciliações, validações):** 4-8h
+- **Preencher fila dispatcher (item vazio + popular performer):** 2-4h
+
+**LOOP STATION - Processamento:**
+- **Etapa simples (1 ação):** 1-2h
+- **Etapa média (2-3 ações):** 2-4h
+- **Etapa complexa (4+ ações, validações):** 4-8h
+- **Grupo lógico de etapas (3-5 etapas relacionadas):** 6-12h
+- **Processamento completo com múltiplas regras:** 8-16h
+
+**END PROCESS - Finalização:**
+- **Fechar sistemas:** 0.5-1h
+- **Enviar e-mail final:** 1-2h (incluindo template e formatação)
+
+#### Estrutura do tasks.md com Estimativas
+
+**1. Tabela de Visão Geral (no início):**
+- Resumo executivo (total de tasks, tempo total, distribuição)
+- Top 5 tasks com maior estimativa
+- Estimativas por fase (INIT, LOOP STATION, END PROCESS)
+- Estimativas por robô (se múltiplos robôs)
+
+**2. Cada Task:**
+- Campo "Estimativa:" com tempo e justificativa breve
+- Justificativa deve mencionar: complexidade, número de etapas, integrações, regras de negócio
+
+#### Exemplo de Estimativa
+
+```markdown
+### Task 2.1: Login e Navegação no Sistema SAP
+- **Robô:** robot1
+- **Consolida etapas do spec:** `robot1/spec.md` - LOOP STATION: Etapas 1-3
+- **Arquivo:** T2CProcess.py
+- **Método:** execute()
+- **Descrição:** Realizar login no SAP, validar acesso, navegar até tela de processamento
+- **Estimativa:** 3 horas - Login (1h) + Validação de acesso (0.5h) + Navegação com seletores Clicknium (1h) + Tratamento de erros (0.5h)
+- **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
+```
+
+#### Cálculo da Tabela de Visão Geral
+
+Ao gerar tasks.md, calcular automaticamente:
+- **Total de tasks:** Soma de todas as tasks
+- **Tempo total:** Soma de todas as estimativas
+- **Top 5 tasks:** Ordenar por estimativa (maior para menor)
+- **Por fase:** Agrupar tasks por fase e somar estimativas
+- **Por robô:** Agrupar tasks por robô e somar estimativas (se múltiplos robôs)
+- **Percentuais:** Calcular % de cada task/fase/robô em relação ao total
+
 ---
 
 ## 📚 PARTE 2: ESPECIFICAÇÃO COMPLETA DO FRAMEWORK
@@ -301,7 +639,8 @@ Este arquivo Excel contém 4 abas com todas as configurações do framework:
 - `NomeCliente` - Nome do cliente
 - `NomeProcesso` - Nome do processo/robô
 - `DescricaoProcesso` - Descrição do processo
-- `FilaProcessamento` - Nome da tabela de fila
+- `FilaProcessamento` - Nome da tabela de fila (fila própria do robô)
+- `FilaProcessamentoPerformer` - (Opcional) Nome da tabela de fila do performer (usado por dispatcher para popular fila do performer)
 - `NomeTabelaDadosExecucao` - Nome da tabela de execução
 - `NomeTabelaDadosItens` - Nome da tabela de itens
 - `CaminhoBancoSqlite` - Caminho do banco SQLite
@@ -898,7 +1237,7 @@ class T2CInitAllApplications:
 
         Observação:
         - Código placeholder.
-        - Se o seu projeto precisa de mais do que um método simples para subir a sua fila, considere fazer um projeto dispatcher.
+        - Se o seu projeto precisa de mais do que um método simples para subir a sua fila, considere fazer um projeto dispatcher (ver PARTE 1, seção 13 - Arquitetura de Robôs).
 
         Parâmetros:
         """

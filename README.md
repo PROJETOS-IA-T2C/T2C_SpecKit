@@ -84,19 +84,29 @@ Gera `tasks.md` baseado nas outras especificações.
 
 **No Cursor:**
 ```
+# Gerar todos os robôs (ou standalone)
 /t2c.implement specs/001-[nome]
+
+# Gerar apenas um robô específico (se múltiplos robôs)
+/t2c.implement specs/001-[nome] --robot robot1
 ```
 
 **No VS Code + GitHub Copilot:**
 - Use slash command: `/t2c.implement specs/001-[nome]` (igual ao Cursor!)
+- Para gerar robô específico: `/t2c.implement specs/001-[nome] --robot robot1`
 
 O comando irá:
+- Detectar automaticamente se é standalone ou múltiplos robôs
 - Validar todas as specs
 - Baixar framework T2C do GitHub
-- Gerar framework completo em `generated/[nome-automacao]/`
-- Criar arquivos customizados baseados nas specs
+- Gerar framework completo:
+  - **Standalone**: `generated/[nome-automacao]/`
+  - **Múltiplos**: `generated/[nome-automacao]-robot1/`, `generated/[nome-automacao]-robot2/`, etc.
+- Criar arquivos customizados baseados nas specs de cada robô
 
 ## 📁 Estrutura do Projeto
+
+### Estrutura Standalone (1 robô)
 
 ```
 meu-projeto/
@@ -129,8 +139,46 @@ meu-projeto/
 │       ├── tasks.md
 │       └── DDP/
 ├── generated/            # Framework T2C gerado
+│   └── [nome-automacao]/  # Robô standalone
 └── DDP/                  # DDPs gerais
 ```
+
+### Estrutura Múltiplos Robôs
+
+```
+meu-projeto/
+├── .specify/              # Configurações e templates
+├── .cursor/              # Comandos Cursor (se escolhido)
+├── .vscode/              # Configurações VS Code (se escolhido)
+├── specs/                 # Especificações de automações
+│   └── 001-[nome]/
+│       ├── robot1/        # Robô 1 (Dispatcher ou Performer)
+│       │   ├── spec.md    # ARQUIVO PRINCIPAL do robô 1
+│       │   ├── selectors.md
+│       │   ├── business-rules.md
+│       │   └── tests.md
+│       ├── robot2/        # Robô 2 (Performer)
+│       │   ├── spec.md    # ARQUIVO PRINCIPAL do robô 2
+│       │   ├── selectors.md
+│       │   ├── business-rules.md
+│       │   └── tests.md
+│       ├── tasks.md       # Compartilhado - lista plana com referência ao robô
+│       └── DDP/           # Compartilhado
+├── generated/            # Framework T2C gerado
+│   ├── [nome-automacao]-robot1/  # Robô 1 gerado
+│   └── [nome-automacao]-robot2/  # Robô 2 gerado
+└── DDP/                  # DDPs gerais
+```
+
+### Arquitetura de Robôs
+
+O sistema suporta três tipos de arquitetura:
+
+1. **Standalone**: Um único robô que faz todo o processo (INIT → FILA → LOOP STATION → END PROCESS)
+2. **Dispatcher + Performer**: 
+   - **Dispatcher**: Prepara dados e popula a fila do performer (precisa criar item vazio na própria fila para executar)
+   - **Performer**: Processa os itens da fila
+3. **Performer + Performer**: Múltiplos performers em cadeia, onde um processa e alimenta o próximo
 
 ## 🔧 Comandos Disponíveis
 

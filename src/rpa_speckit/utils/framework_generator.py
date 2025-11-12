@@ -18,71 +18,117 @@ except ImportError:
 class T2CFrameworkGenerator:
     """Classe para gerar framework T2C completo"""
     
-    def __init__(self, spec_dir: str, framework_repo_url: Optional[str] = None):
+    def __init__(self, spec_dir: str, framework_repo_url: Optional[str] = None, robot_name: Optional[str] = None):
         """
         Inicializa o gerador
         
         Args:
             spec_dir: Diretório com as specs (specs/001-[nome]/)
             framework_repo_url: URL do repositório do framework T2C (opcional)
+            robot_name: Nome do robô específico para gerar (opcional, ex: 'robot1', 'robot2')
         """
         self.spec_dir = Path(spec_dir)
         self.framework_repo_url = framework_repo_url or "https://github.com/T2C-Consultoria/prj_botcity_framework_template.git"
         self.specs: Dict = {}
         self.project_name: str = ""
         self.generated_dir: Path = None
+        self.robot_name: Optional[str] = robot_name
+        self.is_multi_robot: bool = False
+        self.robot_list: List[str] = []
     
-    def read_specs(self) -> Dict:
+    def detect_structure(self) -> bool:
+        """
+        Detecta se a estrutura é standalone ou múltiplos robôs
+        
+        Returns:
+            True se múltiplos robôs, False se standalone
+        """
+        # Verificar se existe robot1/ (indica múltiplos robôs)
+        robot1_dir = self.spec_dir / "robot1"
+        if robot1_dir.exists() and robot1_dir.is_dir():
+            self.is_multi_robot = True
+            # Listar todos os robôs
+            for item in self.spec_dir.iterdir():
+                if item.is_dir() and item.name.startswith("robot") and item.name[5:].isdigit():
+                    self.robot_list.append(item.name)
+            self.robot_list.sort(key=lambda x: int(x[5:]) if x[5:].isdigit() else 0)
+            return True
+        
+        # Se não tem robot1/, é standalone
+        self.is_multi_robot = False
+        self.robot_list = []
+        return False
+    
+    def read_specs(self, robot_dir: Optional[Path] = None) -> Dict:
         """
         Lê todos os arquivos .md preenchidos
+        
+        Args:
+            robot_dir: Diretório do robô específico (None para standalone ou raiz)
         
         Returns:
             Dicionário com todas as specs
         """
+        # Determinar diretório base
+        base_dir = robot_dir if robot_dir else self.spec_dir
+        
         required_files = {
             'spec': 'spec.md',  # ARQUIVO PRINCIPAL - Arquitetura completa
             'selectors': 'selectors.md',
             'business_rules': 'business-rules.md',
-            'tasks': 'tasks.md'
+            'tests': 'tests.md'
         }
         
+        specs = {}
+        
         for key, filename in required_files.items():
-            file_path = self.spec_dir / filename
+            file_path = base_dir / filename
             if file_path.exists():
-                self.specs[key] = file_path.read_text(encoding="utf-8")
+                specs[key] = file_path.read_text(encoding="utf-8")
             else:
-                raise FileNotFoundError(f"Arquivo obrigatório não encontrado: {filename}")
+                raise FileNotFoundError(f"Arquivo obrigatório não encontrado: {file_path}")
+        
+        # Ler tasks.md da raiz (compartilhado)
+        tasks_file = self.spec_dir / 'tasks.md'
+        if tasks_file.exists():
+            specs['tasks'] = tasks_file.read_text(encoding="utf-8")
+        else:
+            raise FileNotFoundError(f"Arquivo obrigatório não encontrado: tasks.md")
         
         # Ler configs se existirem
         config_dir = self.spec_dir.parent.parent / "config"
         if config_dir.exists():
-            self.specs['configs'] = {}
+            specs['configs'] = {}
             for config_file in config_dir.glob("*.md"):
-                self.specs['configs'][config_file.stem] = config_file.read_text(encoding="utf-8")
+                specs['configs'][config_file.stem] = config_file.read_text(encoding="utf-8")
         
-        return self.specs
+        return specs
     
-    def validate_specs(self) -> List[str]:
+    def validate_specs(self, specs: Optional[Dict] = None) -> List[str]:
         """
         Valida completude das specs
+        
+        Args:
+            specs: Dicionário de specs a validar (None para usar self.specs)
         
         Returns:
             Lista de erros encontrados (vazia se tudo OK)
         """
         errors = []
+        specs_to_validate = specs if specs is not None else self.specs
         
         # Verificar se arquivos existem
-        required_files = ['spec', 'selectors', 'business_rules', 'tasks']
+        required_files = ['spec', 'selectors', 'business_rules', 'tests', 'tasks']
         for key in required_files:
-            if key not in self.specs:
+            if key not in specs_to_validate:
                 errors.append(f"Arquivo {key} não encontrado")
         
         # Verificar se spec não está vazio (ARQUIVO PRINCIPAL)
-        if 'spec' in self.specs:
-            if len(self.specs['spec'].strip()) < 100:
+        if 'spec' in specs_to_validate:
+            if len(specs_to_validate['spec'].strip()) < 100:
                 errors.append("spec.md (ARQUIVO PRINCIPAL) parece estar vazio ou incompleto")
             # Verificar se spec tem stack definida
-            if 'T2C Framework' not in self.specs['spec']:
+            if 'T2C Framework' not in specs_to_validate['spec']:
                 errors.append("spec.md (ARQUIVO PRINCIPAL) não menciona T2C Framework")
         
         return errors
@@ -516,24 +562,43 @@ class T2CFrameworkGenerator:
         content = content.replace("{{PROJECT_DESCRIPTION}}", f"Automação RPA gerada com RPA Spec-Kit")
         (self.generated_dir / "README.md").write_text(content, encoding="utf-8")
     
-    def generate(self, output_dir: Path, skip_download: bool = False):
+    def generate_single_robot(self, robot_name: str, output_dir: Path, skip_download: bool = False) -> Path:
         """
-        Gera framework completo
+        Gera framework para um robô específico
         
         Args:
+            robot_name: Nome do robô ('robot1', 'robot2', etc. ou None para standalone)
             output_dir: Diretório de saída
             skip_download: Se True, não baixa framework (usa estrutura local)
+        
+        Returns:
+            Caminho do diretório gerado
         """
-        # Ler specs
-        self.read_specs()
+        # Determinar diretório do robô
+        if robot_name:
+            robot_dir = self.spec_dir / robot_name
+            if not robot_dir.exists():
+                raise FileNotFoundError(f"Diretório do robô não encontrado: {robot_dir}")
+        else:
+            robot_dir = None  # Standalone
+        
+        # Ler specs do robô
+        specs = self.read_specs(robot_dir)
+        self.specs = specs
         
         # Validar
-        errors = self.validate_specs()
+        errors = self.validate_specs(specs)
         if errors:
-            raise ValueError(f"Erros de validação: {', '.join(errors)}")
+            raise ValueError(f"Erros de validação para {robot_name or 'standalone'}: {', '.join(errors)}")
         
         # Determinar nome do projeto
-        project_name = self.determine_project_name()
+        base_project_name = self.determine_project_name()
+        
+        # Se múltiplos robôs, adicionar sufixo do robô
+        if robot_name:
+            project_name = f"{base_project_name}-{robot_name}"
+        else:
+            project_name = base_project_name
         
         # Criar estrutura
         self.generate_project_structure(project_name, output_dir)
@@ -571,4 +636,44 @@ class T2CFrameworkGenerator:
         self.generate_readme(templates_dir)
         
         return self.generated_dir
+    
+    def generate(self, output_dir: Path, skip_download: bool = False):
+        """
+        Gera framework completo (standalone ou múltiplos robôs)
+        
+        Args:
+            output_dir: Diretório de saída
+            skip_download: Se True, não baixa framework (usa estrutura local)
+        
+        Returns:
+            Lista de caminhos dos diretórios gerados (ou caminho único se standalone)
+        """
+        # Detectar estrutura
+        is_multi = self.detect_structure()
+        
+        generated_dirs = []
+        
+        if is_multi:
+            # Múltiplos robôs
+            robots_to_generate = self.robot_list
+            
+            # Se robot_name foi especificado, gerar apenas esse
+            if self.robot_name:
+                if self.robot_name not in robots_to_generate:
+                    raise ValueError(f"Robô '{self.robot_name}' não encontrado. Robôs disponíveis: {', '.join(robots_to_generate)}")
+                robots_to_generate = [self.robot_name]
+            
+            # Gerar cada robô
+            for robot_name in robots_to_generate:
+                generated_dir = self.generate_single_robot(robot_name, output_dir, skip_download)
+                generated_dirs.append(generated_dir)
+        else:
+            # Standalone
+            generated_dir = self.generate_single_robot(None, output_dir, skip_download)
+            generated_dirs.append(generated_dir)
+        
+        # Retornar lista ou único caminho
+        if len(generated_dirs) == 1:
+            return generated_dirs[0]
+        return generated_dirs
 

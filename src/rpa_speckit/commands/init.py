@@ -392,7 +392,7 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 - Se os arquivos já existirem, atualize-os com as novas informações do DDP""",
         "t2c.tasks": """# Gerar Tasks
 
-Gera o arquivo tasks.md baseado em spec.md e business-rules.md.
+Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estimativas de tempo para cada tarefa.
 
 ## Uso
 
@@ -414,16 +414,30 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md.
    - Init (T2CInitAllApplications)
    - Process (T2CProcess)
    - End Process (T2CCloseAllApplications)
-4. Cria tasks.md com todas as tarefas identificadas
+4. **Calcula estimativas de tempo** para cada tarefa (considerando desenvolvedor pleno)
+5. Cria tasks.md com:
+   - Tabela de visão geral de estimativas no início
+   - Cada tarefa com sua estimativa de tempo e justificativa
+   - Resumo executivo com métricas de tempo
 
 ## Arquivo Gerado
 
-- \`specs/001-[nome]/tasks.md\`
+- \`specs/001-[nome]/tasks.md\` com:
+  - Tabela de visão geral (resumo executivo, top 5 tasks, estimativas por fase/robô)
+  - Tasks detalhadas com estimativas individuais
+
+## Estimativas de Tempo
+
+- **Base:** Desenvolvedor pleno (não mencionar isso no documento, apenas usar como referência)
+- **Formato:** Horas (ex: "2 horas", "4 horas", "0.5 horas")
+- **Justificativa:** Breve explicação do porquê da estimativa (complexidade, número de etapas, integrações, etc.)
+- **Tabela de visão geral:** Inclui tempo total, top 5 tasks mais demoradas, distribuição por fase e por robô
 
 ## Notas
 
 - Este comando é opcional - o desenvolvedor pode criar tasks.md manualmente
-- As tarefas geradas devem ser revisadas e ajustadas conforme necessário""",
+- As tarefas geradas devem ser revisadas e ajustadas conforme necessário
+- As estimativas são baseadas na complexidade descrita no spec.md e business-rules.md""",
         "t2c.implement": """# Implementar Framework T2C
 
 Gera o framework T2C completo baseado nas especificações preenchidas.
@@ -431,38 +445,85 @@ Gera o framework T2C completo baseado nas especificações preenchidas.
 ## Uso
 
 \`\`\`
-/t2c.implement [caminho_da_spec]
+/t2c.implement [caminho_da_spec] [--robot nome_do_robo]
 \`\`\`
 
-## Exemplo
+## Exemplos
 
 \`\`\`
+# Gerar todos os robôs (ou standalone)
 /t2c.implement specs/001-automacao-exemplo
+
+# Gerar apenas um robô específico (se múltiplos robôs)
+/t2c.implement specs/001-automacao-exemplo --robot robot1
+/t2c.implement specs/001-automacao-exemplo --robot robot2
+\`\`\`
+
+## Estrutura de Robôs
+
+O comando detecta automaticamente se o projeto é:
+- **Standalone**: Um único robô (spec.md na raiz)
+- **Múltiplos robôs**: Vários robôs (robot1/, robot2/, etc.)
+
+### Standalone
+\`\`\`
+specs/001-[nome]/
+├── spec.md
+├── selectors.md
+├── business-rules.md
+├── tests.md
+└── tasks.md
+\`\`\`
+
+### Múltiplos Robôs
+\`\`\`
+specs/001-[nome]/
+├── robot1/
+│   ├── spec.md
+│   ├── selectors.md
+│   ├── business-rules.md
+│   └── tests.md
+├── robot2/
+│   ├── spec.md
+│   ├── selectors.md
+│   ├── business-rules.md
+│   └── tests.md
+└── tasks.md  # Compartilhado
 \`\`\`
 
 ## O que faz
 
-1. Valida se todos os arquivos necessários estão preenchidos:
+1. Detecta estrutura (standalone ou múltiplos robôs)
+2. Valida se todos os arquivos necessários estão preenchidos:
    - spec.md (ARQUIVO PRINCIPAL - arquitetura completa)
    - selectors.md
    - business-rules.md
-   - tasks.md
+   - tests.md
+   - tasks.md (compartilhado se múltiplos robôs)
    - config/*.md
-2. Baixa o framework T2C do GitHub (organização privada)
-3. Gera estrutura completa em \`generated/[nome-automacao]/\`
-4. Copia arquivos do framework base
-5. Gera arquivos customizados:
+3. Baixa o framework T2C do GitHub (organização privada)
+4. Gera estrutura completa:
+   - Standalone: \`generated/[nome-automacao]/\`
+   - Múltiplos: \`generated/[nome-automacao]-robot1/\`, \`generated/[nome-automacao]-robot2/\`, etc.
+5. Copia arquivos do framework base
+6. Gera arquivos customizados para cada robô:
    - bot.py
    - T2CProcess.py
    - T2CInitAllApplications.py
    - T2CCloseAllApplications.py
    - Config.xlsx
-6. Substitui variáveis de template
-7. Gera requirements.txt, setup.py, README.md
+7. Substitui variáveis de template
+8. Gera requirements.txt, setup.py, README.md para cada robô
+
+## Parâmetros
+
+- \`caminho_da_spec\`: Caminho para o diretório da spec (ex: specs/001-automacao-exemplo)
+- \`--robot nome_do_robo\`: (Opcional) Gera apenas o robô especificado (ex: robot1, robot2). Se não especificado, gera todos os robôs.
 
 ## Arquivos Gerados
 
-Estrutura completa do framework T2C em \`generated/[nome-automacao]/\`
+- **Standalone**: Estrutura completa em \`generated/[nome-automacao]/\`
+- **Múltiplos**: Estrutura completa em \`generated/[nome-automacao]-robot1/\`, \`generated/[nome-automacao]-robot2/\`, etc.
 
 ## Pré-requisitos
 
@@ -473,8 +534,9 @@ Estrutura completa do framework T2C em \`generated/[nome-automacao]/\`
 ## Notas
 
 - O framework é gerado do zero a cada execução
-- Arquivos customizados são gerados baseados nas specs
-- Arquivos do framework base são copiados (não modificados)""",
+- Arquivos customizados são gerados baseados nas specs de cada robô
+- Arquivos do framework base são copiados (não modificados)
+- Se múltiplos robôs, cada um tem seu próprio framework completo gerado""",
         "t2c.validate": """# Validar Especificações
 
 Valida a estrutura e completude dos arquivos de especificação.

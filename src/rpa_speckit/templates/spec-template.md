@@ -1,6 +1,26 @@
 # Especificação Técnica - Arquitetura do Robô
 
+> **⚠️ IMPORTANTE:** Ao criar o arquivo final, replique apenas a estrutura do template. Remova todas as anotações, exemplos e informações que não sejam do processo real. Mantenha apenas as informações reais do processo para reduzir a quantidade de informação no documento.
+
 **Este é o arquivo principal do projeto.** Define a arquitetura completa e o que cada parte do código deve fazer.
+
+---
+
+## Arquitetura de Robôs
+
+> **Nota:** Esta seção define se este robô é standalone ou parte de uma arquitetura com múltiplos robôs (dispatcher/performer).
+
+- **Tipo:** [Standalone / Dispatcher / Performer]
+- **Este robô é:** [Descrição breve do papel deste robô]
+- **Recebe dados de:** [Nome do robô anterior que alimenta este robô, se Performer. Ex: "robot1" ou "N/A" se Standalone/Dispatcher]
+- **Alimenta:** [Nome do robô seguinte que este robô alimenta, se Dispatcher ou Performer que alimenta outro. Ex: "robot2" ou "N/A" se não alimenta nenhum]
+- **Ordem na cadeia:** [1/2/3... se parte de múltiplos robôs, ou "1" se Standalone]
+- **Nome da pasta do robô:** [robot1 / robot2 / etc. ou "raiz" se standalone]
+
+**Observações sobre arquitetura:**
+- [Se Dispatcher: mencionar que precisa criar item vazio na própria fila para executar]
+- [Se Performer: mencionar de onde recebe os dados e como acessa a fila compartilhada]
+- [Se parte de cadeia: mencionar a ordem de execução e dependências]
 
 ---
 
@@ -50,6 +70,38 @@ Liste todos os sistemas/aplicações que precisam ser iniciados:
    - **Estado Esperado:** [Em qual tela/página o sistema deve estar para entrar no Loop Station]
    - **Credenciais:** [Como obter]
    - **Observações:** [Qualquer informação relevante]
+
+### ⚠️ REGRAS DE INICIALIZAÇÃO DE SISTEMAS
+
+**REGRA 1: Apenas Sistemas com UI Devem Ser Inicializados**
+
+Sistemas que **NÃO possuem interface gráfica (UI)** não devem ser inicializados na fase INIT, pois não há necessidade de abrir telas ou realizar login. Estes sistemas podem ser utilizados diretamente em background.
+
+**Sistemas que NÃO devem ser inicializados:**
+- **APIs:** Podem ser chamadas diretamente via requisições HTTP
+- **Bancos de Dados:** SQLite, SQL Server, MySQL, PostgreSQL, etc. - Podem ser acessados diretamente via conexão
+- **Arquivos Excel/CSV:** Podem ser lidos diretamente em background sem necessidade de abrir aplicação
+- **Outros sistemas sem UI:** Qualquer sistema que não exija interface gráfica para funcionamento
+
+**Sistemas que DEVEM ser inicializados:**
+- **Aplicações Web:** Navegadores (Chrome, Edge, Firefox) que precisam abrir URLs
+- **Aplicações Desktop:** Programas com interface gráfica que precisam ser abertos
+- **Qualquer sistema que exija interação visual ou login em tela**
+
+**REGRA 2: Login Obrigatório para Sistemas Inicializados**
+
+Todos os sistemas que são inicializados (com UI) **DEVEM realizar login** (se o sistema possuir autenticação). O login deve ser feito imediatamente após a inicialização, antes de entrar no LOOP STATION.
+
+**Exceções:**
+- Sistemas que não possuem autenticação/login
+- Sistemas que já estão autenticados por outros meios (SSO, certificados, etc.)
+
+**Exemplos práticos:**
+- ✅ **Sistema Web com login:** Inicializar navegador → Abrir URL → Realizar login → Validar estado
+- ❌ **SQLite:** Não inicializar - usar conexão direta quando necessário
+- ❌ **API REST:** Não inicializar - fazer requisições HTTP diretamente
+- ❌ **Excel:** Não inicializar - ler arquivo diretamente com pandas/openpyxl
+- ✅ **SAP GUI:** Inicializar aplicação → Realizar login → Validar estado
 
 ### Integração T2CTracker
 
@@ -176,9 +228,7 @@ row = df[df['id'] == var_strReferencia]
 **Etapa 1: Login no Sistema SAP**
 - **Descrição:** Realizar login no sistema SAP usando credenciais obtidas do item da fila. Validar se o login foi bem-sucedido verificando a presença do menu principal.
 - **Seletores utilizados:** Ver `selectors.md` - Seção "Login SAP" (campo_usuario, campo_senha, botao_entrar, menu_principal)
-- **Validações aplicadas:** Ver `business-rules.md` - VAL001 (validar se usuário e senha não estão vazios), VAL002 (validar formato do usuário)
-- **Regras de negócio:** Ver `business-rules.md` - REG001 (tentar login até 3 vezes em caso de erro de sistema)
-- **Condições especiais:** Ver `business-rules.md` - COND001 (se usuário estiver bloqueado, pular item e registrar erro de negócio)
+- **Exceções de negócio:** Ver `business-rules.md` - EXC001 (se usuário estiver bloqueado, pular item e registrar erro de negócio)
 - **T2CTracker Step:** 10 - "Iniciando login no sistema SAP"
 - **Observações:** 
   - Aguardar 3 segundos após clicar em entrar para garantir carregamento completo
@@ -190,9 +240,7 @@ row = df[df['id'] == var_strReferencia]
 #### Etapa 1: [Nome da Etapa]
 - **Descrição:** [O que esta etapa faz - seja específico e detalhado]
 - **Seletores utilizados:** Ver `selectors.md` - [Seção específica] ([lista de seletores usados])
-- **Validações aplicadas:** Ver `business-rules.md` - [VAL001, VAL002, etc.]
-- **Regras de negócio:** Ver `business-rules.md` - [REG001, REG002, etc.]
-- **Condições especiais:** Ver `business-rules.md` - [COND001, COND002, etc.]
+- **Exceções de negócio:** Ver `business-rules.md` - [EXC001, EXC002, etc.] (se aplicável)
 - **T2CTracker Step:** [Número do step] - "[Mensagem descritiva]"
 - **Observações:** 
   - [Aguardas necessárias, timeouts, etc.]
@@ -202,9 +250,7 @@ row = df[df['id'] == var_strReferencia]
 #### Etapa 2: [Nome da Etapa]
 - **Descrição:** [O que esta etapa faz - seja específico e detalhado]
 - **Seletores utilizados:** Ver `selectors.md` - [Seção específica] ([lista de seletores usados])
-- **Validações aplicadas:** Ver `business-rules.md` - [VAL003, etc.]
-- **Regras de negócio:** Ver `business-rules.md` - [REG003, etc.]
-- **Condições especiais:** Ver `business-rules.md` - [COND003, etc.]
+- **Exceções de negócio:** Ver `business-rules.md` - [EXC003, etc.] (se aplicável)
 - **T2CTracker Step:** [Número do step] - "[Mensagem descritiva]"
 - **Observações:** 
   - [Aguardas necessárias, timeouts, etc.]
@@ -214,8 +260,7 @@ row = df[df['id'] == var_strReferencia]
 #### Etapa 3: [Nome da Etapa]
 - **Descrição:** [O que esta etapa faz - seja específico e detalhado]
 - **Seletores utilizados:** Ver `selectors.md` - [Seção específica] ([lista de seletores usados])
-- **Validações aplicadas:** Ver `business-rules.md` - [VAL004, etc.]
-- **Regras de negócio:** Ver `business-rules.md` - [REG004, etc.]
+- **Exceções de negócio:** Ver `business-rules.md` - [EXC004, etc.] (se aplicável)
 - **T2CTracker Step:** [Número do step] - "[Mensagem descritiva]"
 - **Observações:** 
   - [Aguardas necessárias, timeouts, etc.]
@@ -228,9 +273,7 @@ row = df[df['id'] == var_strReferencia]
 
 **IMPORTANTE:** Todas as BusinessRuleException devem estar documentadas em `business-rules-template.md` e apenas referenciadas aqui.
 
-- **Validações (VAL*):** Ver `business-rules-template.md`
-- **Condições Especiais (COND*):** Ver `business-rules-template.md`
-- **Regras de Processamento (REG*):** Ver `business-rules-template.md`
+- **Exceções de Negócio (EXC*):** Ver `business-rules-template.md`
 
 ### Integração T2CTracker
 
@@ -245,6 +288,8 @@ Liste os steps do Tracker que serão utilizados durante o processamento:
 ## END PROCESS: Finalização (T2CCloseAllApplications.execute)
 
 ### Sistemas a Fechar
+
+**⚠️ IMPORTANTE:** Apenas os sistemas que foram **inicializados na fase INIT** (sistemas com UI) devem ser fechados aqui. Sistemas sem UI (APIs, Bancos de Dados, Excel, etc.) não foram inicializados e, portanto, não precisam ser fechados.
 
 Liste todos os sistemas/aplicações que precisam ser fechados:
 
