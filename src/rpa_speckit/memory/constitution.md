@@ -152,22 +152,66 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 - **Standalone**: Um único robô faz todo o processo
 - **Múltiplos robôs**: Dispatcher + Performer ou Performer + Performer
 
-#### Quando Separar em Múltiplos Robôs
+#### Critérios para Análise de Arquitetura
 
-**SEPARE quando:**
-- O LOOP STATION é muito extenso/complexo e não pode ser feito em um único robô
-- O processo de execução tem múltiplas fases que podem ser divididas logicamente
-- Há múltiplas regras de negócio complexas que podem ser separadas
-- A separação facilita organização e manutenção
-- Um robô precisa preparar dados complexos (conciliações, validações extensas, enriquecimento) para outro processar
-- O processo tem duas partes distintas: preparação de dados (complexa) e execução (mais simples)
-- Durante a análise, identificar que seria mais fácil e organizado separar em dois ou mais robôs
+**⚠️ IMPORTANTE:** A decisão de separar ou não em múltiplos robôs NÃO é uma regra binária. A LLM deve analisar o contexto completo do processo e considerar múltiplos fatores antes de decidir. Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs - a decisão deve ser baseada na análise cuidadosa de todos os aspectos do processo.
 
-**NÃO SEPARE quando:**
-- O processo é simples e direto (leitura de Excel, processamento único, validações simples)
-- A lógica cabe confortavelmente em um único robô
-- Não há benefício claro em separar
-- Processos que são apenas leitura ou coisas simples do tipo
+**Contextos que TENDEM a favorecer separação em múltiplos robôs:**
+
+1. **Complexidade e Extensão do LOOP STATION:**
+   - Analisar se o LOOP STATION é muito extenso (muitas etapas, muitas regras de negócio, múltiplas integrações)
+   - Considerar se a complexidade justifica separação para melhor organização e manutenção
+   - Avaliar se dividir em fases distintas facilitaria o entendimento e desenvolvimento
+
+2. **Complexidade da Preparação de Dados:**
+   - Processos que requerem preparação complexa de dados (conciliações entre múltiplas fontes, validações extensas, enriquecimento via APIs, transformações complexas)
+   - Quando a lógica de preenchimento da fila é significativamente mais complexa que o processamento em si
+   - Casos onde a preparação de dados pode ser feita de forma independente e assíncrona
+
+3. **Separação Lógica por Responsabilidade:**
+   - Processos com fases distintas que têm responsabilidades claramente diferentes
+   - Quando um robô prepara dados e outro executa ações em sistemas diferentes
+   - Separação por sistema quando há benefício claro em termos de manutenção, testes e evolução independente
+
+4. **Benefícios de Organização e Manutenção:**
+   - Quando a separação facilitaria significativamente a manutenção do código
+   - Casos onde cada robô teria responsabilidades bem definidas e distintas
+   - Processos que podem evoluir de forma independente em cada robô
+
+5. **Processos Assíncronos ou com Verificação:**
+   - Processos que envolvem etapas de verificação manual ou aguardar resposta de sistemas externos
+   - Quando há necessidade de retry control diferenciado entre fases
+   - Processos onde uma fase pode ser executada independentemente da outra
+
+6. **Modularização de Etapas Opcionais:**
+   - Quando certas etapas do processo são opcionais e podem ser habilitadas/desabilitadas sem modificar código
+   - Separação que permite flexibilidade na execução de partes do processo
+
+**Contextos que TENDEM a favorecer arquitetura Standalone:**
+
+1. **Simplicidade do Processo:**
+   - Processos diretos e lineares (leitura de Excel, validação simples, inserção em sistema)
+   - Lógica que cabe confortavelmente em um único robô sem sobrecarga
+   - Processos com poucas etapas e regras de negócio simples
+
+2. **Cohesão Funcional:**
+   - Quando todas as etapas do processo estão fortemente acopladas e fazem sentido juntas
+   - Processos onde separar criaria dependências complexas sem benefício claro
+   - Casos onde a lógica de negócio é indivisível
+
+3. **Sem Benefício Claro de Separação:**
+   - Quando não há ganho evidente em termos de manutenção, organização ou complexidade
+   - Processos onde a separação adicionaria complexidade desnecessária
+   - Casos onde o overhead de gerenciar múltiplos robôs não se justifica
+
+**⚠️ REGRA DE OURO:** A decisão final deve ser baseada na análise cuidadosa do contexto completo do processo, considerando:
+- Complexidade técnica vs. benefício de separação
+- Manutenibilidade futura
+- Clareza de responsabilidades
+- Facilidade de testes e evolução
+- Overhead de gerenciamento de múltiplos robôs
+
+**NÃO existe uma regra absoluta.** A LLM deve pesar todos os fatores e tomar a decisão que faz mais sentido para o processo específico em análise.
 
 #### Tipos de Arquitetura
 
@@ -341,50 +385,117 @@ specs/001-[nome]/
   - `/t2c.implement specs/001-[nome]` - Gera todos os robôs
   - `/t2c.implement specs/001-[nome] --robot robot1` - Gera apenas robot1
 
-#### Checklist para Decisão de Arquitetura
+#### Guia de Análise para Decisão de Arquitetura
 
-Ao analisar o DDP, a LLM deve considerar:
+Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os seguintes aspectos:
 
-1. **Complexidade do LOOP STATION:**
-   - [ ] É muito extenso? (muitas etapas, muitas regras de negócio)
-   - [ ] Pode ser dividido logicamente em fases distintas?
+**1. Análise de Complexidade do LOOP STATION:**
+   - Quantas etapas o LOOP STATION possui? (contar etapas do DDP)
+   - Quantas regras de negócio estão envolvidas? (VAL*, COND*, REG*)
+   - Quantas integrações diferentes são necessárias? (sistemas UI, APIs, bancos de dados)
+   - A complexidade é gerenciável em um único robô ou seria mais organizado dividir?
+   - Existem fases logicamente distintas que poderiam ser separadas?
 
-2. **Complexidade da FILA:**
-   - [ ] A lógica de preenchimento é simples (leitura direta) ou complexa (conciliações, validações extensas)?
-   - [ ] Seria melhor ter um dispatcher preparando dados?
+**2. Análise da Complexidade da Preparação de Dados (FILA):**
+   - A lógica de preenchimento da fila é simples (leitura direta de Excel/CSV) ou complexa?
+   - São necessárias conciliações entre múltiplas fontes de dados?
+   - Há validações extensas ou enriquecimento de dados (APIs, consultas complexas)?
+   - A preparação de dados é significativamente mais complexa que o processamento em si?
+   - A preparação poderia ser feita de forma independente e assíncrona?
 
-3. **Separação lógica:**
-   - [ ] O processo tem fases distintas que podem ser separadas?
-   - [ ] Um robô processa e outro executa ações diferentes?
+**3. Análise de Separação Lógica e Responsabilidades:**
+   - O processo tem fases com responsabilidades claramente distintas?
+   - Um robô prepararia dados enquanto outro executaria ações em sistemas diferentes?
+   - A separação por sistema traria benefícios claros (manutenção, testes, evolução independente)?
+   - As etapas estão fortemente acopladas ou podem ser separadas sem criar dependências complexas?
 
-4. **Manutenção e organização:**
-   - [ ] A separação facilitaria manutenção?
-   - [ ] Cada robô teria responsabilidades claras e distintas?
+**4. Análise de Benefícios de Organização e Manutenção:**
+   - A separação facilitaria significativamente a manutenção do código?
+   - Cada robô teria responsabilidades bem definidas e distintas?
+   - O processo pode evoluir de forma independente em cada robô?
+   - A separação adicionaria complexidade desnecessária ou traria benefícios claros?
 
-5. **Decisão final:**
-   - [ ] Se respondeu SIM para maioria das questões acima → **Múltiplos robôs**
-   - [ ] Se respondeu NÃO para maioria → **Standalone**
+**5. Análise de Processos Assíncronos e Controle de Retry:**
+   - O processo envolve etapas de verificação manual ou aguardar resposta de sistemas externos?
+   - Há necessidade de retry control diferenciado entre fases?
+   - Uma fase pode ser executada independentemente da outra?
+
+**6. Análise de Modularização:**
+   - Existem etapas opcionais que poderiam ser habilitadas/desabilitadas sem modificar código?
+   - A separação permitiria flexibilidade na execução de partes do processo?
+
+**7. Síntese e Decisão Final:**
+   - **Pesar todos os fatores acima** - não há uma regra binária
+   - Considerar o contexto completo do processo
+   - Avaliar se os benefícios da separação superam o overhead de gerenciar múltiplos robôs
+   - Decidir baseado no que faz mais sentido para este processo específico
+   - Documentar a justificativa da decisão na seção "Arquitetura de Robôs" do spec.md
+
+**⚠️ LEMBRE-SE:** Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs. A decisão deve ser baseada na análise cuidadosa de todos os aspectos, não em regras rígidas.
 
 #### Exemplos Práticos
 
-**Exemplo 1: Standalone**
-- Processo: Ler Excel, validar CPF, inserir no sistema SAP
-- Decisão: Standalone (processo simples e direto)
-- Estrutura: `specs/001-inserir-cpf/spec.md` (na raiz)
+**Exemplo 1: Standalone (Decisão Clara)**
+- **Processo:** Ler Excel, validar CPF, inserir no sistema SAP
+- **Análise:** 
+  - LOOP STATION simples (3-4 etapas)
+  - Preparação de fila direta (leitura Excel)
+  - Processo linear e coeso
+  - Sem benefício claro em separar
+- **Decisão:** Standalone
+- **Estrutura:** `specs/001-inserir-cpf/spec.md` (na raiz)
 
-**Exemplo 2: Dispatcher + Performer**
-- Processo: Ler múltiplos Excels, fazer conciliação complexa entre eles, validar dados, enriquecer com API, depois processar no SAP
-- Decisão: Dispatcher + Performer
-- Estrutura:
+**Exemplo 2: Dispatcher + Performer (Decisão Clara)**
+- **Processo:** Ler múltiplos Excels, fazer conciliação complexa entre eles, validar dados, enriquecer com API, depois processar no SAP
+- **Análise:**
+  - Preparação de dados muito complexa (múltiplas fontes, conciliações, validações, enriquecimento)
+  - Processamento no SAP é mais simples que a preparação
+  - Benefício claro: preparação pode ser feita independentemente
+  - Manutenção facilitada: lógica de preparação separada da execução
+- **Decisão:** Dispatcher + Performer
+- **Estrutura:**
   - `specs/001-processo/robot1/` (Dispatcher - prepara dados)
   - `specs/001-processo/robot2/` (Performer - processa no SAP)
 
-**Exemplo 3: Performer + Performer**
-- Processo: Processar notas fiscais no sistema A, depois processar no sistema B
-- Decisão: Performer + Performer
-- Estrutura:
+**Exemplo 3: Performer + Performer (Decisão Clara)**
+- **Processo:** Processar notas fiscais no sistema A, depois processar no sistema B
+- **Análise:**
+  - Dois sistemas diferentes com responsabilidades distintas
+  - Processamento sequencial claro
+  - Benefício: cada robô foca em um sistema específico
+  - Manutenção facilitada: mudanças em um sistema não afetam o outro
+- **Decisão:** Performer + Performer
+- **Estrutura:**
   - `specs/001-processo/robot1/` (Performer 1 - sistema A)
   - `specs/001-processo/robot2/` (Performer 2 - sistema B)
+
+**Exemplo 4: Caso que Requer Análise Cuidadosa (2 Sistemas UI)**
+- **Processo:** Consultar dados no sistema A, validar informações, inserir no sistema B
+- **Análise Contextual:**
+  - **Fator 1:** Dois sistemas UI diferentes
+  - **Fator 2:** Processo linear e simples (3-4 etapas)
+  - **Fator 3:** Lógica coesa - consulta e inserção fazem parte do mesmo fluxo
+  - **Fator 4:** Sem necessidade de retry diferenciado
+  - **Fator 5:** Separação adicionaria overhead sem benefício claro
+- **Decisão:** Standalone (apesar de ter 2 sistemas UI)
+- **Justificativa:** O processo é simples e coeso. Separar criaria complexidade desnecessária sem ganhos em manutenção ou organização.
+- **Estrutura:** `specs/001-processo/spec.md` (na raiz)
+
+**Exemplo 5: Caso que Requer Análise Cuidadosa (Processo Médio)**
+- **Processo:** Ler Excel, validar dados, processar no sistema A (10 etapas), depois processar no sistema B (5 etapas)
+- **Análise Contextual:**
+  - **Fator 1:** LOOP STATION extenso (15 etapas no total)
+  - **Fator 2:** Dois sistemas diferentes
+  - **Fator 3:** Processamento no sistema A é significativamente mais complexo que no B
+  - **Fator 4:** Separação facilitaria manutenção (cada robô foca em um sistema)
+  - **Fator 5:** Benefício claro: mudanças no sistema A não afetam o B
+- **Decisão:** Performer + Performer
+- **Justificativa:** Apesar de ser um processo linear, a complexidade e a separação por sistema trazem benefícios claros de manutenção e organização.
+- **Estrutura:**
+  - `specs/001-processo/robot1/` (Performer 1 - sistema A, 10 etapas)
+  - `specs/001-processo/robot2/` (Performer 2 - sistema B, 5 etapas)
+
+**⚠️ OBSERVAÇÃO IMPORTANTE:** Os exemplos 4 e 5 mostram que a decisão não é baseada em uma única característica (como "ter 2 sistemas UI"), mas sim na análise cuidadosa de todos os fatores do processo específico.
 
 ### 14. Estimativas de Tempo para Tasks
 
