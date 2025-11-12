@@ -43,6 +43,9 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
         directories.append(".cursor/commands")
     elif ai_assistant in ["vscode-copilot", "vscode-claude"]:
         directories.append(".vscode")
+        # GitHub Copilot reconhece comandos em .github/prompts/
+        if ai_assistant == "vscode-copilot":
+            directories.append(".github/prompts")
     
     for directory in directories:
         (project_path / directory).mkdir(parents=True, exist_ok=True)
@@ -63,13 +66,17 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
     console.print("[cyan]Criando requirements.txt...[/cyan]")
     _create_requirements_txt(project_path)
     
-    # Criar comandos Cursor/VS Code
+    # Criar comandos Cursor/VS Code/GitHub Copilot
     if ai_assistant == "cursor":
         console.print("[cyan]Criando comandos Cursor...[/cyan]")
         _create_cursor_commands(project_path)
     elif ai_assistant in ["vscode-copilot", "vscode-claude"]:
         console.print("[cyan]Criando configurações VS Code...[/cyan]")
         _create_vscode_config(project_path, ai_assistant)
+        # Criar comandos para GitHub Copilot (reconhece .github/prompts/)
+        if ai_assistant == "vscode-copilot":
+            console.print("[cyan]Criando comandos GitHub Copilot...[/cyan]")
+            _create_github_prompts(project_path)
     
     # Criar arquivos iniciais
     console.print("[cyan]Criando arquivos iniciais...[/cyan]")
@@ -589,6 +596,16 @@ def _create_cursor_commands(project_path: Path):
     for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
         content = _get_command_content(cmd_name)
         (commands_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
+
+
+def _create_github_prompts(project_path: Path):
+    """Cria comandos para GitHub Copilot usando .github/prompts/"""
+    prompts_dir = project_path / ".github" / "prompts"
+    
+    # Usar a mesma função para garantir conteúdo idêntico
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+        content = _get_command_content(cmd_name)
+        (prompts_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
 
 
 def _create_vscode_config(project_path: Path, ai_assistant: str):
