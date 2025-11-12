@@ -610,10 +610,8 @@ def _create_github_prompts(project_path: Path):
 
 
 def _create_vscode_config(project_path: Path, ai_assistant: str):
-    """Cria configurações VS Code com comandos equivalentes ao Cursor"""
+    """Cria configurações VS Code - apenas settings.json para GitHub Copilot"""
     vscode_dir = project_path / ".vscode"
-    commands_dir = vscode_dir / "commands"
-    commands_dir.mkdir(exist_ok=True)
     
     # Criar settings.json
     settings = {
@@ -658,17 +656,8 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
         encoding="utf-8"
     )
     
-    # Criar comandos markdown (EXATAMENTE como no Cursor, com slash commands)
-    _create_vscode_commands(commands_dir)
-    
-    # Criar arquivo de instruções do Copilot dentro de .vscode
-    _create_copilot_instructions(vscode_dir, commands_dir)
-    
-    # Criar tasks.json (para executar scripts)
+    # Criar tasks.json (para executar scripts via VS Code Tasks como alternativa)
     _create_vscode_tasks(vscode_dir)
-    
-    # Criar README explicando como usar
-    _create_vscode_readme(vscode_dir)
 
 
 def _create_vscode_commands(commands_dir: Path):
