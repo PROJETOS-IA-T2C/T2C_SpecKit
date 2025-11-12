@@ -599,13 +599,14 @@ def _create_cursor_commands(project_path: Path):
 
 
 def _create_github_prompts(project_path: Path):
-    """Cria comandos para GitHub Copilot usando .github/prompts/"""
+    """Cria comandos para GitHub Copilot usando .github/prompts/ com extensão .prompt.md"""
     prompts_dir = project_path / ".github" / "prompts"
     
-    # Usar a mesma função para garantir conteúdo idêntico
+    # GitHub Copilot requer extensão .prompt.md (não apenas .md)
     for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
         content = _get_command_content(cmd_name)
-        (prompts_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
+        # Copilot reconhece arquivos .prompt.md em .github/prompts/
+        (prompts_dir / f"{cmd_name}.prompt.md").write_text(content, encoding="utf-8")
 
 
 def _create_vscode_config(project_path: Path, ai_assistant: str):
@@ -630,6 +631,26 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
         }
         # Configurações para Copilot Chat reconhecer slash commands
         settings["github.copilot.chat.enable"] = True
+        
+        # Git autofetch para manter contexto atualizado
+        settings["git.autofetch"] = True
+        
+        # Mapear comandos para arquivos .prompt.md em .github/prompts/
+        # Isso permite autocomplete e reconhecimento automático dos slash commands
+        settings["chat.promptFilesRecommendations"] = {
+            "t2c.extract-ddp": True,
+            "t2c.tasks": True,
+            "t2c.implement": True,
+            "t2c.validate": True
+        }
+        
+        # Permitir execução automática de scripts em .specify/scripts/
+        # Isso evita pedir confirmação a cada execução de script
+        settings["chat.tools.terminal.autoApprove"] = {
+            ".specify/scripts/": True,
+            ".specify/scripts/bash/": True,
+            ".specify/scripts/powershell/": True
+        }
     
     import json
     (vscode_dir / "settings.json").write_text(
