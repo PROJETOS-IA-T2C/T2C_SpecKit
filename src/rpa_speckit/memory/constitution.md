@@ -187,6 +187,19 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
    - Quando certas etapas do processo são opcionais e podem ser habilitadas/desabilitadas sem modificar código
    - Separação que permite flexibilidade na execução de partes do processo
 
+7. **Isolamento de Erros no LOOP STATION e Execução Retroativa:**
+   - **⚠️ CRITÉRIO PRIORITÁRIO:** Sempre que houver um LOOP STATION que processa múltiplos itens e, em seguida, outro processamento (em sistema diferente ou fase diferente), considerar separar em múltiplos robôs
+   - Quando um erro em um item do LOOP pode comprometer o processamento dos demais itens se estiverem no mesmo robô
+   - A separação permite que o framework trate erros automaticamente no LOOP STATION, mantendo a execução dos outros itens mesmo se um falhar
+   - Quando uma fase pode ser executada de forma retroativa/independente após a outra (execução retroativa)
+   - Quando diferentes fases precisam de estratégias de retry diferenciadas
+   - **Padrão típico:** LOOP que processa múltiplos itens (preparação/consolidação) → processamento subsequente em sistema diferente
+   - **Benefícios:**
+     - Isolamento de falhas: erro em um item não compromete outros
+     - Execução retroativa: robôs podem rodar separadamente
+     - Retry control diferenciado: cada fase pode ter estratégias próprias
+     - Modularização por objetivo: cada robô tem responsabilidade clara
+
 **Contextos que TENDEM a favorecer arquitetura Standalone:**
 
 1. **Simplicidade do Processo:**
@@ -224,13 +237,21 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 **2. Dispatcher + Performer**
 - **Dispatcher** (`robot1/`):
   - **Função:** Prepara dados e popula a fila do performer
-  - **OBRIGATÓRIO:** Criar item vazio na própria fila para executar (framework precisa de pelo menos 1 item)
-  - **Estrutura completa:** INIT → FILA (cria item vazio + popula fila do performer) → LOOP STATION → END PROCESS
+  - **Estrutura completa:** INIT → FILA → LOOP STATION → END PROCESS
   - **Nomenclatura:** `prj_AFYA_ID15_01_SAP_DISP` (usar sufixo `_DISP`)
+  - **Padrões possíveis:**
+    - **Padrão 1 (Linear):** INIT popula fila do performer diretamente (sem LOOP próprio)
+      - **OBRIGATÓRIO:** Criar item vazio na própria fila para executar (framework precisa de pelo menos 1 item)
+      - INIT → FILA (cria item vazio + popula fila do performer) → LOOP STATION (processa item vazio) → END PROCESS
+    - **Padrão 2 (LOOP próprio):** INIT popula própria fila, LOOP STATION processa itens e popula fila do performer
+      - INIT → FILA (captura dados externos, ex: cards do Pipefy, e sobe para própria fila)
+      - LOOP STATION → Para cada item da própria fila: processa (ex: consulta APIs, consolida dados) → sobe item preparado para fila do performer
+      - END PROCESS → Finaliza com e-mail
   - **Características:**
-    - Lógica de preenchimento da fila é complexa (múltiplas fontes, conciliações, validações extensas)
-    - Pode ser um robô mais simples que apenas prepara dados
+    - Lógica de preenchimento da fila pode ser complexa (múltiplas fontes, conciliações, validações extensas)
+    - Pode ter LOOP STATION próprio para processar múltiplos itens antes de popular fila do performer
     - Usa framework para preparar dados e popular fila do performer
+    - **Benefício do Padrão 2:** Isolamento de erros - se um item falhar no LOOP, outros itens continuam sendo processados
 - **Performer** (`robot2/`):
   - **Função:** Processa itens da fila populada pelo dispatcher
   - **Fila compartilhada:** 
@@ -291,6 +312,8 @@ specs/001-[nome]/
 #### Regras Específicas por Tipo
 
 **Para Dispatcher:**
+
+**Padrão 1 (Linear - sem LOOP próprio):**
 - **OBRIGATÓRIO:** No método `add_to_queue()`, criar um item vazio na própria fila ANTES de popular a fila do performer:
   ```python
   @classmethod
@@ -306,14 +329,47 @@ specs/001-[nome]/
       # ... código para ler dados, fazer conciliações, validações ...
       # ... código para popular fila do performer usando fila compartilhada ...
   ```
+
+**Padrão 2 (LOOP próprio - processa múltiplos itens):**
+- **INIT (`add_to_queue()`):** Capturar dados externos (ex: cards do Pipefy via API) e subir para própria fila:
+  ```python
+  @classmethod
+  def add_to_queue(cls):
+      # Capturar dados externos (ex: cards do Pipefy)
+      cards = api_pipefy.get_cards()
+      
+      # Subir cada card para própria fila
+      for card in cards:
+          QueueManager.insert_new_queue_item(
+              arg_strReferencia=card['id'],
+              arg_dictInfAdicional={'card_data': card}
+          )
+  ```
+- **LOOP STATION (`execute()`):** Para cada item da própria fila, processar e subir para fila do performer:
+  ```python
+  @classmethod
+  def execute(cls):
+      var_dictItem = GetTransaction.var_dictQueueItem
+      var_strReferencia = var_dictItem['referencia']
+      var_dictInfoAdicional = var_dictItem['info_adicionais']
+      
+      # Processar item (ex: consultar outras APIs, consolidar dados)
+      # ... código de processamento ...
+      
+      # Subir item preparado para fila do performer
+      # Usar FilaProcessamentoPerformer do Config.xlsx
+      # ... código para popular fila do performer ...
+  ```
+- **Benefício:** Isolamento de erros - se um item falhar no LOOP, o framework trata automaticamente e continua com os outros itens
 - **Fila compartilhada (para popular o performer):**
   - No Config.xlsx do dispatcher existe a configuração `FilaProcessamentoPerformer` (ou similar)
   - Essa é a fila que o dispatcher deve preencher para o performer processar
   - Usar o mesmo `CaminhoBancoSqlite` configurado no Config.xlsx
   - O dispatcher popula essa fila usando `FilaProcessamentoPerformer` como nome da tabela
 - **Fila própria do dispatcher:**
-  - O dispatcher também tem sua própria `FilaProcessamento` no Config.xlsx (para o item vazio)
-- **Item vazio:** Pode ter qualquer referência (ex: "DISPATCHER_INIT"), mas deve existir na fila própria do dispatcher para o framework executar
+  - O dispatcher tem sua própria `FilaProcessamento` no Config.xlsx
+  - **Padrão 1:** Contém apenas item vazio (necessário para framework executar)
+  - **Padrão 2:** Contém os itens reais capturados no INIT (ex: cards do Pipefy) que serão processados no LOOP STATION
 
 **Para Performer:**
 - **Fila compartilhada (recebe do dispatcher/performer anterior):**
@@ -389,6 +445,21 @@ specs/001-[nome]/
 
 Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os seguintes aspectos:
 
+**⚠️ 0. VERIFICAÇÃO PRIORITÁRIA: Identificação de LOOPs no DDP:**
+   - **PROCURAR SEMPRE POR LOOPS NO DDP** - Esta é uma verificação prioritária que deve ser feita antes de qualquer outra análise
+   - Identificar se há um LOOP STATION que processa múltiplos itens
+   - Verificar se após o LOOP há outro processamento (em sistema diferente ou fase diferente)
+   - **Se identificar LOOP + processamento subsequente:** Considerar fortemente separar em múltiplos robôs
+   - **Padrão típico a procurar:**
+     - LOOP que processa múltiplos itens (ex: cards do Pipefy, linhas de Excel, registros de API)
+     - Após o LOOP, há processamento em sistema diferente (ex: SAP, TOTVS, outro sistema)
+     - O processamento subsequente pode ser executado de forma independente
+   - **Benefícios da separação neste caso:**
+     - Isolamento de erros: erro em um item não compromete outros
+     - Execução retroativa: robôs podem rodar separadamente
+     - Framework trata erros automaticamente no LOOP STATION
+   - **Sempre que tiver possibilidade de separar para rodar robôs separadamente, deve fazer essa separação**
+
 **1. Análise de Complexidade do LOOP STATION:**
    - Quantas etapas o LOOP STATION possui? (contar etapas do DDP)
    - Quantas regras de negócio estão envolvidas? (VAL*, COND*, REG*)
@@ -456,6 +527,29 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
 - **Estrutura:**
   - `specs/001-processo/robot1/` (Dispatcher - prepara dados)
   - `specs/001-processo/robot2/` (Performer - processa no SAP)
+
+**Exemplo 2.1: Dispatcher + Performer (LOOP + Processamento Subsequente) - CASO REAL**
+- **Processo:** Capturar cards do Pipefy via API, consultar outras APIs para enriquecer dados, consolidar informações, lançar notas no SAP
+- **Análise:**
+  - **LOOP identificado:** Processamento de múltiplos cards do Pipefy
+  - **Processamento subsequente:** Lançamento de notas no SAP (sistema diferente)
+  - **Padrão:** LOOP que processa múltiplos itens → processamento em sistema diferente
+  - **Benefícios críticos da separação:**
+    - **Isolamento de erros:** Se um card do Pipefy falhar, não perde os outros cards. O framework trata o erro automaticamente no LOOP STATION e continua com os demais
+    - **Execução retroativa:** Robot2 pode rodar independentemente após Robot1 ter populado a fila
+    - **Retry control diferenciado:** Cada robô pode ter estratégias de retry próprias (APIs vs. SAP)
+    - **Modularização por objetivo:** Robot1 prepara/consolida dados, Robot2 executa no sistema final
+- **Decisão:** Dispatcher + Performer (obrigatório separar devido ao LOOP)
+- **Estrutura:**
+  - **Robot1 (Dispatcher):**
+    - INIT: Capturar cards do Pipefy via API → subir para própria fila
+    - LOOP STATION: Para cada card da fila → consultar outras APIs → consolidar informações → subir item para fila do performer
+    - END PROCESS: Finalizar com e-mail
+  - **Robot2 (Performer):**
+    - INIT: Não subir fila (já populada), iniciar SAP e realizar login
+    - LOOP STATION: Cadastrar nota (item da fila) no SAP
+    - END PROCESS: Finalizar SAP e enviar e-mail
+- **Justificativa:** Este é um caso típico onde a separação é obrigatória. Se um card falhar no mesmo robô que processa o SAP, todos os outros cards seriam perdidos. A separação garante isolamento de erros e execução retroativa.
 
 **Exemplo 3: Performer + Performer (Decisão Clara)**
 - **Processo:** Processar notas fiscais no sistema A, depois processar no sistema B
