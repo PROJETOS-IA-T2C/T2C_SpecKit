@@ -152,7 +152,131 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 - **Standalone**: Um único robô faz todo o processo
 - **Múltiplos robôs**: Dispatcher + Performer ou Performer + Performer
 
-#### Critérios para Análise de Arquitetura
+#### 🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO - VERIFICAR PRIMEIRO
+
+**⚠️ ATENÇÃO CRÍTICA:** Antes de fazer qualquer análise contextual, a LLM DEVE verificar se o processo se enquadra em uma das regras obrigatórias abaixo. Se SIM, a separação é OBRIGATÓRIA, não opcional.
+
+**REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente em Sistema Diferente**
+
+**SEPARAR OBRIGATORIAMENTE quando:**
+- ✅ Existe um LOOP STATION que processa múltiplos itens (cards, linhas, registros)
+- ✅ Após o LOOP, há processamento em sistema diferente (SAP, TOTVS, outro sistema UI, ou outra fase distinta)
+- ✅ O processamento subsequente pode ser executado de forma independente
+
+**Checklist binário (SE TODAS AS RESPOSTAS FOREM SIM, SEPARAR É OBRIGATÓRIO):**
+- [ ] O processo tem um LOOP que processa múltiplos itens?
+- [ ] Após o LOOP, há outro processamento (em sistema diferente ou fase diferente)?
+- [ ] Um erro em um item do LOOP pode comprometer outros itens se estiverem no mesmo robô?
+- [ ] A separação permitiria execução retroativa (rodar robôs separadamente)?
+
+**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
+
+**Exemplos de casos que OBRIGAM separação:**
+- Pipefy (API) → Consultar APIs (CNPJ, Sintegra) → SAP (UI) → **SEPARAR OBRIGATÓRIO**
+- Excel → Processar linhas → Consultar APIs → TOTVS (UI) → **SEPARAR OBRIGATÓRIO**
+- API → Enriquecer dados → Processar múltiplos itens → Sistema UI → **SEPARAR OBRIGATÓRIO**
+
+**Exemplo detalhado - Caso Pipefy → APIs → SAP (CASO REAL):**
+- **Processo:** Capturar cards do Pipefy via API → Consultar APIs (CNPJ, Sintegra, Suframa) → Consolidar dados → Lançar notas no SAP
+- **Checklist REGRA OBRIGATÓRIA 1:**
+  - [✅] O processo tem um LOOP que processa múltiplos itens? **SIM** - LOOP processa múltiplos cards do Pipefy
+  - [✅] Após o LOOP, há outro processamento (em sistema diferente)? **SIM** - Processamento no SAP (sistema UI diferente)
+  - [✅] Um erro em um item do LOOP pode comprometer outros? **SIM** - Se um card falhar, pode perder outros cards
+  - [✅] A separação permitiria execução retroativa? **SIM** - Robot2 pode rodar depois que Robot1 populou a fila
+- **RESULTADO:** **SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
+- **Estrutura obrigatória:**
+  - `robot1/spec.md` - Dispatcher: Pipefy → APIs → consolidação → popula fila do performer
+  - `robot2/spec.md` - Performer: Processa itens da fila no SAP (23 etapas)
+
+**REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso**
+
+**SEPARAR OBRIGATORIAMENTE quando:**
+- ✅ O processo envolve sistemas diferentes (ex: APIs sem UI + Sistema UI)
+- ✅ Há um LOOP STATION extenso (10+ etapas) em um dos sistemas
+- ✅ A separação permitiria execução retroativa e isolamento de erros
+
+**Checklist binário:**
+- [ ] O processo envolve sistemas diferentes (ex: APIs + UI)?
+- [ ] Há um LOOP STATION extenso (10+ etapas)?
+- [ ] A separação permitiria rodar os robôs separadamente?
+
+**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO**
+
+**REGRA OBRIGATÓRIA 3: Preparação Complexa de Dados + Execução Simples**
+
+**SEPARAR OBRIGATORIAMENTE quando:**
+- ✅ A preparação de dados é complexa (múltiplas APIs, conciliações, validações extensas)
+- ✅ A execução no sistema final é mais simples
+- ✅ A preparação pode ser feita independentemente da execução
+
+**Checklist binário:**
+- [ ] A preparação envolve múltiplas fontes, APIs, conciliações ou validações extensas?
+- [ ] A execução no sistema final é mais simples que a preparação?
+- [ ] A preparação pode ser feita independentemente?
+
+**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
+
+**⚠️ IMPORTANTE:** Se o processo se enquadrar em QUALQUER uma das regras obrigatórias acima, a LLM DEVE separar em múltiplos robôs. Não é uma sugestão, é uma OBRIGAÇÃO.
+
+**Se NENHUMA das regras obrigatórias se aplicar, então seguir para análise contextual abaixo.**
+
+#### 📁 Estrutura Obrigatória Quando Separar em Múltiplos Robôs
+
+**Quando uma regra obrigatória se aplicar, a LLM DEVE criar a seguinte estrutura:**
+
+```
+specs/001-[nome]/
+├── robot1/              # Robô 1 (Dispatcher)
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 1
+│   ├── selectors.md     # Seletores específicos do robô 1
+│   ├── business-rules.md # Regras de negócio específicas do robô 1
+│   └── tests.md         # Testes específicos do robô 1
+├── robot2/              # Robô 2 (Performer)
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 2
+│   ├── selectors.md     # Seletores específicos do robô 2
+│   ├── business-rules.md # Regras de negócio específicas do robô 2
+│   └── tests.md         # Testes específicos do robô 2
+├── tasks.md             # Compartilhado - lista plana com referência ao robô
+└── DDP/                 # Compartilhado
+```
+
+**⚠️ AÇÃO OBRIGATÓRIA:** Ao criar os arquivos `spec.md` de cada robô, a LLM DEVE:
+
+1. **Criar `robot1/spec.md`** com:
+   - Seção "Arquitetura de Robôs" no início indicando:
+     - **Tipo:** Dispatcher
+     - **Este robô é:** [Descrição do papel - ex: "Prepara dados do Pipefy, consulta APIs e popula fila do performer"]
+     - **Recebe dados de:** N/A
+     - **Alimenta:** robot2
+     - **Ordem na cadeia:** 1
+     - **Nome da pasta do robô:** robot1
+   - Seção INIT com lógica de captura de dados
+   - Seção FILA com lógica de preenchimento da própria fila (se Padrão 2) ou fila do performer (se Padrão 1)
+   - Seção LOOP STATION com lógica de processamento de cada item
+   - Seção END PROCESS
+
+2. **Criar `robot2/spec.md`** com:
+   - Seção "Arquitetura de Robôs" no início indicando:
+     - **Tipo:** Performer
+     - **Este robô é:** [Descrição do papel - ex: "Processa itens da fila no SAP"]
+     - **Recebe dados de:** robot1
+     - **Alimenta:** N/A
+     - **Ordem na cadeia:** 2
+     - **Nome da pasta do robô:** robot2
+   - Seção INIT com lógica de inicialização do sistema final (ex: SAP)
+   - Seção FILA indicando que não preenche (já populada pelo robot1)
+   - Seção LOOP STATION com lógica de processamento no sistema final
+   - Seção END PROCESS
+
+3. **Criar `tasks.md` na raiz** com:
+   - Tabela de visão geral de estimativas
+   - Tasks do robot1 com campo "Robô: robot1"
+   - Tasks do robot2 com campo "Robô: robot2"
+   - Organização: todas tasks do robot1 primeiro, depois robot2
+
+**⚠️ NÃO criar `spec.md` na raiz quando houver múltiplos robôs. Cada robô tem seu próprio `spec.md` dentro de sua pasta.**
+
+#### Critérios para Análise de Arquitetura (Quando Não Há Regra Obrigatória)
 
 **⚠️ IMPORTANTE:** A decisão de separar ou não em múltiplos robôs NÃO é uma regra binária. A LLM deve analisar o contexto completo do processo e considerar múltiplos fatores antes de decidir. Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs - a decisão deve ser baseada na análise cuidadosa de todos os aspectos do processo.
 
@@ -443,22 +567,23 @@ specs/001-[nome]/
 
 #### Guia de Análise para Decisão de Arquitetura
 
-Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os seguintes aspectos:
+**⚠️ PASSO 0 - OBRIGATÓRIO: Verificar Regras Obrigatórias de Separação**
 
-**⚠️ 0. VERIFICAÇÃO PRIORITÁRIA: Identificação de LOOPs no DDP:**
-   - **PROCURAR SEMPRE POR LOOPS NO DDP** - Esta é uma verificação prioritária que deve ser feita antes de qualquer outra análise
-   - Identificar se há um LOOP STATION que processa múltiplos itens
-   - Verificar se após o LOOP há outro processamento (em sistema diferente ou fase diferente)
-   - **Se identificar LOOP + processamento subsequente:** Considerar fortemente separar em múltiplos robôs
-   - **Padrão típico a procurar:**
-     - LOOP que processa múltiplos itens (ex: cards do Pipefy, linhas de Excel, registros de API)
-     - Após o LOOP, há processamento em sistema diferente (ex: SAP, TOTVS, outro sistema)
-     - O processamento subsequente pode ser executado de forma independente
-   - **Benefícios da separação neste caso:**
-     - Isolamento de erros: erro em um item não compromete outros
-     - Execução retroativa: robôs podem rodar separadamente
-     - Framework trata erros automaticamente no LOOP STATION
-   - **Sempre que tiver possibilidade de separar para rodar robôs separadamente, deve fazer essa separação**
+**ANTES de qualquer análise contextual, a LLM DEVE:**
+
+1. **Ler a seção "🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO" acima**
+2. **Aplicar os checklists binários das 3 regras obrigatórias:**
+   - REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente
+   - REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso
+   - REGRA OBRIGATÓRIA 3: Preparação Complexa + Execução Simples
+3. **Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO**
+4. **Se NENHUMA regra obrigatória se aplicar → seguir para análise contextual abaixo**
+
+**⚠️ CRÍTICO:** Se o processo se enquadrar em uma regra obrigatória, a LLM NÃO deve fazer análise contextual. Deve separar imediatamente e criar a estrutura de múltiplos robôs.
+
+**PASSO 1 - Análise Contextual (Apenas se NENHUMA regra obrigatória se aplicou):**
+
+Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os seguintes aspectos:
 
 **1. Análise de Complexidade do LOOP STATION:**
    - Quantas etapas o LOOP STATION possui? (contar etapas do DDP)
