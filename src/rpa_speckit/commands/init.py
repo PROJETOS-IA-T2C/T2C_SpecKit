@@ -372,26 +372,49 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 
 **PASSO 2 - Se o comando funcionar:**
 
-1. Leia o texto extraído que será exibido no output
-2. Crie ou atualize os arquivos de especificação na pasta \`specs/001-[nome]/\`
-3. Preencha cada arquivo baseado no conteúdo do DDP
+1. **⚠️ OBRIGATÓRIO: Consulte o `@constitution.md`** (localizado em `.specify/memory/constitution.md`) antes de criar qualquer arquivo
+   - Leia especialmente a **seção 13: Arquitetura de Robôs - Decisão e Estruturação**
+   - Verifique as **REGRAS OBRIGATÓRIAS DE SEPARAÇÃO** primeiro
+   - Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO
+2. Leia o texto extraído que será exibido no output
+3. **Decida a arquitetura** baseado nas regras do `constitution.md`:
+   - **Standalone**: Criar `spec.md` na raiz de `specs/001-[nome]/`
+   - **Múltiplos robôs**: Criar estrutura `robot1/` e `robot2/` com seus respectivos `spec.md`
+4. Crie ou atualize os arquivos de especificação baseado na decisão de arquitetura
+5. Preencha cada arquivo baseado no conteúdo do DDP
 
 ## Arquivos a preencher
 
+### Se Standalone (1 robô):
 - \`specs/001-[nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
 - \`specs/001-[nome]/tests.md\` - Cenários de teste e validações
 - \`specs/001-[nome]/selectors.md\` - Seletores Clicknium
 - \`specs/001-[nome]/business-rules.md\` - Regras de negócio
 
+### Se Múltiplos Robôs (quando regra obrigatória se aplicar):
+- \`specs/001-[nome]/robot1/spec.md\` - Especificação do robô 1 (Dispatcher)
+- \`specs/001-[nome]/robot1/tests.md\` - Testes do robô 1
+- \`specs/001-[nome]/robot1/selectors.md\` - Seletores do robô 1
+- \`specs/001-[nome]/robot1/business-rules.md\` - Regras de negócio do robô 1
+- \`specs/001-[nome]/robot2/spec.md\` - Especificação do robô 2 (Performer)
+- \`specs/001-[nome]/robot2/tests.md\` - Testes do robô 2
+- \`specs/001-[nome]/robot2/selectors.md\` - Seletores do robô 2
+- \`specs/001-[nome]/robot2/business-rules.md\` - Regras de negócio do robô 2
+
+**⚠️ IMPORTANTE:** 
+- Se houver múltiplos robôs, **NÃO criar** \`spec.md\` na raiz
+- Cada robô tem seu próprio \`spec.md\` dentro de sua pasta (\`robot1/\`, \`robot2/\`)
+
 ## Detalhes dos arquivos
 
-- **spec.md**: ARQUIVO PRINCIPAL - Definir arquitetura completa (INIT, FILA, LOOP STATION, END PROCESS), stack tecnológica, integrações, estrutura de dados
+- **spec.md**: ARQUIVO PRINCIPAL - Definir arquitetura completa (INIT, FILA, LOOP STATION, END PROCESS), stack tecnológica, integrações, estrutura de dados. **DEVE incluir seção "Arquitetura de Robôs" no início** conforme `constitution.md` seção 13.
 - **tests.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
 - **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
 - **business-rules.md**: Extrair validações (VAL*), condições especiais (COND*), regras de processamento (REG*)
 
 ## Lembre-se
 
+- **SEMPRE consulte o `@constitution.md`** antes de criar os arquivos para seguir as regras de arquitetura
 - O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto
 - Você apenas precisa EXECUTÁ-LO, não criá-lo
 - Use os templates em \`.specify/templates/\` como referência para a estrutura
