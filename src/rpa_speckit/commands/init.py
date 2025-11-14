@@ -417,7 +417,7 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 - **Instala dependências automaticamente** se necessário (python-pptx)
 - **SIMPLES**: Apenas execute o comando, o script faz TUDO sozinho
 
-**PASSO 2 - Se o comando funcionar:**
+**PASSO 2 - Análise e Proposta de Arquitetura (⚠️ NÃO CRIAR ARQUIVOS AINDA):**
 
 1. **🚨 REGRA FUNDAMENTAL - Leia o DDP com ATENÇÃO TOTAL (OBRIGATÓRIO):**
    - Leia o texto extraído que será exibido no output **COMPLETO** do início ao fim, **palavra por palavra**
@@ -433,32 +433,129 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
    - Crie uma lista **ESCRITA** de **TODAS as informações** identificadas (etapas, exceções, sistemas, integrações)
    - Garantir que **NENHUMA informação** foi perdida
 
-2. **⚠️ OBRIGATÓRIO: Consulte o `@constitution.md`** (localizado em `src/rpa_speckit/memory/constitution.md`) antes de criar qualquer arquivo
+2. **⚠️ OBRIGATÓRIO: Consulte o `@constitution.md`** (localizado em `src/rpa_speckit/memory/constitution.md`) para decidir a arquitetura
    - **PRIMEIRO:** Leia a **seção "🚨 REGRA FUNDAMENTAL - LEITURA CUIDADOSA DO DDP"** no início do documento - Esta é EXTREMAMENTE CRÍTICA
    - **SEGUNDO:** Leia a **seção 0: 🚨 REGRA CRÍTICA - SEGUIR ESTRUTURA DOS TEMPLATES EXATAMENTE** - Esta é EXTREMAMENTE IMPORTANTE
    - **TERCEIRO:** Leia especialmente a **PARTE 1.5: Arquitetura de Robôs** (ou seção 13) para decisão de arquitetura
    - Leia a seção **"📖 LEITURA E ANÁLISE CUIDADOSA DO DDP - OBRIGATÓRIO"** e siga o checklist obrigatório COMPLETO
    - Verifique as **REGRAS OBRIGATÓRIAS DE SEPARAÇÃO** primeiro
    - Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO
+   - **⚠️ IMPORTANTE:** Quanto mais quebrar os robôs seguindo as regras, melhor ainda. Seja proativo em separar quando as regras se aplicam.
 
-3. **Decida a arquitetura** baseado nas regras do `constitution.md`:
-   - **Standalone**: Criar `spec.md` na raiz de `specs/001-[nome]/`
-   - **Múltiplos robôs**: Criar estrutura `robot1/`, `robot2/`, `robot3/` (ou quantos forem necessários) com seus respectivos `spec.md`
-   - **NÃO HÁ LIMITE** - criar quantos robôs forem necessários para organizar o processo adequadamente
+3. **📋 CRIAR PROPOSTA DE ARQUITETURA (⚠️ NÃO CRIAR ARQUIVOS AINDA - APENAS APRESENTAR PROPOSTA):**
+   
+   **A LLM DEVE criar um resumo compacto mas detalhado apresentando ao usuário:**
+   
+   **a) Resumo do Processo:**
+   - **Sistemas envolvidos:** Lista de todos os sistemas (APIs, UI, Verifai, Excel, Word, portais, etc.)
+   - **Fluxo geral:** Descrição breve do processo do início ao fim
+   - **Complexidade identificada:** Pontos de complexidade (múltiplas APIs, LOOP extenso, sistemas diferentes, etc.)
+   - **Exceções de negócio:** Quantidade e tipos de exceções identificadas
+   
+   **b) Decisão de Arquitetura:**
+   - **Quantidade de robôs propostos:** X robôs (1, 2, 3, 4, 5 ou quantos forem necessários)
+   - **Tipo de cada robô:** Standalone / Dispatcher / Performer
+   - **Justificativa detalhada:**
+     - Quais regras obrigatórias se aplicaram (REGRA 1, REGRA 2, REGRA 3, REGRA 4, REGRA 5)
+     - Por que decidiu separar dessa forma específica
+     - Benefícios da separação (isolamento de erros, execução retroativa, manutenibilidade, etc.)
+     - **⚠️ IMPORTANTE:** Se houver dúvida entre separar mais ou menos, SEMPRE optar por separar mais (seguindo as regras). Quanto mais quebrar os robôs seguindo as regras, melhor ainda.
+   
+   **c) Detalhamento por Robô:**
+   
+   Para cada robô proposto, mostrar de forma clara e organizada:
+   - **Nome/Role:** O que este robô faz (ex: "Dispatcher - Prepara dados do Pipefy, consulta APIs e envia para Verifai")
+   - **Etapas principais:** Lista das etapas principais que este robô executará (INIT, FILA, LOOP STATION, END PROCESS)
+   - **Sistemas que utiliza:** Quais sistemas este robô interage (ex: "Pipefy API, CNPJ API, Verifai")
+   - **Entrada:** De onde recebe dados (fila própria, fila compartilhada, Excel, API, etc.)
+   - **Saída:** O que produz (popula fila do próximo robô, finaliza processo, etc.)
+   - **Ordem na cadeia:** Posição na sequência de execução (1, 2, 3, etc.)
+   
+   **d) Estrutura de Pastas:**
+   - Mostrar a estrutura de pastas que será criada (robot1/, robot2/, etc. ou raiz se standalone)
+   
+   **Formato sugerido para apresentação ao usuário:**
+   ```markdown
+   ## 📋 Proposta de Arquitetura
+   
+   ### 📊 Resumo do Processo
+   - **Sistemas envolvidos:** [lista de sistemas]
+   - **Fluxo geral:** [descrição breve]
+   - **Complexidade:** [pontos de complexidade identificados]
+   - **Exceções de negócio:** [quantidade e tipos]
+   
+   ### 🏗️ Decisão de Arquitetura
+   - **Quantidade de robôs:** X robôs
+   - **Justificativa:**
+     - [Regra obrigatória aplicada]: [explicação]
+     - [Regra obrigatória aplicada]: [explicação]
+     - Benefícios: [isolamento de erros, execução retroativa, etc.]
+   
+   ### 🤖 Detalhamento por Robô
+   
+   **Robot1 (Dispatcher):**
+   - **Função:** [descrição clara do papel]
+   - **Etapas principais:**
+     - INIT: [o que faz no INIT]
+     - FILA: [o que faz na FILA]
+     - LOOP STATION: [o que faz no LOOP]
+     - END PROCESS: [o que faz no final]
+   - **Sistemas:** [lista de sistemas]
+   - **Entrada:** [fonte de dados]
+   - **Saída:** [o que produz/popula]
+   - **Ordem:** 1
+   
+   **Robot2 (Performer):**
+   [mesmo formato]
+   
+   ### 📂 Estrutura Proposta
+   ```
+   specs/001-[nome]/
+   ├── robot1/
+   │   ├── spec.md
+   │   ├── selectors.md
+   │   ├── business-rules.md
+   │   └── tests.md
+   ├── robot2/
+   │   ├── spec.md
+   │   └── ...
+   └── tasks.md (será criado com /t2c.tasks)
+   ```
+   
+   **⏳ Aguardando sua aprovação para criar os arquivos...**
+   ```
 
-4. **🚨 VERIFICAÇÃO FINAL OBRIGATÓRIA - ANTES DE CRIAR OS ARQUIVOS:**
-   - [ ] **TODAS as etapas** do DDP foram identificadas e estão contempladas na arquitetura?
-   - [ ] **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento) do DDP foram identificadas e estão mapeadas no business-rules.md?
+4. **✅ APROVAÇÃO DO USUÁRIO:**
+   
+   **Após apresentar a proposta, a LLM DEVE:**
+   - **Aguardar explicitamente** a aprovação do usuário
+   - **NÃO criar arquivos** até receber aprovação
+   - Se o usuário der **OK, aprovar, confirmar** ou similar → Prosseguir para PASSO 3 (criar arquivos)
+   - Se o usuário **NÃO aprovar** ou pedir ajustes:
+     - Entender o feedback do usuário
+     - Ajustar a proposta conforme solicitado
+     - Apresentar nova proposta
+     - Repetir até aprovação
+   - Se o usuário questionar a decisão, explicar melhor a justificativa baseada nas regras do `constitution.md`
+
+**PASSO 3 - Criação dos Arquivos (⚠️ APENAS APÓS APROVAÇÃO DO USUÁRIO):**
+
+1. **🚨 VERIFICAÇÃO FINAL OBRIGATÓRIA - ANTES DE CRIAR OS ARQUIVOS:**
+   - [ ] **TODAS as etapas** do DDP foram identificadas e estão contempladas na arquitetura aprovada?
+   - [ ] **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento) do DDP foram identificadas e estarão mapeadas no business-rules.md?
    - [ ] **TODOS os sistemas** mencionados no DDP foram identificados e estão contemplados?
    - [ ] **TODAS as integrações** necessárias foram identificadas e estão consideradas?
    - [ ] **TODAS as exceções** mapeadas no DDP foram identificadas e estão contempladas?
-   - [ ] **TODAS as etapas do LOOP STATION** foram contadas EXATAMENTE (não estimadas) e estão no spec.md?
+   - [ ] **TODAS as etapas do LOOP STATION** foram contadas EXATAMENTE (não estimadas) e estarão no spec.md?
    - [ ] **NENHUMA informação** do DDP foi esquecida ou ignorada?
+   - [ ] A arquitetura aprovada contempla **TODAS as regras obrigatórias** que se aplicam?
    - Se **QUALQUER coisa** do DDP não foi contemplada → **REVISAR o DDP COMPLETO novamente** e **CORRIGIR** antes de criar os arquivos
    - **REGRA DE OURO:** Se o DDP menciona algo, DEVE estar contemplado nas especificações
 
-5. Crie ou atualize os arquivos de especificação baseado na decisão de arquitetura
-6. Preencha cada arquivo baseado no conteúdo do DDP, garantindo que **TODAS as etapas, TODAS as exceções, TODOS os sistemas e TODAS as regras** estejam contempladas
+2. **Criar os arquivos de especificação** baseado na arquitetura aprovada pelo usuário:
+   - Seguir EXATAMENTE a estrutura dos templates (ver PASSO 3 abaixo)
+   - Preencher cada arquivo baseado no conteúdo do DDP
+   - Garantir que **TODAS as etapas, TODAS as exceções, TODOS os sistemas e TODAS as regras** estejam contempladas
 
 ## Arquivos a preencher
 
@@ -567,24 +664,44 @@ Ao criar ou atualizar qualquer arquivo de especificação (especialmente `spec.m
 - ✅ Preencher com informações reais do DDP
 - ✅ Remover apenas anotações e exemplos (textos entre `[...]`)
 
-## Lembre-se
+## ⚠️ REGRAS CRÍTICAS
 
-- **🚨 REGRA FUNDAMENTAL:** **SEMPRE leia o DDP com ATENÇÃO TOTAL** - palavra por palavra, do início ao fim. **NÃO DEIXE PASSAR NENHUMA ETAPA, REGRA, SISTEMA OU EXCEÇÃO**. Se algo do DDP não for contemplado, **TODAS as especificações estarão incorretas**.
-- **SEMPRE consulte o `@constitution.md`** antes de criar os arquivos para seguir as regras de arquitetura, especialmente a seção "🚨 REGRA FUNDAMENTAL - LEITURA CUIDADOSA DO DDP"
+**🚨 REGRA FUNDAMENTAL - Leitura do DDP:**
+- **SEMPRE leia o DDP com ATENÇÃO TOTAL** - palavra por palavra, do início ao fim
+- **NÃO DEIXE PASSAR NENHUMA ETAPA, REGRA, SISTEMA OU EXCEÇÃO**
+- Se algo do DDP não for contemplado, **TODAS as especificações estarão incorretas**
+
+**🚨 REGRA CRÍTICA - Separação de Robôs:**
+- **Quanto mais quebrar os robôs seguindo as regras, melhor ainda**
+- Seja **proativo** em separar quando as regras se aplicam
+- Se houver dúvida entre separar mais ou menos, **SEMPRE optar por separar mais** (seguindo as regras)
+- Não seja conservador - se as regras obrigatórias se aplicam, **SEPARAR É OBRIGATÓRIO**
+- Após aplicar REGRA 5 (Verifai), **SEMPRE verificar** se REGRA 1 também se aplica ao processamento subsequente
+
+**🚨 REGRA CRÍTICA - Aprovação Antes de Criar:**
+- **NUNCA criar arquivos** antes de apresentar a proposta e receber aprovação do usuário
+- **SEMPRE apresentar** a proposta de arquitetura primeiro
+- **AGUARDAR** explicitamente a aprovação do usuário
+- Se o usuário pedir ajustes, ajustar a proposta e apresentar novamente
+
+**🚨 REGRA CRÍTICA - Estrutura dos Templates:**
 - **SEMPRE consulte o template correspondente** (ex: `@spec-template.md`) ANTES de criar qualquer arquivo
 - **SEMPRE replique a estrutura EXATAMENTE** como está no template
-- **SEMPRE verifique** que **TODAS as etapas, TODAS as exceções, TODOS os sistemas e TODAS as regras** do DDP estão contempladas antes de criar os arquivos
-- O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto
-- Você apenas precisa EXECUTÁ-LO, não criá-lo
-- Use os templates em \`.specify/templates/\` como referência para a estrutura
-- Mantenha a numeração das regras (EXC001, EXC002, etc.)
-- Se os arquivos já existirem, atualize-os com as novas informações do DDP, mas **MANTENHA a estrutura do template**
+- **SEMPRE consulte o `@constitution.md`** seção 0 sobre seguir estrutura dos templates
 
 **🚨 REGRA ABSOLUTA - tasks.md:**
 - ❌ **NUNCA criar** \`tasks.md\` neste comando
 - ❌ **NÃO gerar** tasks.md automaticamente
 - ✅ **tasks.md** será criado APENAS quando o usuário executar explicitamente o comando `/t2c.tasks`
-- ✅ **Aguardar** o comando do usuário - não antecipar a criação de tasks.md""",
+- ✅ **Aguardar** o comando do usuário - não antecipar a criação de tasks.md
+
+## Lembre-se
+
+- O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto - apenas execute-o
+- Use os templates em \`.specify/templates/\` como referência para a estrutura
+- Mantenha a numeração das regras (EXC001, EXC002, etc.)
+- Se os arquivos já existirem, atualize-os com as novas informações do DDP, mas **MANTENHA a estrutura do template**
+- **SEMPRE verifique** que **TODAS as etapas, TODAS as exceções, TODOS os sistemas e TODAS as regras** do DDP estão contempladas antes de criar os arquivos""",
         "t2c.tasks": """# Gerar Tasks
 
 Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estimativas de tempo para cada tarefa.
