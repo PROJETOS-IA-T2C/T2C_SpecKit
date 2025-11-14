@@ -8,6 +8,29 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 ## 📋 PARTE 1: REGRAS FUNDAMENTAIS
 
+### 0. 🚨 REGRA CRÍTICA - SEGUIR ESTRUTURA DOS TEMPLATES EXATAMENTE
+
+**⚠️ EXTREMAMENTE IMPORTANTE - OBRIGATÓRIO:**
+
+Ao criar ou atualizar qualquer arquivo de especificação, a LLM DEVE:
+
+1. **Ler o template correspondente ANTES** de criar o arquivo (`@spec-template.md`, `@tests-template.md`, etc.)
+2. **Replicar a estrutura EXATAMENTE** como está no template:
+   - TODAS as seções, títulos, campos na mesma ordem
+   - Formatação, indentação e separadores `---` idênticos
+3. **Remover apenas anotações/exemplos** (textos entre `[...]`)
+4. **Preencher com informações reais** do DDP
+
+**⚠️ VERIFICAÇÃO OBRIGATÓRIA:**
+- [ ] Todas as seções do template estão presentes?
+- [ ] Ordem dos títulos é idêntica ao template?
+- [ ] Formatação e separadores estão corretos?
+- [ ] Não foi adicionada/removida nenhuma seção?
+
+**⚠️ REGRA DE OURO:** Se o template tem, o arquivo criado DEVE ter. A única diferença permitida é remover anotações/exemplos e preencher com dados reais.
+
+**Aplica-se a:** `spec.md`, `tests.md`, `selectors.md`, `business-rules.md`, `tasks.md`
+
 ### 1. Estrutura do Framework
 - **Sempre usar as classes do framework** conforme especificação abaixo
 - **Nunca modificar arquivos core do framework**
@@ -19,16 +42,15 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 ### 2. Tratamento de Erros
 
-**⚠️ IMPORTANTE:** O framework JÁ gerencia tratamento de erros automaticamente. A LLM deve gerar código simples e direto, sem adicionar validações ou tratativas desnecessárias.
+**⚠️ IMPORTANTE:** O framework JÁ gerencia tratamento de erros automaticamente. A LLM deve gerar código simples e direto. **Ver seção 11 - REGRA CRÍTICA: Geração de Código Simples e Direto** para regras completas e exemplos detalhados.
 
-**APENAS usar exceções quando:**
-- **BusinessRuleException:** Para exceções de negócio mapeadas no business-rules.md (EXC*)
+**Resumo - APENAS usar exceções quando:**
+- **BusinessRuleException:** Para exceções de negócio mapeadas no `business-rules.md` (EXC*)
   ```python
   from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import BusinessRuleException
   raise BusinessRuleException("Mensagem de erro de negócio")
   ```
-  - **SOMENTE** se a exceção estiver mapeada no business-rules.md
-  - **NÃO** adicionar validações que não estão mapeadas
+  - **SOMENTE** se a exceção estiver mapeada no `business-rules.md`
 
 - **TerminateException:** Para finalização antecipada com sucesso (quando item já foi processado)
   ```python
@@ -38,12 +60,11 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 **O que NÃO fazer:**
 - ❌ **NÃO adicionar try/except genéricos** - o framework já trata
-- ❌ **NÃO adicionar validações desnecessárias** - apenas as mapeadas no business-rules.md
-- ❌ **NÃO adicionar verificações de "se existe", "se é válido"** que não estão no DDP
-- ❌ **NÃO adicionar tratamento de Exception genérica** - o framework gerencia automaticamente
+- ❌ **NÃO adicionar validações desnecessárias** - apenas as mapeadas no `business-rules.md`
+- ❌ **NÃO adicionar verificações que não estão no DDP**
 
 **Exception genérica:** Para erros de sistema (permite retentativa)
-- O framework gerencia automaticamente as retentativas
+  - O framework gerencia automaticamente as retentativas
 - **NÃO é necessário** adicionar código para isso
 
 ### 3. Logging
@@ -81,18 +102,11 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 **⚠️ REGRA OBRIGATÓRIA - Sistemas que NÃO Precisam de Seletores:**
 
-**CRÍTICO:** Assim como sistemas que abrem arquivos não precisam ser inicializados, eles também **NÃO precisam de seletores**. A LLM não deve criar seletores para sistemas que são abertos diretamente por arquivo ou link.
+**CRÍTICO:** Sistemas que manipulam arquivos diretamente (Office365, Google Workspace, etc.) **NÃO precisam de seletores**, pois são tratados em background. **Ver seção 12.5 - REGRA 2 e REGRA 5** para detalhes completos sobre manipulação de arquivos em background.
 
-**Sistemas que NÃO precisam de seletores (SEM EXCEÇÃO):**
-- **Office365:** Excel, Word, PowerPoint, Outlook, OneNote, Access, etc.
-- **Google Workspace:** Google Docs, Google Sheets, Google Slides, Google Drive
-- **OneDrive:** Acesso via link ou arquivo
-- **Outros sistemas similares:** Qualquer sistema aberto diretamente por arquivo ou link
-
-**⚠️ REGRA DE OURO:**
-- Se o sistema é aberto **diretamente por arquivo ou link**, **NÃO criar seletores**
-- Seletores são necessários apenas para sistemas com **interface UI que precisa ser automatizada** (navegadores, SAP, TOTVS, etc.)
-- **SEM EXCEÇÃO** - todos os sistemas similares seguem esta regra
+**Sistemas que NÃO precisam de seletores:**
+- **Office365, Google Workspace, OneDrive e sistemas similares** - Ver seção 12.5 - REGRA 5
+- **Qualquer sistema que manipula arquivos diretamente** - tratado em background, sem necessidade de seletores
 
 **Sistemas que PRECISAM de seletores:**
 - **Aplicações Web:** Navegadores (Chrome, Edge, Firefox) que precisam interagir com elementos da página
@@ -101,7 +115,7 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 **Regras Gerais:**
 - **Sempre usar locators do Clicknium** quando disponível
-- **Referenciar seletores conforme `selectors/selectors.md`**
+- **Referenciar seletores conforme `selectors.md`**
 - **Nunca usar seletores hardcodados**
 - **Exemplo:**
   ```python
@@ -111,12 +125,20 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
   ```
 
 ### 6. Exceções de Negócio
-- **Sempre aplicar exceções conforme `business-rules/business-rules.md`**
+- **Sempre aplicar exceções conforme `business-rules.md`** (localizado em `specs/001-[nome]/business-rules.md` ou `specs/001-[nome]/robot*/business-rules.md`)
 - **Todas as regras de negócio são consolidadas como Exceções de Negócio** (EXC*)
 - **Inclui:** validações, condições especiais, regras de processamento - tudo que pode gerar uma exceção ou regra específica
 - **Usar BusinessRuleException ou TerminateException** conforme especificado nas exceções
+- **Ver seção 2 e seção 11** para regras completas sobre quando e como usar exceções
 
 ### 7. Fila de Processamento
+
+**⚠️ IMPORTANTE:** Consulte a **seção 12.5 - REGRA 1 e REGRA 4** para entender:
+- Ordem correta de execução (FILA antes de aplicações) - REGRA 1
+- Princípio de fila como fonte única de dados - REGRA 4
+- Como especificar fonte de dados ao preencher a fila - REGRA 4
+
+**Resumo:**
 - **Sempre usar `QueueManager`** para gerenciar fila
 - **Acessar item atual via `GetTransaction.var_dictQueueItem`** no método `T2CProcess.execute()`
 - **Estrutura do item:**
@@ -124,27 +146,13 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
   {
       'id': int,
       'referencia': str,
-      'info_adicionais': dict,  # JSON parseado
+      'info_adicionais': dict,  # JSON parseado - FONTE ÚNICA DE DADOS
       'status': str,
       'obs': str
   }
   ```
 - **Adicionar itens:** Usar `QueueManager.insert_new_queue_item()` em `T2CInitAllApplications.add_to_queue()`
-  - Sempre fornecer `arg_strReferencia` (identificador único)
-  - Sempre fornecer `arg_dictInfAdicional` (dicionário com dados)
-- **Atualizar status corretamente:**
-  - `SUCESSO` - Processamento bem-sucedido
-  - `BUSINESS ERROR` - Erro de regra de negócio
-  - `APP ERROR` - Erro de sistema/aplicação
-- **Exemplo básico:**
-  ```python
-  from {{PROJECT_NAME}}.classes_t2c.framework.T2CGetTransaction import T2CGetTransaction as GetTransaction
-  from {{PROJECT_NAME}}.classes_t2c.queue.T2CQueueManager import T2CQueueManager as QueueManager
-  
-  var_dictItem = GetTransaction.var_dictQueueItem
-  var_strReferencia = var_dictItem['referencia']
-  var_dictInfoAdicional = var_dictItem['info_adicionais']
-  ```
+- **Status possíveis:** `SUCESSO`, `BUSINESS ERROR`, `APP ERROR`
 - **Ver PARTE 2 para detalhes completos de gerenciamento de fila**
 
 ### 8. Integrações
@@ -154,17 +162,7 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 - **Email:** Usar apenas se `config/base.md` indicar `Usar E-mail: SIM`
 - **Sempre verificar configuração antes de usar integrações**
 
-### 9. Código Limpo
-- **Seguir padrão de nomenclatura:** Ver PARTE 8 para nomenclatura completa
-- **Comentar código complexo**
-- **Manter funções pequenas e focadas**
-- **Reutilizar código existente quando possível**
-
-### 10. Testes
-- **Não focar em testes neste momento** (conforme especificação)
-- **Focar apenas em desenvolvimento da automação**
-
-### 11. Geração do Framework Completo
+### 9. Geração do Framework Completo
 - **Ao executar `/t2c.implement`, gerar TODO o framework do zero**
 - **Estrutura completa:** Criar todos os diretórios e arquivos necessários
 - **Arquivos customizados:** Gerar apenas T2CProcess, T2CInitAllApplications, T2CCloseAllApplications, bot.py, Config.xlsx
@@ -268,40 +266,14 @@ def execute(cls):
 
 ### 12. Inicialização e Finalização de Aplicações
 
+**⚠️ IMPORTANTE:** Antes de ler esta seção, consulte a **seção 12.5: 🚨 REGRAS CRÍTICAS DE ARQUITETURA DE EXECUÇÃO** para entender:
+- Ordem correta de execução (FILA antes de aplicações) - REGRA 1
+- Manipulação de arquivos em background - REGRA 2 e REGRA 5
+- Login e acesso inicial no INIT - REGRA 3
+
 **🚨 REGRA OBRIGATÓRIA - Sistemas que NÃO Precisam ser Inicializados:**
 
-**⚠️ CRÍTICO:** Os seguintes sistemas **NÃO DEVEM** ser inicializados no método `T2CInitAllApplications.execute()`. Eles são abertos diretamente pelos arquivos ou links, sem necessidade de inicialização prévia.
-
-**Sistemas que NÃO precisam de inicialização (SEM EXCEÇÃO):**
-
-1. **Office365:**
-   - Excel (arquivos .xlsx, .xls)
-   - Word (arquivos .docx, .doc)
-   - PowerPoint (arquivos .pptx, .ppt)
-   - Outlook (aberto via e-mail ou link)
-   - OneNote
-   - Access
-   - Qualquer outro aplicativo do Office365
-
-2. **Google Workspace:**
-   - Google Docs (aberto via link ou arquivo)
-   - Google Sheets (aberto via link ou arquivo)
-   - Google Slides (aberto via link ou arquivo)
-   - Google Drive (acesso via link ou arquivo)
-
-3. **OneDrive:**
-   - Acesso via link ou arquivo
-   - Não precisa inicialização
-
-4. **Outros sistemas similares:**
-   - Qualquer sistema que seja aberto diretamente por arquivo ou link
-   - Sistemas baseados em nuvem acessados via link
-   - Editores de documentos online acessados via link
-
-**⚠️ REGRA DE OURO:**
-- Se o sistema é aberto **diretamente por arquivo ou link**, **NÃO inicializar** no INIT
-- Apenas sistemas que precisam ser **abertos programaticamente** (navegadores, SAP, TOTVS, etc.) devem ser inicializados
-- **SEM EXCEÇÃO** - todos os sistemas similares seguem esta regra
+**⚠️ CRÍTICO:** Sistemas que manipulam arquivos diretamente (Office365, Google Workspace, OneDrive, etc.) **NÃO DEVEM** ser inicializados no método `T2CInitAllApplications.execute()`. Eles são tratados diretamente em background. **Ver seção 12.5 - REGRA 2 e REGRA 5** para detalhes completos, exemplos de código e lista completa de sistemas.
 
 **Inicialização de Sistemas que PRECISAM ser inicializados:**
 - **Navegadores:** Usar `InitAllSettings.initiate_web_manipulator()` para navegadores
@@ -313,13 +285,228 @@ def execute(cls):
 
 **Finalização:**
 - Fechar navegador com `InitAllSettings.var_botWebbot.stop_browser()`
-- Fechar aplicações desktop conforme necessário
-- Implementar loop de tentativas para fechamento
+  - Fechar aplicações desktop conforme necessário
+  - Implementar loop de tentativas para fechamento
 - **Nota:** Sistemas abertos por arquivo/link geralmente não precisam ser fechados explicitamente (fecham com o arquivo)
 
-- **Ver PARTE 2 e PARTE 5 para exemplos completos**
+- **Ver PARTE 2 para exemplos completos de inicialização**
+
+### 12.5. 🚨 REGRAS CRÍTICAS DE ARQUITETURA DE EXECUÇÃO
+
+**⚠️ EXTREMAMENTE IMPORTANTE - OBRIGATÓRIO:**
+
+Estas são regras fundamentais que definem a ordem e o comportamento correto de execução do framework. A LLM DEVE seguir estas regras rigorosamente ao criar especificações e código.
+
+#### REGRA 1: Fila Deve Ser Populada ANTES de Inicializar Aplicações
+
+**⚠️ OBRIGATÓRIO:** A fila DEVE ser preenchida ANTES de iniciar qualquer aplicação.
+
+**Ordem correta de execução no INIT:**
+1. **PRIMEIRO:** `add_to_queue()` - Preencher fila com todos os itens
+2. **DEPOIS:** `execute()` - Inicializar aplicações (navegadores, sistemas UI, etc.)
+
+**Por que isso é importante:**
+- Garante que todos os dados estejam disponíveis antes de abrir sistemas
+- Permite validação dos dados antes de consumir recursos de inicialização
+- Facilita tratamento de erros na fase de preparação de dados
+
+**Implementação no código:**
+```python
+@classmethod
+def execute(cls, arg_boolFirstRun=False):
+    # 1. PRIMEIRO: Preencher fila (se primeira execução)
+    if(arg_boolFirstRun):
+        cls.add_to_queue()  # ← SEMPRE ANTES de inicializar aplicações
+    
+    # 2. DEPOIS: Inicializar aplicações
+    for var_intTentativa in range(var_intMaxTentativas):
+        # {{INICIALIZACAO_APLICACOES}}
+```
+
+**❌ NÃO FAZER:**
+- ❌ Inicializar aplicações antes de preencher a fila
+- ❌ Preencher fila dentro do loop de inicialização de aplicações
+
+#### REGRA 2: Arquivos São Lidos em Background (NÃO São Abertos)
+
+**⚠️ OBRIGATÓRIO:** Arquivos (Excel, CSV, JSON, etc.) NÃO devem ser abertos através de aplicações. Eles devem ser lidos diretamente em background usando bibliotecas Python.
+
+**O que isso significa:**
+- **Excel/CSV:** Usar `pandas.read_excel()`, `pandas.read_csv()` - NÃO abrir Excel
+- **Word:** Usar bibliotecas como `python-docx` - NÃO abrir Word
+- **JSON:** Usar `json.load()` - NÃO abrir editor
+- **PDF:** Usar bibliotecas como `PyPDF2`, `pdfplumber` - NÃO abrir leitor de PDF
+
+**Exemplo correto:**
+```python
+# ✅ CORRETO: Ler Excel em background
+import pandas as pd
+df = pd.read_excel('dados.xlsx')  # Lê diretamente, sem abrir Excel
+
+# ✅ CORRETO: Ler CSV em background
+df = pd.read_csv('dados.csv')  # Lê diretamente, sem abrir aplicação
+
+# ✅ CORRETO: Ler JSON em background
+import json
+with open('dados.json', 'r') as f:
+    dados = json.load(f)  # Lê diretamente, sem abrir editor
+```
+
+**❌ NÃO FAZER:**
+- ❌ Abrir Excel, Word ou qualquer aplicação para ler arquivos
+- ❌ Usar seletores para interagir com aplicações de arquivos
+- ❌ Inicializar aplicações Office365 para ler arquivos
+
+**⚠️ IMPORTANTE:** Esta regra se aplica a TODOS os arquivos, não apenas Office365. Qualquer arquivo deve ser lido em background.
+
+#### REGRA 3: Login, Abertura e Acesso Inicial ao Sistema Principal DEVEM Estar no INIT
+
+**⚠️ OBRIGATÓRIO:** Qualquer etapa de abertura, login, acesso ou navegação inicial ao sistema principal (homepage, tela inicial) DEVE estar no INIT, NÃO no LOOP STATION.
+
+**O que vai no INIT:**
+- ✅ Abrir navegador e navegar para URL inicial
+- ✅ Realizar login no sistema
+- ✅ Navegar até a tela/homepage inicial do sistema
+- ✅ Validar que o sistema está pronto para processamento
+- ✅ Qualquer preparação inicial necessária antes do LOOP STATION
+
+**O que vai no LOOP STATION:**
+- ✅ Processar cada item da fila
+- ✅ Navegação entre telas durante o processamento
+- ✅ Ações específicas para cada item
+- ❌ NÃO fazer login (já feito no INIT)
+- ❌ NÃO navegar para homepage inicial (já feito no INIT)
+
+**Exemplo correto:**
+```python
+# INIT (T2CInitAllApplications.execute)
+# ✅ CORRETO: Login e navegação inicial no INIT
+InitAllSettings.initiate_web_manipulator(...)
+InitAllSettings.var_botWebbot.navigate_to("https://sistema.com")
+cc.find_element(locator.login.campo_usuario).set_text(usuario)
+cc.find_element(locator.login.campo_senha).set_text(senha)
+cc.find_element(locator.login.botao_entrar).click()
+# Validar que chegou na homepage/tela inicial
+cc.wait_for_element(locator.homepage.menu_principal)
+
+# LOOP STATION (T2CProcess.execute)
+# ✅ CORRETO: Apenas processar itens (sistema já está logado)
+var_dictItem = GetTransaction.var_dictQueueItem
+# Processar item usando sistema já logado
+```
+
+**❌ NÃO FAZER:**
+- ❌ Fazer login no LOOP STATION (deve estar no INIT)
+- ❌ Navegar para homepage no LOOP STATION (deve estar no INIT)
+- ❌ Abrir navegador no LOOP STATION (deve estar no INIT)
+
+**⚠️ REGRA DE OURO:** O sistema deve estar completamente pronto (logado, na tela inicial) ANTES de entrar no LOOP STATION. O LOOP STATION apenas processa itens, não prepara o ambiente.
+
+#### REGRA 4: Fila como Fonte Única - Especificar Fonte de Dados ao Preencher
+
+**⚠️ OBRIGATÓRIO:** Ao preencher a fila, é necessário especificar qual a fonte de dados. A partir do momento que a fila é preenchida, qualquer outra fonte de informação não é necessária - apenas o item da fila.
+
+**Ao preencher a fila (`add_to_queue()`):**
+- ✅ **Especificar a fonte de dados:** Excel, CSV, API, Banco de Dados, etc.
+- ✅ **Ler TODOS os dados necessários** da fonte
+- ✅ **Fazer conciliações, validações, cálculos** se necessário
+- ✅ **Criar itens na fila** com TODOS os dados necessários para processamento
+- ✅ **Documentar no spec.md** qual é a fonte de dados
+
+**No LOOP STATION (`execute()`):**
+- ✅ **Usar APENAS** os dados do item da fila (`info_adicionais`)
+- ✅ **NÃO ler** Excel, CSV, arquivos externos
+- ✅ **NÃO fazer** conciliações complexas (já feitas na FILA)
+- ✅ **NÃO consultar** outras fontes de dados (exceto sistemas para processamento)
+
+**Exemplo correto:**
+```python
+# FILA (add_to_queue) - Especificar fonte e preparar dados
+@classmethod
+def add_to_queue(cls):
+    # ✅ CORRETO: Especificar fonte de dados
+    # Fonte: Arquivo Excel 'dados.xlsx'
+    import pandas as pd
+    df = pd.read_excel('dados.xlsx')  # Ler fonte
+    
+    # Preparar dados (conciliações, validações)
+    for index, row in df.iterrows():
+        # Criar item com TODOS os dados necessários
+        QueueManager.insert_new_queue_item(
+            arg_strReferencia=str(row['ID']),
+            arg_dictInfAdicional={
+                'cpf': str(row['CPF']),
+                'nome': str(row['Nome']),
+                'valor': float(row['Valor']),
+                # TODOS os dados necessários para processamento
+            }
+        )
+
+# LOOP STATION (execute) - Usar APENAS dados da fila
+@classmethod
+def execute(cls):
+    var_dictItem = GetTransaction.var_dictQueueItem
+    var_dictInfo = var_dictItem['info_adicionais']
+    
+    # ✅ CORRETO: Usar APENAS dados da fila
+    cpf = var_dictInfo['cpf']  # Já está na fila
+    nome = var_dictInfo['nome']  # Já está na fila
+    valor = var_dictInfo['valor']  # Já está na fila
+    
+    # ❌ INCORRETO: Ler Excel novamente
+    # df = pd.read_excel('dados.xlsx')  # NÃO FAZER ISSO!
+```
+
+**⚠️ PRINCÍPIO FUNDAMENTAL:** A fila é a fonte única de dados durante o LOOP STATION. Tudo que é necessário para processar um item deve estar no `info_adicionais` do item da fila.
+
+#### REGRA 5: Office365 e Sistemas de Arquivos São Tratados em Background
+
+**⚠️ OBRIGATÓRIO:** Excel, Word, Drive, Office365 ou qualquer outro sistema de arquivos NÃO deve ser INICIALIZADO ou ABERTO. Eles são tratados diretamente em background, manipulando os arquivos diretamente.
+
+**Sistemas que NÃO devem ser inicializados/abertos:**
+- **Office365:** Excel, Word, PowerPoint, Outlook, OneNote, Access, etc.
+- **Google Workspace:** Google Docs, Google Sheets, Google Slides, Google Drive
+- **OneDrive:** Acesso via link ou arquivo
+- **Outros sistemas de arquivos:** Qualquer sistema que manipula arquivos diretamente
+
+**Como tratar em background:**
+- **Excel:** Usar `pandas.read_excel()`, `openpyxl` - manipular arquivo diretamente
+- **Word:** Usar `python-docx` - manipular arquivo diretamente
+- **CSV:** Usar `pandas.read_csv()` - manipular arquivo diretamente
+- **JSON:** Usar `json.load()`, `json.dump()` - manipular arquivo diretamente
+- **PDF:** Usar `PyPDF2`, `pdfplumber` - manipular arquivo diretamente
+
+**Exemplo correto:**
+```python
+# ✅ CORRETO: Manipular Excel em background
+import pandas as pd
+df = pd.read_excel('dados.xlsx')  # Lê sem abrir Excel
+df['novo_campo'] = df['campo1'] + df['campo2']  # Manipula dados
+df.to_excel('resultado.xlsx', index=False)  # Salva sem abrir Excel
+
+# ✅ CORRETO: Manipular Word em background
+from docx import Document
+doc = Document('documento.docx')  # Abre sem abrir Word
+doc.add_paragraph('Novo parágrafo')  # Manipula documento
+doc.save('documento_atualizado.docx')  # Salva sem abrir Word
+
+# ✅ CORRETO: Ler CSV em background
+df = pd.read_csv('dados.csv')  # Lê sem abrir aplicação
+```
+
+**❌ NÃO FAZER:**
+- ❌ Inicializar Excel no INIT (`T2CInitAllApplications.execute()`)
+- ❌ Abrir Word para ler/escrever documentos
+- ❌ Usar seletores para interagir com Office365
+- ❌ Abrir aplicações para manipular arquivos
+
+**⚠️ REGRA DE OURO:** Se o sistema manipula arquivos diretamente (sem necessidade de interface gráfica), ele deve ser tratado em background usando bibliotecas Python, NÃO inicializado ou aberto como aplicação.
+
+**⚠️ IMPORTANTE:** Esta regra se aplica a TODOS os sistemas de arquivos, não apenas Office365. Qualquer sistema que pode ser manipulado em background deve seguir esta regra.
 
 ### 13. Arquitetura de Robôs - Decisão e Estruturação
+
+> **📌 NOTA:** Esta seção foi movida para uma seção dedicada. Ver **"🏗️ PARTE 1.5: ARQUITETURA DE ROBÔS"** abaixo para todas as regras completas e detalhadas sobre arquitetura de robôs.
 
 **⚠️ DECISÃO CRÍTICA:** Durante a análise do DDP (ao executar `/t2c.extract-ddp` e preencher as specs), a LLM DEVE decidir se o processo será:
 - **Standalone**: Um único robô faz todo o processo
@@ -331,840 +518,7 @@ def execute(cls):
 - Não existe um limite máximo - o objetivo é criar a arquitetura mais organizada e manutenível possível
 - Cada robô adicional segue o mesmo padrão de estrutura (robot1/, robot2/, robot3/, robot4/, robot5/, etc.)
 
-#### 📖 LEITURA E ANÁLISE CUIDADOSA DO DDP - OBRIGATÓRIO
-
-**⚠️ CRÍTICO - ANTES DE QUALQUER DECISÃO DE ARQUITETURA:**
-
-A LLM DEVE ler o DDP com **ATENÇÃO TOTAL** e **NÃO DEIXAR PASSAR NENHUMA ETAPA OU REGRA** mapeada no documento.
-
-**Checklist obrigatório de leitura do DDP:**
-
-1. **Leitura Completa e Detalhada:**
-   - [ ] Ler o DDP **COMPLETO** do início ao fim, sem pular seções
-   - [ ] Identificar **TODAS as etapas** do processo (INIT, FILA, LOOP STATION, END PROCESS)
-   - [ ] Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
-   - [ ] Identificar **TODOS os sistemas** envolvidos (APIs, UI, bancos de dados, Verifai, etc.)
-   - [ ] Identificar **TODAS as integrações** necessárias
-   - [ ] Identificar **TODAS as exceções** mapeadas
-
-2. **Mapeamento Completo:**
-   - [ ] Contar **TODAS as etapas** do LOOP STATION (não estimar, contar exatamente)
-   - [ ] Identificar **TODAS as exceções de negócio** (EXC001, EXC002, etc.) - incluindo validações, condições especiais e regras de processamento
-   - [ ] Identificar **TODOS os sistemas** mencionados (SAP, TOTVS, APIs, Verifai, etc.)
-
-3. **Verificação de Completude:**
-   - [ ] Verificar se **TODAS as etapas** do DDP foram contempladas na arquitetura
-   - [ ] Verificar se **TODAS as exceções de negócio** do DDP foram mapeadas nas business-rules.md
-   - [ ] Verificar se **TODOS os sistemas** foram identificados no spec.md
-   - [ ] Verificar se **TODAS as integrações** foram consideradas
-   - [ ] Verificar se **TODAS as exceções** foram mapeadas
-
-4. **Arquitetura Deve Contemplar Tudo:**
-   - [ ] A arquitetura proposta **DEVE contemplar TODAS as etapas** do DDP
-   - [ ] A arquitetura proposta **DEVE contemplar TODAS as exceções de negócio** do DDP
-   - [ ] A arquitetura proposta **DEVE contemplar TODOS os sistemas** do DDP
-   - [ ] Se alguma etapa/exceção/sistema não foi contemplado → **REVISAR A ARQUITETURA**
-
-**⚠️ REGRA DE OURO:** 
-- **NENHUMA etapa, regra ou sistema do DDP pode ser ignorada ou esquecida**
-- Se o DDP menciona algo, **DEVE** estar contemplado na arquitetura e nas specs
-- Se houver dúvida se algo foi contemplado, **REVISAR** o DDP novamente
-- A arquitetura final **DEVE** ser capaz de executar **TODAS as etapas** mapeadas no DDP
-
-**⚠️ ATENÇÃO ESPECIAL:**
-- Ler **palavra por palavra** seções críticas (LOOP STATION, exceções de negócio)
-- Não fazer suposições - se algo não está claro no DDP, **NÃO inventar**, mas garantir que está contemplado
-- Se o DDP menciona múltiplas etapas em sequência, **TODAS** devem estar no spec.md
-- Se o DDP menciona exceções de negócio (validações, condições especiais, regras de processamento), **TODAS** devem estar no business-rules.md como exceções (EXC*)
-
-#### 🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO - VERIFICAR PRIMEIRO
-
-**⚠️ ATENÇÃO CRÍTICA:** Antes de fazer qualquer análise contextual, a LLM DEVE verificar se o processo se enquadra em uma das regras obrigatórias abaixo. Se SIM, a separação é OBRIGATÓRIA, não opcional.
-
-**REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente em Sistema Diferente**
-
-**SEPARAR OBRIGATORIAMENTE quando:**
-- ✅ Existe um LOOP STATION que processa múltiplos itens (cards, linhas, registros)
-- ✅ Após o LOOP, há processamento em sistema diferente (SAP, TOTVS, outro sistema UI, ou outra fase distinta)
-- ✅ O processamento subsequente pode ser executado de forma independente
-
-**Checklist binário (SE TODAS AS RESPOSTAS FOREM SIM, SEPARAR É OBRIGATÓRIO):**
-- [ ] O processo tem um LOOP que processa múltiplos itens?
-- [ ] Após o LOOP, há outro processamento (em sistema diferente ou fase diferente)?
-- [ ] Um erro em um item do LOOP pode comprometer outros itens se estiverem no mesmo robô?
-- [ ] A separação permitiria execução retroativa (rodar robôs separadamente)?
-
-**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
-
-**Exemplos de casos que OBRIGAM separação:**
-- Pipefy (API) → Consultar APIs (CNPJ, Sintegra) → SAP (UI) → **SEPARAR OBRIGATÓRIO**
-- Excel → Processar linhas → Consultar APIs → TOTVS (UI) → **SEPARAR OBRIGATÓRIO**
-- API → Enriquecer dados → Processar múltiplos itens → Sistema UI → **SEPARAR OBRIGATÓRIO**
-
-**Exemplo detalhado - Caso Pipefy → APIs → SAP (CASO REAL):**
-- **Processo:** Capturar cards do Pipefy via API → Consultar APIs (CNPJ, Sintegra, Suframa) → Consolidar dados → Lançar notas no SAP
-- **Checklist REGRA OBRIGATÓRIA 1:**
-  - [✅] O processo tem um LOOP que processa múltiplos itens? **SIM** - LOOP processa múltiplos cards do Pipefy
-  - [✅] Após o LOOP, há outro processamento (em sistema diferente)? **SIM** - Processamento no SAP (sistema UI diferente)
-  - [✅] Um erro em um item do LOOP pode comprometer outros? **SIM** - Se um card falhar, pode perder outros cards
-  - [✅] A separação permitiria execução retroativa? **SIM** - Robot2 pode rodar depois que Robot1 populou a fila
-- **RESULTADO:** **SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
-- **Estrutura obrigatória:**
-  - `robot1/spec.md` - Dispatcher: Pipefy → APIs → consolidação → popula fila do performer
-  - `robot2/spec.md` - Performer: Processa itens da fila no SAP (23 etapas)
-
-**REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso**
-
-**SEPARAR OBRIGATORIAMENTE quando:**
-- ✅ O processo envolve sistemas diferentes (ex: APIs sem UI + Sistema UI)
-- ✅ Há um LOOP STATION extenso (10+ etapas) em um dos sistemas
-- ✅ A separação permitiria execução retroativa e isolamento de erros
-
-**Checklist binário:**
-- [ ] O processo envolve sistemas diferentes (ex: APIs + UI)?
-- [ ] Há um LOOP STATION extenso (10+ etapas)?
-- [ ] A separação permitiria rodar os robôs separadamente?
-
-**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO**
-
-**REGRA OBRIGATÓRIA 3: Preparação Complexa de Dados + Execução Simples**
-
-**SEPARAR OBRIGATORIAMENTE quando:**
-- ✅ A preparação de dados é complexa (múltiplas APIs, conciliações, validações extensas)
-- ✅ A execução no sistema final é mais simples
-- ✅ A preparação pode ser feita independentemente da execução
-
-**Checklist binário:**
-- [ ] A preparação envolve múltiplas fontes, APIs, conciliações ou validações extensas?
-- [ ] A execução no sistema final é mais simples que a preparação?
-- [ ] A preparação pode ser feita independentemente?
-
-**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
-
-**REGRA OBRIGATÓRIA 4: Preferência de API sobre Telas**
-
-**⚠️ REGRA OBRIGATÓRIA:** Se no DDP está indicando que o processo deve ser via API mas está mapeado as telas, a LLM DEVE dar preferência a utilizar API para o processamento, em vez de usar as telas.
-
-**APLICAR OBRIGATORIAMENTE quando:**
-- ✅ O DDP indica que o processo deve ser via API
-- ✅ O DDP também mapeia telas/interface do sistema
-- ✅ A API está disponível e funcional
-
-**Ação obrigatória:**
-- **Usar API** para o processamento, mesmo que telas estejam mapeadas
-- **NÃO usar** a interface/telas se a API estiver disponível
-- **Documentar** no spec.md que a API foi escolhida sobre as telas
-- **Justificar** a escolha na seção de arquitetura
-
-**Exemplo:**
-- **DDP indica:** "Processar via API do sistema X" e também mapeia telas do sistema X
-- **Decisão:** Usar API do sistema X (não usar as telas)
-- **Justificativa:** DDP indica preferência por API, mesmo com telas mapeadas
-
-**⚠️ IMPORTANTE:** Esta é uma regra obrigatória. Se o DDP indica API, usar API, não telas.
-
-**REGRA OBRIGATÓRIA 5: Extração de Documentos com Verifai**
-
-**⚠️ REGRA CRÍTICA:** Quando o processo envolve extração de documentos usando Verifai, a separação é OBRIGATÓRIA.
-
-**O que é Verifai:**
-- Sistema de extração de documentos utilizado pela T2C
-- Envia arquivos em PDF para o Verifai
-- Retorna resultado da extração dos documentos
-- Normalmente especificado no DDP quando há necessidade de extração de documentos
-
-**SEPARAR OBRIGATORIAMENTE quando:**
-- ✅ O processo envia documentos (PDFs) para o Verifai
-- ✅ Após enviar para o Verifai, é necessário capturar o resultado da extração
-- ✅ O resultado do Verifai será usado em processamento subsequente
-
-**Checklist binário (SE TODAS AS RESPOSTAS FOREM SIM, SEPARAR É OBRIGATÓRIO):**
-- [ ] O processo envia documentos para o Verifai?
-- [ ] Após enviar para o Verifai, há necessidade de capturar o resultado?
-- [ ] O resultado do Verifai será usado em processamento subsequente?
-
-**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO**
-
-**⚠️ REGRA FUNDAMENTAL:** Quando um robô envia um documento para o Verifai, ele DEVE encerrar sua atividade principal. Um outro robô será responsável por capturar o resultado do Verifai. Isso é uma regra essencial e pode resultar em múltiplos robôs no processo (2, 3, 4 ou quantos forem necessários para organizar o processo adequadamente).
-
-**🚨 REGRA CRÍTICA - Envio e Captura do Verifai:**
-
-**⚠️ OBRIGATÓRIO:**
-- **O último passo do robô que envia** é o **envio do documento para o Verifai** (NÃO a captura)
-- **A captura é realizada pelo robô seguinte** (OBRIGATÓRIO)
-- **Por isso quebre os robôs** para que um envie e outro capture e continue o processamento
-
-**Estrutura obrigatória com Verifai:**
-- **Robot1 (Dispatcher):**
-  - Prepara dados
-  - **ÚLTIMO PASSO:** Envia documentos para o Verifai
-  - **ENCERRA** após o envio (não captura)
-  - Popula fila do Robot2 com referências dos documentos enviados
-
-- **Robot2 (Performer):**
-  - **PRIMEIRO PASSO:** Captura resultado do Verifai
-  - Processa dados extraídos
-  - Popula fila do Robot3 (se houver processamento subsequente)
-
-- **Robot3+:** (Se necessário) Processamento adicional em outros sistemas ou fases
-
-**⚠️ IMPORTANTE - Campos e Prompts para Captura:**
-
-Ao criar o `robot2/spec.md` (robô que captura), a LLM DEVE:
-
-1. **Indicar quais campos precisam ser capturados** do resultado do Verifai
-2. **Sugerir prompts específicos** para cada campo que será capturado
-3. **Formato dos prompts:** Perguntas ou pedidos para uma outra LLM capturar o campo específico
-
-**Exemplo de campos e prompts no spec.md do Robot2:**
-```markdown
-## Campos a Capturar do Verifai
-
-### Campo: CPF
-- **Prompt sugerido:** "Qual o CPF desse documento?"
-- **Tipo:** String
-- **Validação:** (se necessário, conforme business-rules.md)
-
-### Campo: Nome do Cliente
-- **Prompt sugerido:** "Qual o nome completo do cliente nesse documento?"
-- **Tipo:** String
-
-### Campo: Valor Total
-- **Prompt sugerido:** "Qual o valor total da nota fiscal?"
-- **Tipo:** Decimal
-```
-
-**Estrutura típica com Verifai (exemplo - pode haver mais robôs se necessário):**
-- **Robot1:** Prepara dados, **envia documentos para o Verifai** (último passo) → popula fila do Robot2
-- **Robot2:** **Captura resultado do Verifai** (primeiro passo), processa dados extraídos → popula fila do Robot3 (se houver processamento subsequente)
-- **Robot3:** (Opcional) Processa dados extraídos no sistema final (ex: SAP, TOTVS)
-- **Robot4+:** (Se necessário) Processamento adicional em outros sistemas ou fases
-
-**Exemplo detalhado - Caso com Verifai:**
-- **Processo:** Ler Excel com referências → Enviar PDFs para Verifai → Capturar resultado da extração → Processar dados extraídos no SAP
-- **Checklist REGRA OBRIGATÓRIA 5:**
-  - [✅] O processo envia documentos para o Verifai? **SIM** - Envia PDFs para extração
-  - [✅] Após enviar para o Verifai, há necessidade de capturar o resultado? **SIM** - Precisa capturar dados extraídos
-  - [✅] O resultado do Verifai será usado em processamento subsequente? **SIM** - Dados extraídos serão processados no SAP
-- **RESULTADO:** **SEPARAR É OBRIGATÓRIO (mínimo 2 robôs, podendo ser 3, 4 ou quantos forem necessários)**
-- **Estrutura obrigatória (exemplo - pode haver mais robôs se necessário):**
-  - `robot1/spec.md` - Dispatcher: 
-    - Lê Excel com referências de documentos
-    - **ÚLTIMO PASSO:** Envia PDFs para Verifai
-    - **ENCERRA** após o envio (não captura)
-    - Popula fila do robot2 com referências dos documentos enviados
-  - `robot2/spec.md` - Performer: 
-    - **PRIMEIRO PASSO:** Captura resultado do Verifai
-    - **DEVE incluir seção "Campos a Capturar do Verifai"** com:
-      - Lista de campos a capturar (CPF, Nome, Valor, etc.)
-      - Prompts sugeridos para cada campo (ex: "Qual o CPF desse documento?")
-    - Processa dados extraídos
-    - Popula fila do robot3 (se houver)
-  - `robot3/spec.md` - (Opcional) Performer: Processa dados no SAP
-  - `robot4+/spec.md` - (Se necessário) Processamento adicional em outros sistemas ou fases
-
-**⚠️ IMPORTANTE:** Se o processo se enquadrar em QUALQUER uma das regras obrigatórias acima (incluindo Verifai), a LLM DEVE separar em múltiplos robôs. Não é uma sugestão, é uma OBRIGAÇÃO.
-
-**Se NENHUMA das regras obrigatórias se aplicar, então seguir para análise contextual abaixo.**
-
-#### 📁 Estrutura Obrigatória Quando Separar em Múltiplos Robôs
-
-**Quando uma regra obrigatória se aplicar, a LLM DEVE criar a seguinte estrutura:**
-
-```
-specs/001-[nome]/
-├── robot1/              # Robô 1 (Dispatcher ou Performer)
-│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 1
-│   ├── selectors.md     # Seletores específicos do robô 1
-│   ├── business-rules.md # Regras de negócio específicas do robô 1
-│   └── tests.md         # Testes específicos do robô 1
-├── robot2/              # Robô 2 (Performer)
-│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 2
-│   ├── selectors.md     # Seletores específicos do robô 2
-│   ├── business-rules.md # Regras de negócio específicas do robô 2
-│   └── tests.md         # Testes específicos do robô 2
-├── robot3/              # Robô 3 (Performer) - OPCIONAL, pode haver mais robôs
-│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 3
-│   ├── selectors.md     # Seletores específicos do robô 3
-│   ├── business-rules.md # Regras de negócio específicas do robô 3
-│   └── tests.md         # Testes específicos do robô 3
-├── tasks.md             # Compartilhado - lista plana com referência ao robô
-└── DDP/                 # Compartilhado
-```
-
-**⚠️ IMPORTANTE:** 
-- **NÃO HÁ LIMITE DE ROBÔS:** A LLM pode criar 1, 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo da melhor forma possível
-- A decisão de quantos robôs criar deve ser baseada na complexidade, organização e manutenibilidade do processo
-- **Com Verifai:** Geralmente resulta em 2 ou 3 robôs (envio → captura → processamento), mas pode haver mais se necessário
-- Cada robô adicional segue o mesmo padrão de estrutura (robot4/, robot5/, robot6/, etc.)
-
-**⚠️ AÇÃO OBRIGATÓRIA:** Ao criar os arquivos `spec.md` de cada robô, a LLM DEVE:
-
-1. **Criar `robot1/spec.md`** com:
-   - Seção "Arquitetura de Robôs" no início indicando:
-     - **Tipo:** Dispatcher
-     - **Este robô é:** [Descrição do papel - ex: "Prepara dados do Pipefy, consulta APIs e popula fila do performer"]
-     - **Recebe dados de:** N/A
-     - **Alimenta:** robot2
-     - **Ordem na cadeia:** 1
-     - **Nome da pasta do robô:** robot1
-   - Seção INIT com lógica de captura de dados
-   - Seção FILA com lógica de preenchimento da própria fila (se Padrão 2) ou fila do performer (se Padrão 1)
-   - Seção LOOP STATION com lógica de processamento de cada item
-   - Seção END PROCESS
-
-2. **Criar `robot2/spec.md`** com:
-   - Seção "Arquitetura de Robôs" no início indicando:
-     - **Tipo:** Performer
-     - **Este robô é:** [Descrição do papel - ex: "Processa itens da fila no SAP"]
-     - **Recebe dados de:** robot1
-     - **Alimenta:** N/A
-     - **Ordem na cadeia:** 2
-     - **Nome da pasta do robô:** robot2
-   - Seção INIT com lógica de inicialização do sistema final (ex: SAP)
-   - Seção FILA indicando que não preenche (já populada pelo robot1)
-   - Seção LOOP STATION com lógica de processamento no sistema final
-   - Seção END PROCESS
-
-3. **Criar `tasks.md` na raiz** com:
-   - Tabela de visão geral de estimativas
-   - Tasks do robot1 com campo "Robô: robot1"
-   - Tasks do robot2 com campo "Robô: robot2"
-   - Organização: todas tasks do robot1 primeiro, depois robot2
-
-**⚠️ NÃO criar `spec.md` na raiz quando houver múltiplos robôs. Cada robô tem seu próprio `spec.md` dentro de sua pasta.**
-
-#### Critérios para Análise de Arquitetura (Quando Não Há Regra Obrigatória)
-
-**⚠️ IMPORTANTE:** A decisão de separar ou não em múltiplos robôs NÃO é uma regra binária. A LLM deve analisar o contexto completo do processo e considerar múltiplos fatores antes de decidir. Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs - a decisão deve ser baseada na análise cuidadosa de todos os aspectos do processo.
-
-**Contextos que TENDEM a favorecer separação em múltiplos robôs:**
-
-1. **Complexidade e Extensão do LOOP STATION:**
-   - Analisar se o LOOP STATION é muito extenso (muitas etapas, muitas regras de negócio, múltiplas integrações)
-   - Considerar se a complexidade justifica separação para melhor organização e manutenção
-   - Avaliar se dividir em fases distintas facilitaria o entendimento e desenvolvimento
-
-2. **Complexidade da Preparação de Dados:**
-   - Processos que requerem preparação complexa de dados (conciliações entre múltiplas fontes, validações extensas, enriquecimento via APIs, transformações complexas)
-   - Quando a lógica de preenchimento da fila é significativamente mais complexa que o processamento em si
-   - Casos onde a preparação de dados pode ser feita de forma independente e assíncrona
-
-3. **Separação Lógica por Responsabilidade:**
-   - Processos com fases distintas que têm responsabilidades claramente diferentes
-   - Quando um robô prepara dados e outro executa ações em sistemas diferentes
-   - Separação por sistema quando há benefício claro em termos de manutenção, testes e evolução independente
-
-4. **Benefícios de Organização e Manutenção:**
-   - Quando a separação facilitaria significativamente a manutenção do código
-   - Casos onde cada robô teria responsabilidades bem definidas e distintas
-   - Processos que podem evoluir de forma independente em cada robô
-
-5. **Processos Assíncronos ou com Verificação:**
-   - Processos que envolvem etapas de verificação manual ou aguardar resposta de sistemas externos
-   - Quando há necessidade de retry control diferenciado entre fases
-   - Processos onde uma fase pode ser executada independentemente da outra
-
-6. **Modularização de Etapas Opcionais:**
-   - Quando certas etapas do processo são opcionais e podem ser habilitadas/desabilitadas sem modificar código
-   - Separação que permite flexibilidade na execução de partes do processo
-
-7. **Isolamento de Erros no LOOP STATION e Execução Retroativa:**
-   - **⚠️ CRITÉRIO PRIORITÁRIO:** Sempre que houver um LOOP STATION que processa múltiplos itens e, em seguida, outro processamento (em sistema diferente ou fase diferente), considerar separar em múltiplos robôs
-   - Quando um erro em um item do LOOP pode comprometer o processamento dos demais itens se estiverem no mesmo robô
-   - A separação permite que o framework trate erros automaticamente no LOOP STATION, mantendo a execução dos outros itens mesmo se um falhar
-   - Quando uma fase pode ser executada de forma retroativa/independente após a outra (execução retroativa)
-   - Quando diferentes fases precisam de estratégias de retry diferenciadas
-   - **Padrão típico:** LOOP que processa múltiplos itens (preparação/consolidação) → processamento subsequente em sistema diferente
-   - **Benefícios:**
-     - Isolamento de falhas: erro em um item não compromete outros
-     - Execução retroativa: robôs podem rodar separadamente
-     - Retry control diferenciado: cada fase pode ter estratégias próprias
-     - Modularização por objetivo: cada robô tem responsabilidade clara
-
-**Contextos que TENDEM a favorecer arquitetura Standalone:**
-
-1. **Simplicidade do Processo:**
-   - Processos diretos e lineares (leitura de Excel, validação simples, inserção em sistema)
-   - Lógica que cabe confortavelmente em um único robô sem sobrecarga
-   - Processos com poucas etapas e regras de negócio simples
-
-2. **Cohesão Funcional:**
-   - Quando todas as etapas do processo estão fortemente acopladas e fazem sentido juntas
-   - Processos onde separar criaria dependências complexas sem benefício claro
-   - Casos onde a lógica de negócio é indivisível
-
-3. **Sem Benefício Claro de Separação:**
-   - Quando não há ganho evidente em termos de manutenção, organização ou complexidade
-   - Processos onde a separação adicionaria complexidade desnecessária
-   - Casos onde o overhead de gerenciar múltiplos robôs não se justifica
-
-**⚠️ REGRA DE OURO:** A decisão final deve ser baseada na análise cuidadosa do contexto completo do processo, considerando:
-- Complexidade técnica vs. benefício de separação
-- Manutenibilidade futura
-- Clareza de responsabilidades
-- Facilidade de testes e evolução
-- Overhead de gerenciamento de múltiplos robôs
-
-**NÃO existe uma regra absoluta.** A LLM deve pesar todos os fatores e tomar a decisão que faz mais sentido para o processo específico em análise.
-
-#### Tipos de Arquitetura
-
-**1. Standalone (1 robô)**
-- **Estrutura:** `specs/001-[nome]/spec.md` (na raiz)
-- Um único robô executa: INIT → FILA → LOOP STATION → END PROCESS
-- Todos os arquivos na raiz: `spec.md`, `selectors.md`, `business-rules.md`, `tests.md`, `tasks.md`
-- **Quando usar:** Processos simples, diretos, que não justificam separação
-
-**2. Dispatcher + Performer**
-- **Dispatcher** (`robot1/`):
-  - **Função:** Prepara dados e popula a fila do performer
-  - **Estrutura completa:** INIT → FILA → LOOP STATION → END PROCESS
-  - **Nomenclatura:** `prj_AFYA_ID15_01_SAP_DISP` (usar sufixo `_DISP`)
-  - **Padrões possíveis:**
-    - **Padrão 1 (Linear):** INIT popula fila do performer diretamente (sem LOOP próprio)
-      - **OBRIGATÓRIO:** Criar item vazio na própria fila para executar (framework precisa de pelo menos 1 item)
-      - INIT → FILA (cria item vazio + popula fila do performer) → LOOP STATION (processa item vazio) → END PROCESS
-    - **Padrão 2 (LOOP próprio):** INIT popula própria fila, LOOP STATION processa itens e popula fila do performer
-      - INIT → FILA (captura dados externos, ex: cards do Pipefy, e sobe para própria fila)
-      - LOOP STATION → Para cada item da própria fila: processa (ex: consulta APIs, consolida dados) → sobe item preparado para fila do performer
-      - END PROCESS → Finaliza com e-mail
-  - **Características:**
-    - Lógica de preenchimento da fila pode ser complexa (múltiplas fontes, conciliações, validações extensas)
-    - Pode ter LOOP STATION próprio para processar múltiplos itens antes de popular fila do performer
-    - Usa framework para preparar dados e popular fila do performer
-    - **Benefício do Padrão 2:** Isolamento de erros - se um item falhar no LOOP, outros itens continuam sendo processados
-- **Performer** (`robot2/`):
-  - **Função:** Processa itens da fila populada pelo dispatcher
-  - **Fila compartilhada:** 
-    - O dispatcher popula usando `FilaProcessamentoPerformer` no seu Config.xlsx
-    - O performer lê usando `FilaProcessamento` no seu Config.xlsx (mesma tabela, nomes diferentes)
-    - Ambos usam o mesmo `CaminhoBancoSqlite` (mesmo banco SQLite)
-  - **Nomenclatura:** `prj_AFYA_ID15_02_TOTVS_PERF` (usar sufixo `_PERF`)
-  - **Características:**
-    - Recebe dados já preparados do dispatcher
-    - Foca apenas em processar os itens da fila
-
-**3. Performer + Performer (Cadeia Sequencial)**
-- **Performer 1** (`robot1/`):
-  - **Função:** Processa itens e pode popular fila do Performer 2
-  - **Nomenclatura:** `prj_AFYA_ID15_01_SAP` (apenas numeração sequencial, sem sufixo)
-  - **Características:**
-    - Processa seus próprios itens
-    - Pode ter função de output que será usada no Performer 2
-    - Pode popular diretamente a fila do Performer 2
-- **Performer 2** (`robot2/`):
-  - **Função:** Processa itens da fila do Performer 1
-  - **Nomenclatura:** `prj_AFYA_ID15_02_TOTVS` (apenas numeração sequencial, sem sufixo)
-  - **Características:**
-    - Recebe dados do Performer 1
-    - Executa processamento sequencial após o Performer 1
-- **Nota importante:** Se Performer 1 tem função principal de alimentar Performer 2, ele se torna um Dispatcher (usar nomenclatura com `_DISP`)
-
-#### Estrutura de Pastas e Arquivos
-
-**Standalone:**
-```
-specs/001-[nome]/
-├── spec.md              # ARQUIVO PRINCIPAL
-├── selectors.md
-├── business-rules.md
-├── tests.md
-├── tasks.md
-└── DDP/
-```
-
-**Múltiplos Robôs:**
-```
-specs/001-[nome]/
-├── robot1/              # Robô 1 (Dispatcher ou Performer)
-│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 1
-│   ├── selectors.md     # Seletores específicos do robô 1
-│   ├── business-rules.md # Regras de negócio específicas do robô 1
-│   └── tests.md         # Testes específicos do robô 1
-├── robot2/              # Robô 2 (Performer)
-│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 2
-│   ├── selectors.md     # Seletores específicos do robô 2
-│   ├── business-rules.md # Regras de negócio específicas do robô 2
-│   └── tests.md         # Testes específicos do robô 2
-├── robot3/              # Robô 3 (Performer) - OPCIONAL, pode haver mais robôs
-│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 3
-│   ├── selectors.md     # Seletores específicos do robô 3
-│   ├── business-rules.md # Regras de negócio específicas do robô 3
-│   └── tests.md         # Testes específicos do robô 3
-├── tasks.md             # Compartilhado - lista plana com referência ao robô
-└── DDP/                 # Compartilhado
-```
-
-**⚠️ NOTA IMPORTANTE:** 
-- **NÃO HÁ LIMITE DE ROBÔS:** A LLM pode criar 1, 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo da melhor forma possível
-- A decisão de quantos robôs criar deve ser baseada na complexidade, organização e manutenibilidade do processo
-- Com Verifai, geralmente resulta em 2 ou 3 robôs (envio → captura → processamento subsequente), mas pode haver mais se necessário
-
-#### Regras Específicas por Tipo
-
-**Para Dispatcher:**
-
-**Padrão 1 (Linear - sem LOOP próprio):**
-- **OBRIGATÓRIO:** No método `add_to_queue()`, criar um item vazio na própria fila ANTES de popular a fila do performer:
-  ```python
-  @classmethod
-  def add_to_queue(cls):
-      # OBRIGATÓRIO: Criar item vazio para que o framework execute
-      # O framework precisa de pelo menos 1 item na fila para executar
-      QueueManager.insert_new_queue_item(
-          arg_strReferencia="DISPATCHER_INIT",
-          arg_dictInfAdicional={}
-      )
-      
-      # Depois, popular fila do performer
-      # ... código para ler dados, fazer conciliações, validações ...
-      # ... código para popular fila do performer usando fila compartilhada ...
-  ```
-
-**Padrão 2 (LOOP próprio - processa múltiplos itens):**
-- **INIT (`add_to_queue()`):** Capturar dados externos (ex: cards do Pipefy via API) e subir para própria fila:
-  ```python
-  @classmethod
-  def add_to_queue(cls):
-      # Capturar dados externos (ex: cards do Pipefy)
-      cards = api_pipefy.get_cards()
-      
-      # Subir cada card para própria fila
-      for card in cards:
-          QueueManager.insert_new_queue_item(
-              arg_strReferencia=card['id'],
-              arg_dictInfAdicional={'card_data': card}
-          )
-  ```
-- **LOOP STATION (`execute()`):** Para cada item da própria fila, processar e subir para fila do performer:
-  ```python
-  @classmethod
-  def execute(cls):
-      var_dictItem = GetTransaction.var_dictQueueItem
-      var_strReferencia = var_dictItem['referencia']
-      var_dictInfoAdicional = var_dictItem['info_adicionais']
-      
-      # Processar item (ex: consultar outras APIs, consolidar dados)
-      # ... código de processamento ...
-      
-      # Subir item preparado para fila do performer
-      # Usar FilaProcessamentoPerformer do Config.xlsx
-      # ... código para popular fila do performer ...
-  ```
-- **Benefício:** Isolamento de erros - se um item falhar no LOOP, o framework trata automaticamente e continua com os outros itens
-- **Fila compartilhada (para popular o performer):**
-  - No Config.xlsx do dispatcher existe a configuração `FilaProcessamentoPerformer` (ou similar)
-  - Essa é a fila que o dispatcher deve preencher para o performer processar
-  - Usar o mesmo `CaminhoBancoSqlite` configurado no Config.xlsx
-  - O dispatcher popula essa fila usando `FilaProcessamentoPerformer` como nome da tabela
-- **Fila própria do dispatcher:**
-  - O dispatcher tem sua própria `FilaProcessamento` no Config.xlsx
-  - **Padrão 1:** Contém apenas item vazio (necessário para framework executar)
-  - **Padrão 2:** Contém os itens reais capturados no INIT (ex: cards do Pipefy) que serão processados no LOOP STATION
-
-**Para Performer:**
-- **Fila compartilhada (recebe do dispatcher/performer anterior):**
-  - No Config.xlsx do performer, a configuração `FilaProcessamento` é a mesma fila que o dispatcher/performer anterior preencheu
-  - O dispatcher/performer anterior preenche usando `FilaProcessamentoPerformer` (ou similar)
-  - O performer lê usando `FilaProcessamento` (mesma tabela, nomes diferentes nos configs)
-  - Usar o mesmo `CaminhoBancoSqlite` configurado no Config.xlsx (mesmo banco SQLite)
-- **Configuração no Config.xlsx do Performer:**
-  - `CaminhoBancoSqlite`: Mesmo caminho do dispatcher/performer anterior
-  - `FilaProcessamento`: Nome da tabela que corresponde à `FilaProcessamentoPerformer` do dispatcher/performer anterior
-- **Não precisa criar item vazio:** Recebe itens da fila compartilhada populada pelo robô anterior
-- **Se recebe de outro Performer:** Pode receber dados diretamente do Performer anterior (função de output)
-
-**Para Tasks.md (compartilhado):**
-- **Estrutura:** Lista plana de tasks
-- **Campo obrigatório:** Cada task deve ter campo "Robô:" indicando:
-  - `robot1` - se a task é do robô 1
-  - `robot2` - se a task é do robô 2
-  - `raiz` - se standalone
-- **Organização:** Agrupar visualmente - todas tasks do robot1 primeiro, depois robot2
-- **Exemplo:**
-  ```markdown
-  ### Task 1.1: Inicializar Sistemas
-  - **Robô:** robot1
-  - **Descrição:** ...
-  
-  ### Task 1.2: Preencher Fila
-  - **Robô:** robot1
-  - **Descrição:** ...
-  
-  ### Task 2.1: Processar Item
-  - **Robô:** robot2
-  - **Descrição:** ...
-  ```
-
-**Para Spec.md (cada robô tem o seu):**
-- **Seção obrigatória:** "Arquitetura de Robôs" no início do spec.md deve conter:
-  - **Tipo:** Standalone / Dispatcher / Performer
-  - **Este robô é:** [Descrição breve do papel deste robô]
-  - **Recebe dados de:** [Nome do robô anterior que alimenta este robô, se Performer. Ex: "robot1" ou "N/A" se Standalone/Dispatcher]
-  - **Alimenta:** [Nome do robô seguinte que este robô alimenta, se Dispatcher ou Performer que alimenta outro. Ex: "robot2" ou "N/A" se não alimenta nenhum]
-  - **Ordem na cadeia:** [1/2/3... se parte de múltiplos robôs, ou "1" se Standalone]
-  - **Nome da pasta do robô:** [robot1 / robot2 / etc. ou "raiz" se standalone]
-- **Observações sobre arquitetura:**
-  - Se Dispatcher: mencionar que precisa criar item vazio na própria fila para executar
-  - Se Performer: mencionar de onde recebe os dados e como acessa a fila compartilhada
-  - Se parte de cadeia: mencionar a ordem de execução e dependências
-
-#### Nomenclatura de Projetos
-
-**Dispatcher + Performer:**
-- Usar sufixos `_DISP` e `_PERF`
-- Exemplo: `prj_AFYA_ID15_01_SAP_DISP` → `prj_AFYA_ID15_02_TOTVS_PERF`
-
-**Performer + Performer:**
-- Apenas numeração sequencial (sem sufixos)
-- Exemplo: `prj_AFYA_ID15_01_SAP` → `prj_AFYA_ID15_02_TOTVS`
-
-**Standalone:**
-- Nomenclatura normal sem sufixos especiais
-- Exemplo: `prj_AFYA_ID15`
-
-#### Geração de Framework
-
-- **Standalone:** Gera em `generated/[nome-automacao]/`
-- **Múltiplos:** Gera em `generated/[nome-automacao]-robot1/`, `generated/[nome-automacao]-robot2/`, etc.
-- **Comando:** `/t2c.implement` detecta automaticamente a estrutura
-- **Geração seletiva:** Pode gerar todos ou apenas um robô específico:
-  - `/t2c.implement specs/001-[nome]` - Gera todos os robôs
-  - `/t2c.implement specs/001-[nome] --robot robot1` - Gera apenas robot1
-
-#### Guia de Análise para Decisão de Arquitetura
-
-**⚠️ PASSO 0 - OBRIGATÓRIO: Leitura Cuidadosa do DDP**
-
-**PRIMEIRO, ANTES DE QUALQUER OUTRA AÇÃO, a LLM DEVE:**
-
-1. **Ler o DDP com ATENÇÃO TOTAL** (ver seção "📖 LEITURA E ANÁLISE CUIDADOSA DO DDP" acima)
-   - Ler o DDP **COMPLETO** do início ao fim
-   - Identificar **TODAS as etapas** (INIT, FILA, LOOP STATION, END PROCESS)
-   - Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
-   - Identificar **TODOS os sistemas** (APIs, UI, Verifai, etc.)
-   - Identificar **TODAS as integrações** e **TODAS as exceções**
-   - **Contar exatamente** todas as etapas do LOOP STATION (não estimar)
-
-2. **Mapear completamente o DDP:**
-   - Criar uma lista mental ou escrita de **TODAS as etapas** identificadas
-   - Criar uma lista de **TODAS as exceções de negócio** identificadas
-   - Criar uma lista de **TODOS os sistemas** identificados
-   - Garantir que **NENHUMA informação** foi perdida
-
-**⚠️ PASSO 1 - OBRIGATÓRIO: Verificar Regras Obrigatórias de Separação**
-
-**APÓS ler o DDP completamente, a LLM DEVE:**
-
-1. **Ler a seção "🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO" acima**
-2. **Aplicar os checklists binários das 5 regras obrigatórias:**
-   - REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente
-   - REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso
-   - REGRA OBRIGATÓRIA 3: Preparação Complexa + Execução Simples
-   - **REGRA OBRIGATÓRIA 4: Preferência de API sobre Telas** ⚠️ OBRIGATÓRIA
-   - **REGRA OBRIGATÓRIA 5: Extração de Documentos com Verifai** ⚠️ CRÍTICA
-3. **Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO**
-4. **Se NENHUMA regra obrigatória se aplicar → seguir para análise contextual abaixo**
-
-**⚠️ CRÍTICO:** Se o processo se enquadrar em uma regra obrigatória, a LLM NÃO deve fazer análise contextual. Deve separar imediatamente e criar a estrutura de múltiplos robôs.
-
-**⚠️ ATENÇÃO ESPECIAL - API sobre Telas:**
-- Se o DDP indica que o processo deve ser via API mas também mapeia telas, a LLM DEVE usar API (não telas)
-- Esta é uma regra obrigatória de escolha de tecnologia, não de separação de robôs
-- Documentar no spec.md que a API foi escolhida sobre as telas
-
-**⚠️ ATENÇÃO ESPECIAL - Verifai:**
-- Se o DDP mencionar "Verifai", "extração de documentos", "envio de PDF para extração", ou similar, a LLM DEVE verificar imediatamente a REGRA OBRIGATÓRIA 5
-- Quando um robô envia documento para o Verifai, ele DEVE encerrar após o envio (último passo) e um outro robô captura o resultado (primeiro passo)
-- O robô que captura DEVE incluir seção "Campos a Capturar do Verifai" com campos e prompts sugeridos
-- **NÃO HÁ LIMITE:** Isso pode resultar em 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo adequadamente
-
-**PASSO 2 - Análise Contextual (Apenas se NENHUMA regra obrigatória se aplicou):**
-
-**⚠️ ANTES de fazer a análise contextual, verificar novamente:**
-- [ ] **TODAS as etapas** do DDP foram identificadas?
-- [ ] **TODAS as exceções de negócio** do DDP foram identificadas?
-- [ ] **TODOS os sistemas** do DDP foram identificados?
-- [ ] Se alguma coisa foi esquecida → **REVISAR o DDP** antes de continuar
-
-Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os seguintes aspectos:
-
-**1. Análise de Complexidade do LOOP STATION:**
-   - Quantas etapas o LOOP STATION possui? (contar etapas do DDP)
-   - Quantas exceções de negócio estão envolvidas? (EXC* - validações, condições especiais, regras de processamento)
-   - Quantas integrações diferentes são necessárias? (sistemas UI, APIs, bancos de dados)
-   - A complexidade é gerenciável em um único robô ou seria mais organizado dividir?
-   - Existem fases logicamente distintas que poderiam ser separadas?
-
-**2. Análise da Complexidade da Preparação de Dados (FILA):**
-   - A lógica de preenchimento da fila é simples (leitura direta de Excel/CSV) ou complexa?
-   - São necessárias conciliações entre múltiplas fontes de dados?
-   - Há validações extensas ou enriquecimento de dados (APIs, consultas complexas)?
-   - A preparação de dados é significativamente mais complexa que o processamento em si?
-   - A preparação poderia ser feita de forma independente e assíncrona?
-
-**3. Análise de Separação Lógica e Responsabilidades:**
-   - O processo tem fases com responsabilidades claramente distintas?
-   - Um robô prepararia dados enquanto outro executaria ações em sistemas diferentes?
-   - A separação por sistema traria benefícios claros (manutenção, testes, evolução independente)?
-   - As etapas estão fortemente acopladas ou podem ser separadas sem criar dependências complexas?
-
-**4. Análise de Benefícios de Organização e Manutenção:**
-   - A separação facilitaria significativamente a manutenção do código?
-   - Cada robô teria responsabilidades bem definidas e distintas?
-   - O processo pode evoluir de forma independente em cada robô?
-   - A separação adicionaria complexidade desnecessária ou traria benefícios claros?
-
-**5. Análise de Processos Assíncronos e Controle de Retry:**
-   - O processo envolve etapas de verificação manual ou aguardar resposta de sistemas externos?
-   - Há necessidade de retry control diferenciado entre fases?
-   - Uma fase pode ser executada independentemente da outra?
-
-**6. Análise de Modularização:**
-   - Existem etapas opcionais que poderiam ser habilitadas/desabilitadas sem modificar código?
-   - A separação permitiria flexibilidade na execução de partes do processo?
-
-**7. Síntese e Decisão Final:**
-   - **Pesar todos os fatores acima** - não há uma regra binária
-   - Considerar o contexto completo do processo
-   - Avaliar se os benefícios da separação superam o overhead de gerenciar múltiplos robôs
-   - Decidir baseado no que faz mais sentido para este processo específico
-   - Documentar a justificativa da decisão na seção "Arquitetura de Robôs" do spec.md
-
-**⚠️ VERIFICAÇÃO FINAL OBRIGATÓRIA - ANTES DE CRIAR OS ARQUIVOS:**
-
-**A LLM DEVE verificar que a arquitetura proposta contempla TUDO do DDP:**
-
-- [ ] **TODAS as etapas** do DDP estão contempladas na arquitetura?
-- [ ] **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento) estão mapeadas no business-rules.md?
-- [ ] **TODOS os sistemas** mencionados no DDP estão contemplados?
-- [ ] **TODAS as integrações** necessárias estão consideradas?
-- [ ] **TODAS as exceções** mapeadas no DDP estão contempladas?
-- [ ] **TODAS as etapas do LOOP STATION** foram contadas e estão no spec.md?
-- [ ] Se alguma coisa do DDP não foi contemplada → **REVISAR** e **CORRIGIR** antes de criar os arquivos
-
-**⚠️ REGRA DE OURO FINAL:**
-- A arquitetura final **DEVE** ser capaz de executar **TODAS as etapas** mapeadas no DDP
-- **NENHUMA etapa, regra ou sistema do DDP pode ser ignorada ou esquecida**
-- Se houver dúvida, **REVISAR o DDP** novamente antes de criar os arquivos
-
-**⚠️ LEMBRE-SE:** Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs. A decisão deve ser baseada na análise cuidadosa de todos os aspectos, não em regras rígidas. Mas **TODAS as etapas e regras do DDP DEVEM estar contempladas**.
-
-#### Exemplos Práticos
-
-**Exemplo 1: Standalone (Decisão Clara)**
-- **Processo:** Ler Excel, validar CPF, inserir no sistema SAP
-- **Análise:** 
-  - LOOP STATION simples (3-4 etapas)
-  - Preparação de fila direta (leitura Excel)
-  - Processo linear e coeso
-  - Sem benefício claro em separar
-- **Decisão:** Standalone
-- **Estrutura:** `specs/001-inserir-cpf/spec.md` (na raiz)
-
-**Exemplo 2: Dispatcher + Performer (Decisão Clara)**
-- **Processo:** Ler múltiplos Excels, fazer conciliação complexa entre eles, validar dados, enriquecer com API, depois processar no SAP
-- **Análise:**
-  - Preparação de dados muito complexa (múltiplas fontes, conciliações, validações, enriquecimento)
-  - Processamento no SAP é mais simples que a preparação
-  - Benefício claro: preparação pode ser feita independentemente
-  - Manutenção facilitada: lógica de preparação separada da execução
-- **Decisão:** Dispatcher + Performer
-- **Estrutura:**
-  - `specs/001-processo/robot1/` (Dispatcher - prepara dados)
-  - `specs/001-processo/robot2/` (Performer - processa no SAP)
-
-**Exemplo 2.1: Dispatcher + Performer (LOOP + Processamento Subsequente) - CASO REAL**
-- **Processo:** Capturar cards do Pipefy via API, consultar outras APIs para enriquecer dados, consolidar informações, lançar notas no SAP
-- **Análise:**
-  - **LOOP identificado:** Processamento de múltiplos cards do Pipefy
-  - **Processamento subsequente:** Lançamento de notas no SAP (sistema diferente)
-  - **Padrão:** LOOP que processa múltiplos itens → processamento em sistema diferente
-  - **Benefícios críticos da separação:**
-    - **Isolamento de erros:** Se um card do Pipefy falhar, não perde os outros cards. O framework trata o erro automaticamente no LOOP STATION e continua com os demais
-    - **Execução retroativa:** Robot2 pode rodar independentemente após Robot1 ter populado a fila
-    - **Retry control diferenciado:** Cada robô pode ter estratégias de retry próprias (APIs vs. SAP)
-    - **Modularização por objetivo:** Robot1 prepara/consolida dados, Robot2 executa no sistema final
-- **Decisão:** Dispatcher + Performer (obrigatório separar devido ao LOOP)
-- **Estrutura:**
-  - **Robot1 (Dispatcher):**
-    - INIT: Capturar cards do Pipefy via API → subir para própria fila
-    - LOOP STATION: Para cada card da fila → consultar outras APIs → consolidar informações → subir item para fila do performer
-    - END PROCESS: Finalizar com e-mail
-  - **Robot2 (Performer):**
-    - INIT: Não subir fila (já populada), iniciar SAP e realizar login
-    - LOOP STATION: Cadastrar nota (item da fila) no SAP
-    - END PROCESS: Finalizar SAP e enviar e-mail
-- **Justificativa:** Este é um caso típico onde a separação é obrigatória. Se um card falhar no mesmo robô que processa o SAP, todos os outros cards seriam perdidos. A separação garante isolamento de erros e execução retroativa.
-
-**Exemplo 3: Performer + Performer (Decisão Clara)**
-- **Processo:** Processar notas fiscais no sistema A, depois processar no sistema B
-- **Análise:**
-  - Dois sistemas diferentes com responsabilidades distintas
-  - Processamento sequencial claro
-  - Benefício: cada robô foca em um sistema específico
-  - Manutenção facilitada: mudanças em um sistema não afetam o outro
-- **Decisão:** Performer + Performer
-- **Estrutura:**
-  - `specs/001-processo/robot1/` (Performer 1 - sistema A)
-  - `specs/001-processo/robot2/` (Performer 2 - sistema B)
-
-**Exemplo 4: Caso que Requer Análise Cuidadosa (2 Sistemas UI)**
-- **Processo:** Consultar dados no sistema A, validar informações, inserir no sistema B
-- **Análise Contextual:**
-  - **Fator 1:** Dois sistemas UI diferentes
-  - **Fator 2:** Processo linear e simples (3-4 etapas)
-  - **Fator 3:** Lógica coesa - consulta e inserção fazem parte do mesmo fluxo
-  - **Fator 4:** Sem necessidade de retry diferenciado
-  - **Fator 5:** Separação adicionaria overhead sem benefício claro
-- **Decisão:** Standalone (apesar de ter 2 sistemas UI)
-- **Justificativa:** O processo é simples e coeso. Separar criaria complexidade desnecessária sem ganhos em manutenção ou organização.
-- **Estrutura:** `specs/001-processo/spec.md` (na raiz)
-
-**Exemplo 5: Caso que Requer Análise Cuidadosa (Processo Médio)**
-- **Processo:** Ler Excel, validar dados, processar no sistema A (10 etapas), depois processar no sistema B (5 etapas)
-- **Análise Contextual:**
-  - **Fator 1:** LOOP STATION extenso (15 etapas no total)
-  - **Fator 2:** Dois sistemas diferentes
-  - **Fator 3:** Processamento no sistema A é significativamente mais complexo que no B
-  - **Fator 4:** Separação facilitaria manutenção (cada robô foca em um sistema)
-  - **Fator 5:** Benefício claro: mudanças no sistema A não afetam o B
-- **Decisão:** Performer + Performer
-- **Justificativa:** Apesar de ser um processo linear, a complexidade e a separação por sistema trazem benefícios claros de manutenção e organização.
-- **Estrutura:**
-  - `specs/001-processo/robot1/` (Performer 1 - sistema A, 10 etapas)
-  - `specs/001-processo/robot2/` (Performer 2 - sistema B, 5 etapas)
-
-**Exemplo 6: Dispatcher + Performer + Performer (Verifai - CASO OBRIGATÓRIO)**
-- **Processo:** Ler Excel com referências de documentos → Enviar PDFs para Verifai → Capturar resultado da extração → Processar dados extraídos no SAP
-- **Análise - REGRA OBRIGATÓRIA 5:**
-  - **Checklist Verifai:**
-    - [✅] O processo envia documentos para o Verifai? **SIM** - Envia PDFs para extração
-    - [✅] Após enviar para o Verifai, há necessidade de capturar o resultado? **SIM** - Precisa capturar dados extraídos
-    - [✅] O resultado do Verifai será usado em processamento subsequente? **SIM** - Dados extraídos serão processados no SAP
-  - **RESULTADO:** **SEPARAR É OBRIGATÓRIO (mínimo 2 robôs, neste exemplo 3, mas pode haver mais se necessário)**
-- **Decisão:** Dispatcher + Performer + Performer (3 robôs neste exemplo - pode haver mais se necessário)
-- **Estrutura:**
-  - **Robot1 (Dispatcher):**
-    - INIT: Ler Excel com referências de documentos
-    - FILA: Criar item vazio na própria fila + popular fila do robot2 com referências dos PDFs
-    - LOOP STATION: Para cada item → **enviar PDF para Verifai** → **encerrar atividade principal** (último passo)
-    - END PROCESS: Finalizar com e-mail
-  - **Robot2 (Performer):**
-    - INIT: Não subir fila (já populada pelo robot1)
-    - LOOP STATION: Para cada item da fila → **capturar resultado do Verifai** (primeiro passo) → processar dados extraídos → popular fila do robot3
-    - **DEVE incluir seção "Campos a Capturar do Verifai"** no spec.md com:
-      - Lista de campos a capturar (CPF, Nome, Valor, etc.)
-      - Prompts sugeridos para cada campo (ex: "Qual o CPF desse documento?")
-    - END PROCESS: Finalizar com e-mail
-  - **Robot3 (Performer):**
-    - INIT: Não subir fila (já populada pelo robot2), iniciar SAP e realizar login
-    - LOOP STATION: Para cada item da fila → processar dados extraídos no SAP
-    - END PROCESS: Finalizar SAP e enviar e-mail
-- **Justificativa:** Este é um caso OBRIGATÓRIO de separação devido ao Verifai. Quando um robô envia documento para o Verifai, ele DEVE encerrar após o envio (último passo). Um outro robô captura o resultado (primeiro passo) e deve incluir seção com campos e prompts sugeridos. Como há processamento subsequente no SAP, um terceiro robô é necessário. A separação garante isolamento de erros, execução retroativa e permite que cada robô tenha responsabilidade clara.
-
-**⚠️ OBSERVAÇÃO IMPORTANTE:** Os exemplos 4 e 5 mostram que a decisão não é baseada em uma única característica (como "ter 2 sistemas UI"), mas sim na análise cuidadosa de todos os fatores do processo específico. O Exemplo 6 mostra que quando há Verifai, a separação é OBRIGATÓRIA e pode resultar em múltiplos robôs.
+**👉 Para todas as regras detalhadas, ver PARTE 1.5 abaixo.**
 
 ### 14. Estimativas de Tempo para Tasks
 
@@ -1372,6 +726,861 @@ Ao gerar tasks.md, calcular automaticamente:
 
 ---
 
+## 🏗️ PARTE 1.5: ARQUITETURA DE ROBÔS
+
+**⚠️ SEÇÃO DEDICADA - TODAS AS REGRAS DE ARQUITETURA DE ROBÔS**
+
+Esta seção consolida TODAS as regras, critérios, estruturas e exemplos relacionados à decisão e estruturação da arquitetura de robôs. A LLM DEVE consultar esta seção ao executar `/t2c.extract-ddp` para decidir a arquitetura do processo.
+
+### Visão Geral
+
+**⚠️ DECISÃO CRÍTICA:** Durante a análise do DDP (ao executar `/t2c.extract-ddp` e preencher as specs), a LLM DEVE decidir se o processo será:
+- **Standalone**: Um único robô faz todo o processo
+- **Múltiplos robôs**: Dispatcher + Performer ou Performer + Performer (ou mais combinações)
+
+**🚨 IMPORTANTE - NÃO HÁ LIMITE DE ROBÔS:**
+- A LLM pode criar **1, 2, 3, 4, 5 ou quantos robôs forem necessários** para organizar o processo da melhor forma possível
+- A decisão de quantos robôs criar deve ser baseada na **complexidade, organização e manutenibilidade** do processo
+- Não existe um limite máximo - o objetivo é criar a arquitetura mais organizada e manutenível possível
+- Cada robô adicional segue o mesmo padrão de estrutura (robot1/, robot2/, robot3/, robot4/, robot5/, etc.)
+
+### 📖 1. Leitura e Análise Cuidadosa do DDP - OBRIGATÓRIO
+
+**⚠️ CRÍTICO - ANTES DE QUALQUER DECISÃO DE ARQUITETURA:**
+
+A LLM DEVE ler o DDP com **ATENÇÃO TOTAL** e **NÃO DEIXAR PASSAR NENHUMA ETAPA OU REGRA** mapeada no documento.
+
+**Checklist obrigatório de leitura do DDP:**
+
+1. **Leitura Completa e Detalhada:**
+   - [ ] Ler o DDP **COMPLETO** do início ao fim, sem pular seções
+   - [ ] Identificar **TODAS as etapas** do processo (INIT, FILA, LOOP STATION, END PROCESS)
+   - [ ] Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
+   - [ ] Identificar **TODOS os sistemas** envolvidos (APIs, UI, bancos de dados, Verifai, etc.)
+   - [ ] Identificar **TODAS as integrações** necessárias
+   - [ ] Identificar **TODAS as exceções** mapeadas
+
+2. **Mapeamento Completo:**
+   - [ ] Contar **TODAS as etapas** do LOOP STATION (não estimar, contar exatamente)
+   - [ ] Identificar **TODAS as exceções de negócio** (EXC001, EXC002, etc.) - incluindo validações, condições especiais e regras de processamento
+   - [ ] Identificar **TODOS os sistemas** mencionados (SAP, TOTVS, APIs, Verifai, etc.)
+
+3. **Verificação de Completude:**
+   - [ ] Verificar se **TODAS as etapas** do DDP foram contempladas na arquitetura
+   - [ ] Verificar se **TODAS as exceções de negócio** do DDP foram mapeadas nas business-rules.md
+   - [ ] Verificar se **TODOS os sistemas** foram identificados no spec.md
+   - [ ] Verificar se **TODAS as integrações** foram consideradas
+   - [ ] Verificar se **TODAS as exceções** foram mapeadas
+
+4. **Arquitetura Deve Contemplar Tudo:**
+   - [ ] A arquitetura proposta **DEVE contemplar TODAS as etapas** do DDP
+   - [ ] A arquitetura proposta **DEVE contemplar TODAS as exceções de negócio** do DDP
+   - [ ] A arquitetura proposta **DEVE contemplar TODOS os sistemas** do DDP
+   - [ ] Se alguma etapa/exceção/sistema não foi contemplado → **REVISAR A ARQUITETURA**
+
+**⚠️ REGRA DE OURO:** 
+- **NENHUMA etapa, regra ou sistema do DDP pode ser ignorada ou esquecida**
+- Se o DDP menciona algo, **DEVE** estar contemplado na arquitetura e nas specs
+- Se houver dúvida se algo foi contemplado, **REVISAR** o DDP novamente
+- A arquitetura final **DEVE** ser capaz de executar **TODAS as etapas** mapeadas no DDP
+
+**⚠️ ATENÇÃO ESPECIAL:**
+- Ler **palavra por palavra** seções críticas (LOOP STATION, exceções de negócio)
+- Não fazer suposições - se algo não está claro no DDP, **NÃO inventar**, mas garantir que está contemplado
+- Se o DDP menciona múltiplas etapas em sequência, **TODAS** devem estar no spec.md
+- Se o DDP menciona exceções de negócio (validações, condições especiais, regras de processamento), **TODAS** devem estar no business-rules.md como exceções (EXC*)
+
+### 🚨 2. Regras Obrigatórias de Separação - VERIFICAR PRIMEIRO
+
+**⚠️ ATENÇÃO CRÍTICA:** Antes de fazer qualquer análise contextual, a LLM DEVE verificar se o processo se enquadra em uma das regras obrigatórias abaixo. Se SIM, a separação é OBRIGATÓRIA, não opcional.
+
+#### 2.1. REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente em Sistema Diferente
+
+**SEPARAR OBRIGATORIAMENTE quando:**
+- ✅ Existe um LOOP STATION que processa múltiplos itens (cards, linhas, registros)
+- ✅ Após o LOOP, há processamento em sistema diferente (SAP, TOTVS, outro sistema UI, ou outra fase distinta)
+- ✅ O processamento subsequente pode ser executado de forma independente
+
+**Checklist binário (SE TODAS AS RESPOSTAS FOREM SIM, SEPARAR É OBRIGATÓRIO):**
+- [ ] O processo tem um LOOP que processa múltiplos itens?
+- [ ] Após o LOOP, há outro processamento (em sistema diferente ou fase diferente)?
+- [ ] Um erro em um item do LOOP pode comprometer outros itens se estiverem no mesmo robô?
+- [ ] A separação permitiria execução retroativa (rodar robôs separadamente)?
+
+**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
+
+**Exemplos de casos que OBRIGAM separação:**
+- Pipefy (API) → Consultar APIs (CNPJ, Sintegra) → SAP (UI) → **SEPARAR OBRIGATÓRIO**
+- Excel → Processar linhas → Consultar APIs → TOTVS (UI) → **SEPARAR OBRIGATÓRIO**
+- API → Enriquecer dados → Processar múltiplos itens → Sistema UI → **SEPARAR OBRIGATÓRIO**
+
+**Exemplo detalhado - Caso Pipefy → APIs → SAP (CASO REAL):**
+- **Processo:** Capturar cards do Pipefy via API → Consultar APIs (CNPJ, Sintegra, Suframa) → Consolidar dados → Lançar notas no SAP
+- **Checklist REGRA OBRIGATÓRIA 1:**
+  - [✅] O processo tem um LOOP que processa múltiplos itens? **SIM** - LOOP processa múltiplos cards do Pipefy
+  - [✅] Após o LOOP, há outro processamento (em sistema diferente)? **SIM** - Processamento no SAP (sistema UI diferente)
+  - [✅] Um erro em um item do LOOP pode comprometer outros? **SIM** - Se um card falhar, pode perder outros cards
+  - [✅] A separação permitiria execução retroativa? **SIM** - Robot2 pode rodar depois que Robot1 populou a fila
+- **RESULTADO:** **SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
+- **Estrutura obrigatória:**
+  - `robot1/spec.md` - Dispatcher: Pipefy → APIs → consolidação → popula fila do performer
+  - `robot2/spec.md` - Performer: Processa itens da fila no SAP (23 etapas)
+
+#### 2.2. REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso
+
+**SEPARAR OBRIGATORIAMENTE quando:**
+- ✅ O processo envolve sistemas diferentes (ex: APIs sem UI + Sistema UI)
+- ✅ Há um LOOP STATION extenso (10+ etapas) em um dos sistemas
+- ✅ A separação permitiria execução retroativa e isolamento de erros
+
+**Checklist binário:**
+- [ ] O processo envolve sistemas diferentes (ex: APIs + UI)?
+- [ ] Há um LOOP STATION extenso (10+ etapas)?
+- [ ] A separação permitiria rodar os robôs separadamente?
+
+**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO**
+
+#### 2.3. REGRA OBRIGATÓRIA 3: Preparação Complexa de Dados + Execução Simples
+
+**SEPARAR OBRIGATORIAMENTE quando:**
+- ✅ A preparação de dados é complexa (múltiplas APIs, conciliações, validações extensas)
+- ✅ A execução no sistema final é mais simples
+- ✅ A preparação pode ser feita independentemente da execução
+
+**Checklist binário:**
+- [ ] A preparação envolve múltiplas fontes, APIs, conciliações ou validações extensas?
+- [ ] A execução no sistema final é mais simples que a preparação?
+- [ ] A preparação pode ser feita independentemente?
+
+**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
+
+#### 2.4. REGRA OBRIGATÓRIA 4: Preferência de API sobre Telas
+
+**⚠️ REGRA OBRIGATÓRIA:** Se no DDP está indicando que o processo deve ser via API mas está mapeado as telas, a LLM DEVE dar preferência a utilizar API para o processamento, em vez de usar as telas.
+
+**APLICAR OBRIGATORIAMENTE quando:**
+- ✅ O DDP indica que o processo deve ser via API
+- ✅ O DDP também mapeia telas/interface do sistema
+- ✅ A API está disponível e funcional
+
+**Ação obrigatória:**
+- **Usar API** para o processamento, mesmo que telas estejam mapeadas
+- **NÃO usar** a interface/telas se a API estiver disponível
+- **Documentar** no spec.md que a API foi escolhida sobre as telas
+- **Justificar** a escolha na seção de arquitetura
+
+**Exemplo:**
+- **DDP indica:** "Processar via API do sistema X" e também mapeia telas do sistema X
+- **Decisão:** Usar API do sistema X (não usar as telas)
+- **Justificativa:** DDP indica preferência por API, mesmo com telas mapeadas
+
+**⚠️ IMPORTANTE:** Esta é uma regra obrigatória. Se o DDP indica API, usar API, não telas.
+
+#### 2.5. REGRA OBRIGATÓRIA 5: Extração de Documentos com Verifai
+
+**⚠️ REGRA CRÍTICA:** Quando o processo envolve extração de documentos usando Verifai, a separação é OBRIGATÓRIA.
+
+**O que é Verifai:**
+- Sistema de extração de documentos utilizado pela T2C
+- Envia arquivos em PDF para o Verifai
+- Retorna resultado da extração dos documentos
+- Normalmente especificado no DDP quando há necessidade de extração de documentos
+
+**SEPARAR OBRIGATORIAMENTE quando:**
+- ✅ O processo envia documentos (PDFs) para o Verifai
+- ✅ Após enviar para o Verifai, é necessário capturar o resultado da extração
+- ✅ O resultado do Verifai será usado em processamento subsequente
+
+**Checklist binário (SE TODAS AS RESPOSTAS FOREM SIM, SEPARAR É OBRIGATÓRIO):**
+- [ ] O processo envia documentos para o Verifai?
+- [ ] Após enviar para o Verifai, há necessidade de capturar o resultado?
+- [ ] O resultado do Verifai será usado em processamento subsequente?
+
+**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO**
+
+**⚠️ REGRA FUNDAMENTAL:** Quando um robô envia um documento para o Verifai, ele DEVE encerrar sua atividade principal. Um outro robô será responsável por capturar o resultado do Verifai. Isso é uma regra essencial e pode resultar em múltiplos robôs no processo (2, 3, 4 ou quantos forem necessários para organizar o processo adequadamente).
+
+**🚨 REGRA CRÍTICA - Envio e Captura do Verifai:**
+
+**⚠️ OBRIGATÓRIO:**
+- **O último passo do robô que envia** é o **envio do documento para o Verifai** (NÃO a captura)
+- **A captura é realizada pelo robô seguinte** (OBRIGATÓRIO)
+- **Por isso quebre os robôs** para que um envie e outro capture e continue o processamento
+
+**Estrutura obrigatória com Verifai:**
+- **Robot1 (Dispatcher):**
+  - Prepara dados
+  - **ÚLTIMO PASSO:** Envia documentos para o Verifai
+  - **ENCERRA** após o envio (não captura)
+  - Popula fila do Robot2 com referências dos documentos enviados
+
+- **Robot2 (Performer):**
+  - **PRIMEIRO PASSO:** Captura resultado do Verifai
+  - Processa dados extraídos
+  - Popula fila do Robot3 (se houver processamento subsequente)
+
+- **Robot3+:** (Se necessário) Processamento adicional em outros sistemas ou fases
+
+**⚠️ IMPORTANTE - Campos e Prompts para Captura:**
+
+Ao criar o `robot2/spec.md` (robô que captura), a LLM DEVE:
+
+1. **Indicar quais campos precisam ser capturados** do resultado do Verifai
+2. **Sugerir prompts específicos** para cada campo que será capturado
+3. **Formato dos prompts:** Perguntas ou pedidos para uma outra LLM capturar o campo específico
+
+**Exemplo de campos e prompts no spec.md do Robot2:**
+```markdown
+## Campos a Capturar do Verifai
+
+### Campo: CPF
+- **Prompt sugerido:** "Qual o CPF desse documento?"
+- **Tipo:** String
+- **Validação:** (se necessário, conforme business-rules.md)
+
+### Campo: Nome do Cliente
+- **Prompt sugerido:** "Qual o nome completo do cliente nesse documento?"
+- **Tipo:** String
+
+### Campo: Valor Total
+- **Prompt sugerido:** "Qual o valor total da nota fiscal?"
+- **Tipo:** Decimal
+```
+
+**Estrutura típica com Verifai (exemplo - pode haver mais robôs se necessário):**
+- **Robot1:** Prepara dados, **envia documentos para o Verifai** (último passo) → popula fila do Robot2
+- **Robot2:** **Captura resultado do Verifai** (primeiro passo), processa dados extraídos → popula fila do Robot3 (se houver processamento subsequente)
+- **Robot3:** (Opcional) Processa dados extraídos no sistema final (ex: SAP, TOTVS)
+- **Robot4+:** (Se necessário) Processamento adicional em outros sistemas ou fases
+
+**Exemplo detalhado - Caso com Verifai:**
+- **Processo:** Ler Excel com referências → Enviar PDFs para Verifai → Capturar resultado da extração → Processar dados extraídos no SAP
+- **Checklist REGRA OBRIGATÓRIA 5:**
+  - [✅] O processo envia documentos para o Verifai? **SIM** - Envia PDFs para extração
+  - [✅] Após enviar para o Verifai, há necessidade de capturar o resultado? **SIM** - Precisa capturar dados extraídos
+  - [✅] O resultado do Verifai será usado em processamento subsequente? **SIM** - Dados extraídos serão processados no SAP
+- **RESULTADO:** **SEPARAR É OBRIGATÓRIO (mínimo 2 robôs, podendo ser 3, 4 ou quantos forem necessários)**
+- **Estrutura obrigatória (exemplo - pode haver mais robôs se necessário):**
+  - `robot1/spec.md` - Dispatcher: 
+    - Lê Excel com referências de documentos
+    - **ÚLTIMO PASSO:** Envia PDFs para Verifai
+    - **ENCERRA** após o envio (não captura)
+    - Popula fila do robot2 com referências dos documentos enviados
+  - `robot2/spec.md` - Performer: 
+    - **PRIMEIRO PASSO:** Captura resultado do Verifai
+    - **DEVE incluir seção "Campos a Capturar do Verifai"** com:
+      - Lista de campos a capturar (CPF, Nome, Valor, etc.)
+      - Prompts sugeridos para cada campo (ex: "Qual o CPF desse documento?")
+    - Processa dados extraídos
+    - Popula fila do robot3 (se houver)
+  - `robot3/spec.md` - (Opcional) Performer: Processa dados no SAP
+  - `robot4+/spec.md` - (Se necessário) Processamento adicional em outros sistemas ou fases
+
+**⚠️ IMPORTANTE:** Se o processo se enquadrar em QUALQUER uma das regras obrigatórias acima (incluindo Verifai), a LLM DEVE separar em múltiplos robôs. Não é uma sugestão, é uma OBRIGAÇÃO.
+
+**Se NENHUMA das regras obrigatórias se aplicar, então seguir para análise contextual abaixo.**
+
+### 📁 3. Estrutura Obrigatória Quando Separar em Múltiplos Robôs
+
+**Quando uma regra obrigatória se aplicar, a LLM DEVE criar a seguinte estrutura:**
+
+```
+specs/001-[nome]/
+├── robot1/              # Robô 1 (Dispatcher ou Performer)
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 1
+│   ├── selectors.md     # Seletores específicos do robô 1
+│   ├── business-rules.md # Regras de negócio específicas do robô 1
+│   └── tests.md         # Testes específicos do robô 1
+├── robot2/              # Robô 2 (Performer)
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 2
+│   ├── selectors.md     # Seletores específicos do robô 2
+│   ├── business-rules.md # Regras de negócio específicas do robô 2
+│   └── tests.md         # Testes específicos do robô 2
+├── robot3/              # Robô 3 (Performer) - OPCIONAL, pode haver mais robôs
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 3
+│   ├── selectors.md     # Seletores específicos do robô 3
+│   ├── business-rules.md # Regras de negócio específicas do robô 3
+│   └── tests.md         # Testes específicos do robô 3
+├── tasks.md             # Compartilhado - lista plana com referência ao robô
+└── DDP/                 # Compartilhado
+```
+
+**⚠️ IMPORTANTE:** 
+- **NÃO HÁ LIMITE DE ROBÔS:** A LLM pode criar 1, 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo da melhor forma possível
+- A decisão de quantos robôs criar deve ser baseada na complexidade, organização e manutenibilidade do processo
+- **Com Verifai:** Geralmente resulta em 2 ou 3 robôs (envio → captura → processamento), mas pode haver mais se necessário
+- Cada robô adicional segue o mesmo padrão de estrutura (robot4/, robot5/, robot6/, etc.)
+
+**⚠️ AÇÃO OBRIGATÓRIA:** Ao criar os arquivos `spec.md` de cada robô, a LLM DEVE:
+
+1. **Criar `robot1/spec.md`** com:
+   - Seção "Arquitetura de Robôs" no início indicando:
+     - **Tipo:** Dispatcher
+     - **Este robô é:** [Descrição do papel - ex: "Prepara dados do Pipefy, consulta APIs e popula fila do performer"]
+     - **Recebe dados de:** N/A
+     - **Alimenta:** robot2
+     - **Ordem na cadeia:** 1
+     - **Nome da pasta do robô:** robot1
+   - Seção INIT com lógica de captura de dados
+   - Seção FILA com lógica de preenchimento da própria fila (se Padrão 2) ou fila do performer (se Padrão 1)
+   - Seção LOOP STATION com lógica de processamento de cada item
+   - Seção END PROCESS
+
+2. **Criar `robot2/spec.md`** com:
+   - Seção "Arquitetura de Robôs" no início indicando:
+     - **Tipo:** Performer
+     - **Este robô é:** [Descrição do papel - ex: "Processa itens da fila no SAP"]
+     - **Recebe dados de:** robot1
+     - **Alimenta:** N/A
+     - **Ordem na cadeia:** 2
+     - **Nome da pasta do robô:** robot2
+   - Seção INIT com lógica de inicialização do sistema final (ex: SAP)
+   - Seção FILA indicando que não preenche (já populada pelo robot1)
+   - Seção LOOP STATION com lógica de processamento no sistema final
+   - Seção END PROCESS
+
+3. **Criar `tasks.md` na raiz** com:
+   - Tabela de visão geral de estimativas
+   - Tasks do robot1 com campo "Robô: robot1"
+   - Tasks do robot2 com campo "Robô: robot2"
+   - Organização: todas tasks do robot1 primeiro, depois robot2
+
+**⚠️ NÃO criar `spec.md` na raiz quando houver múltiplos robôs. Cada robô tem seu próprio `spec.md` dentro de sua pasta.**
+
+### 🔍 4. Critérios para Análise de Arquitetura (Quando Não Há Regra Obrigatória)
+
+**⚠️ IMPORTANTE:** A decisão de separar ou não em múltiplos robôs NÃO é uma regra binária. A LLM deve analisar o contexto completo do processo e considerar múltiplos fatores antes de decidir. Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs - a decisão deve ser baseada na análise cuidadosa de todos os aspectos do processo.
+
+**Contextos que TENDEM a favorecer separação em múltiplos robôs:**
+
+1. **Complexidade e Extensão do LOOP STATION:**
+   - Analisar se o LOOP STATION é muito extenso (muitas etapas, muitas regras de negócio, múltiplas integrações)
+   - Considerar se a complexidade justifica separação para melhor organização e manutenção
+   - Avaliar se dividir em fases distintas facilitaria o entendimento e desenvolvimento
+
+2. **Complexidade da Preparação de Dados:**
+   - Processos que requerem preparação complexa de dados (conciliações entre múltiplas fontes, validações extensas, enriquecimento via APIs, transformações complexas)
+   - Quando a lógica de preenchimento da fila é significativamente mais complexa que o processamento em si
+   - Casos onde a preparação de dados pode ser feita de forma independente e assíncrona
+
+3. **Separação Lógica por Responsabilidade:**
+   - Processos com fases distintas que têm responsabilidades claramente diferentes
+   - Quando um robô prepara dados e outro executa ações em sistemas diferentes
+   - Separação por sistema quando há benefício claro em termos de manutenção, testes e evolução independente
+
+4. **Benefícios de Organização e Manutenção:**
+   - Quando a separação facilitaria significativamente a manutenção do código
+   - Casos onde cada robô teria responsabilidades bem definidas e distintas
+   - Processos que podem evoluir de forma independente em cada robô
+
+5. **Processos Assíncronos ou com Verificação:**
+   - Processos que envolvem etapas de verificação manual ou aguardar resposta de sistemas externos
+   - Quando há necessidade de retry control diferenciado entre fases
+   - Processos onde uma fase pode ser executada independentemente da outra
+
+6. **Modularização de Etapas Opcionais:**
+   - Quando certas etapas do processo são opcionais e podem ser habilitadas/desabilitadas sem modificar código
+   - Separação que permite flexibilidade na execução de partes do processo
+
+7. **Isolamento de Erros no LOOP STATION e Execução Retroativa:**
+   - **⚠️ CRITÉRIO PRIORITÁRIO:** Sempre que houver um LOOP STATION que processa múltiplos itens e, em seguida, outro processamento (em sistema diferente ou fase diferente), considerar separar em múltiplos robôs
+   - Quando um erro em um item do LOOP pode comprometer o processamento dos demais itens se estiverem no mesmo robô
+   - A separação permite que o framework trate erros automaticamente no LOOP STATION, mantendo a execução dos outros itens mesmo se um falhar
+   - Quando uma fase pode ser executada de forma retroativa/independente após a outra (execução retroativa)
+   - Quando diferentes fases precisam de estratégias de retry diferenciadas
+   - **Padrão típico:** LOOP que processa múltiplos itens (preparação/consolidação) → processamento subsequente em sistema diferente
+   - **Benefícios:**
+     - Isolamento de falhas: erro em um item não compromete outros
+     - Execução retroativa: robôs podem rodar separadamente
+     - Retry control diferenciado: cada fase pode ter estratégias próprias
+     - Modularização por objetivo: cada robô tem responsabilidade clara
+
+**Contextos que TENDEM a favorecer arquitetura Standalone:**
+
+1. **Simplicidade do Processo:**
+   - Processos diretos e lineares (leitura de Excel, validação simples, inserção em sistema)
+   - Lógica que cabe confortavelmente em um único robô sem sobrecarga
+   - Processos com poucas etapas e regras de negócio simples
+
+2. **Cohesão Funcional:**
+   - Quando todas as etapas do processo estão fortemente acopladas e fazem sentido juntas
+   - Processos onde separar criaria dependências complexas sem benefício claro
+   - Casos onde a lógica de negócio é indivisível
+
+3. **Sem Benefício Claro de Separação:**
+   - Quando não há ganho evidente em termos de manutenção, organização ou complexidade
+   - Processos onde a separação adicionaria complexidade desnecessária
+   - Casos onde o overhead de gerenciar múltiplos robôs não se justifica
+
+**⚠️ REGRA DE OURO:** A decisão final deve ser baseada na análise cuidadosa do contexto completo do processo, considerando:
+- Complexidade técnica vs. benefício de separação
+- Manutenibilidade futura
+- Clareza de responsabilidades
+- Facilidade de testes e evolução
+- Overhead de gerenciamento de múltiplos robôs
+
+**NÃO existe uma regra absoluta.** A LLM deve pesar todos os fatores e tomar a decisão que faz mais sentido para o processo específico em análise.
+
+### 🏛️ 5. Tipos de Arquitetura
+
+**1. Standalone (1 robô)**
+- **Estrutura:** `specs/001-[nome]/spec.md` (na raiz)
+- Um único robô executa: INIT → FILA → LOOP STATION → END PROCESS
+- Todos os arquivos na raiz: `spec.md`, `selectors.md`, `business-rules.md`, `tests.md`, `tasks.md`
+- **Quando usar:** Processos simples, diretos, que não justificam separação
+
+**2. Dispatcher + Performer**
+- **Dispatcher** (`robot1/`):
+  - **Função:** Prepara dados e popula a fila do performer
+  - **Estrutura completa:** INIT → FILA → LOOP STATION → END PROCESS
+  - **Nomenclatura:** `prj_AFYA_ID15_01_SAP_DISP` (usar sufixo `_DISP`)
+  - **Padrões possíveis:**
+    - **Padrão 1 (Linear):** INIT popula fila do performer diretamente (sem LOOP próprio)
+      - **OBRIGATÓRIO:** Criar item vazio na própria fila para executar (framework precisa de pelo menos 1 item)
+      - INIT → FILA (cria item vazio + popula fila do performer) → LOOP STATION (processa item vazio) → END PROCESS
+    - **Padrão 2 (LOOP próprio):** INIT popula própria fila, LOOP STATION processa itens e popula fila do performer
+      - INIT → FILA (captura dados externos, ex: cards do Pipefy, e sobe para própria fila)
+      - LOOP STATION → Para cada item da própria fila: processa (ex: consulta APIs, consolida dados) → sobe item preparado para fila do performer
+      - END PROCESS → Finaliza com e-mail
+  - **Características:**
+    - Lógica de preenchimento da fila pode ser complexa (múltiplas fontes, conciliações, validações extensas)
+    - Pode ter LOOP STATION próprio para processar múltiplos itens antes de popular fila do performer
+    - Usa framework para preparar dados e popular fila do performer
+    - **Benefício do Padrão 2:** Isolamento de erros - se um item falhar no LOOP, outros itens continuam sendo processados
+- **Performer** (`robot2/`):
+  - **Função:** Processa itens da fila populada pelo dispatcher
+  - **Fila compartilhada:** 
+    - O dispatcher popula usando `FilaProcessamentoPerformer` no seu Config.xlsx
+    - O performer lê usando `FilaProcessamento` no seu Config.xlsx (mesma tabela, nomes diferentes)
+    - Ambos usam o mesmo `CaminhoBancoSqlite` (mesmo banco SQLite)
+  - **Nomenclatura:** `prj_AFYA_ID15_02_TOTVS_PERF` (usar sufixo `_PERF`)
+  - **Características:**
+    - Recebe dados já preparados do dispatcher
+    - Foca apenas em processar os itens da fila
+
+**3. Performer + Performer (Cadeia Sequencial)**
+- **Performer 1** (`robot1/`):
+  - **Função:** Processa itens e pode popular fila do Performer 2
+  - **Nomenclatura:** `prj_AFYA_ID15_01_SAP` (apenas numeração sequencial, sem sufixo)
+  - **Características:**
+    - Processa seus próprios itens
+    - Pode ter função de output que será usada no Performer 2
+    - Pode popular diretamente a fila do Performer 2
+- **Performer 2** (`robot2/`):
+  - **Função:** Processa itens da fila do Performer 1
+  - **Nomenclatura:** `prj_AFYA_ID15_02_TOTVS` (apenas numeração sequencial, sem sufixo)
+  - **Características:**
+    - Recebe dados do Performer 1
+    - Executa processamento sequencial após o Performer 1
+- **Nota importante:** Se Performer 1 tem função principal de alimentar Performer 2, ele se torna um Dispatcher (usar nomenclatura com `_DISP`)
+
+### 📂 6. Estrutura de Pastas e Arquivos
+
+**Standalone:**
+```
+specs/001-[nome]/
+├── spec.md              # ARQUIVO PRINCIPAL
+├── selectors.md
+├── business-rules.md
+├── tests.md
+├── tasks.md
+└── DDP/
+```
+
+**Múltiplos Robôs:**
+```
+specs/001-[nome]/
+├── robot1/              # Robô 1 (Dispatcher ou Performer)
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 1
+│   ├── selectors.md     # Seletores específicos do robô 1
+│   ├── business-rules.md # Regras de negócio específicas do robô 1
+│   └── tests.md         # Testes específicos do robô 1
+├── robot2/              # Robô 2 (Performer)
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 2
+│   ├── selectors.md     # Seletores específicos do robô 2
+│   ├── business-rules.md # Regras de negócio específicas do robô 2
+│   └── tests.md         # Testes específicos do robô 2
+├── robot3/              # Robô 3 (Performer) - OPCIONAL, pode haver mais robôs
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 3
+│   ├── selectors.md     # Seletores específicos do robô 3
+│   ├── business-rules.md # Regras de negócio específicas do robô 3
+│   └── tests.md         # Testes específicos do robô 3
+├── tasks.md             # Compartilhado - lista plana com referência ao robô
+└── DDP/                 # Compartilhado
+```
+
+**⚠️ NOTA IMPORTANTE:** 
+- **NÃO HÁ LIMITE DE ROBÔS:** A LLM pode criar 1, 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo da melhor forma possível
+- A decisão de quantos robôs criar deve ser baseada na complexidade, organização e manutenibilidade do processo
+- Com Verifai, geralmente resulta em 2 ou 3 robôs (envio → captura → processamento subsequente), mas pode haver mais se necessário
+
+### ⚙️ 7. Regras Específicas por Tipo
+
+**Para Dispatcher:**
+
+**Padrão 1 (Linear - sem LOOP próprio):**
+- **OBRIGATÓRIO:** No método `add_to_queue()`, criar um item vazio na própria fila ANTES de popular a fila do performer:
+  ```python
+  @classmethod
+  def add_to_queue(cls):
+      # OBRIGATÓRIO: Criar item vazio para que o framework execute
+      # O framework precisa de pelo menos 1 item na fila para executar
+      QueueManager.insert_new_queue_item(
+          arg_strReferencia="DISPATCHER_INIT",
+          arg_dictInfAdicional={}
+      )
+      
+      # Depois, popular fila do performer
+      # ... código para ler dados, fazer conciliações, validações ...
+      # ... código para popular fila do performer usando fila compartilhada ...
+  ```
+
+**Padrão 2 (LOOP próprio - processa múltiplos itens):**
+- **INIT (`add_to_queue()`):** Capturar dados externos (ex: cards do Pipefy via API) e subir para própria fila:
+  ```python
+  @classmethod
+  def add_to_queue(cls):
+      # Capturar dados externos (ex: cards do Pipefy)
+      cards = api_pipefy.get_cards()
+      
+      # Subir cada card para própria fila
+      for card in cards:
+          QueueManager.insert_new_queue_item(
+              arg_strReferencia=card['id'],
+              arg_dictInfAdicional={'card_data': card}
+          )
+  ```
+- **LOOP STATION (`execute()`):** Para cada item da própria fila, processar e subir para fila do performer:
+  ```python
+  @classmethod
+  def execute(cls):
+      var_dictItem = GetTransaction.var_dictQueueItem
+      var_strReferencia = var_dictItem['referencia']
+      var_dictInfoAdicional = var_dictItem['info_adicionais']
+      
+      # Processar item (ex: consultar outras APIs, consolidar dados)
+      # ... código de processamento ...
+      
+      # Subir item preparado para fila do performer
+      # Usar FilaProcessamentoPerformer do Config.xlsx
+      # ... código para popular fila do performer ...
+  ```
+- **Benefício:** Isolamento de erros - se um item falhar no LOOP, o framework trata automaticamente e continua com os outros itens
+- **Fila compartilhada (para popular o performer):**
+  - No Config.xlsx do dispatcher existe a configuração `FilaProcessamentoPerformer` (ou similar)
+  - Essa é a fila que o dispatcher deve preencher para o performer processar
+  - Usar o mesmo `CaminhoBancoSqlite` configurado no Config.xlsx
+  - O dispatcher popula essa fila usando `FilaProcessamentoPerformer` como nome da tabela
+- **Fila própria do dispatcher:**
+  - O dispatcher tem sua própria `FilaProcessamento` no Config.xlsx
+  - **Padrão 1:** Contém apenas item vazio (necessário para framework executar)
+  - **Padrão 2:** Contém os itens reais capturados no INIT (ex: cards do Pipefy) que serão processados no LOOP STATION
+
+**Para Performer:**
+- **Fila compartilhada (recebe do dispatcher/performer anterior):**
+  - No Config.xlsx do performer, a configuração `FilaProcessamento` é a mesma fila que o dispatcher/performer anterior preencheu
+  - O dispatcher/performer anterior preenche usando `FilaProcessamentoPerformer` (ou similar)
+  - O performer lê usando `FilaProcessamento` (mesma tabela, nomes diferentes nos configs)
+  - Usar o mesmo `CaminhoBancoSqlite` configurado no Config.xlsx (mesmo banco SQLite)
+- **Configuração no Config.xlsx do Performer:**
+  - `CaminhoBancoSqlite`: Mesmo caminho do dispatcher/performer anterior
+  - `FilaProcessamento`: Nome da tabela que corresponde à `FilaProcessamentoPerformer` do dispatcher/performer anterior
+- **Não precisa criar item vazio:** Recebe itens da fila compartilhada populada pelo robô anterior
+- **Se recebe de outro Performer:** Pode receber dados diretamente do Performer anterior (função de output)
+
+**Para Tasks.md (compartilhado):**
+- **Estrutura:** Lista plana de tasks
+- **Campo obrigatório:** Cada task deve ter campo "Robô:" indicando:
+  - `robot1` - se a task é do robô 1
+  - `robot2` - se a task é do robô 2
+  - `raiz` - se standalone
+- **Organização:** Agrupar visualmente - todas tasks do robot1 primeiro, depois robot2
+- **Exemplo:**
+  ```markdown
+  ### Task 1.1: Inicializar Sistemas
+  - **Robô:** robot1
+  - **Descrição:** ...
+  
+  ### Task 1.2: Preencher Fila
+  - **Robô:** robot1
+  - **Descrição:** ...
+  
+  ### Task 2.1: Processar Item
+  - **Robô:** robot2
+  - **Descrição:** ...
+  ```
+
+**Para Spec.md (cada robô tem o seu):**
+- **Seção obrigatória:** "Arquitetura de Robôs" no início do spec.md deve conter:
+  - **Tipo:** Standalone / Dispatcher / Performer
+  - **Este robô é:** [Descrição breve do papel deste robô]
+  - **Recebe dados de:** [Nome do robô anterior que alimenta este robô, se Performer. Ex: "robot1" ou "N/A" se Standalone/Dispatcher]
+  - **Alimenta:** [Nome do robô seguinte que este robô alimenta, se Dispatcher ou Performer que alimenta outro. Ex: "robot2" ou "N/A" se não alimenta nenhum]
+  - **Ordem na cadeia:** [1/2/3... se parte de múltiplos robôs, ou "1" se Standalone]
+  - **Nome da pasta do robô:** [robot1 / robot2 / etc. ou "raiz" se standalone]
+- **Observações sobre arquitetura:**
+  - Se Dispatcher: mencionar que precisa criar item vazio na própria fila para executar
+  - Se Performer: mencionar de onde recebe os dados e como acessa a fila compartilhada
+  - Se parte de cadeia: mencionar a ordem de execução e dependências
+
+### 🏷️ 8. Nomenclatura de Projetos
+
+**Dispatcher + Performer:**
+- Usar sufixos `_DISP` e `_PERF`
+- Exemplo: `prj_AFYA_ID15_01_SAP_DISP` → `prj_AFYA_ID15_02_TOTVS_PERF`
+
+**Performer + Performer:**
+- Apenas numeração sequencial (sem sufixos)
+- Exemplo: `prj_AFYA_ID15_01_SAP` → `prj_AFYA_ID15_02_TOTVS`
+
+**Standalone:**
+- Nomenclatura normal sem sufixos especiais
+- Exemplo: `prj_AFYA_ID15`
+
+### 🔧 9. Geração de Framework
+
+- **Standalone:** Gera em `generated/[nome-automacao]/`
+- **Múltiplos:** Gera em `generated/[nome-automacao]-robot1/`, `generated/[nome-automacao]-robot2/`, etc.
+- **Comando:** `/t2c.implement` detecta automaticamente a estrutura
+- **Geração seletiva:** Pode gerar todos ou apenas um robô específico:
+  - `/t2c.implement specs/001-[nome]` - Gera todos os robôs
+  - `/t2c.implement specs/001-[nome] --robot robot1` - Gera apenas robot1
+
+### 📋 10. Guia de Análise para Decisão de Arquitetura
+
+**⚠️ PASSO 0 - OBRIGATÓRIO: Leitura Cuidadosa do DDP**
+
+**PRIMEIRO, ANTES DE QUALQUER OUTRA AÇÃO, a LLM DEVE:**
+
+1. **Ler o DDP com ATENÇÃO TOTAL** (ver seção "📖 1. Leitura e Análise Cuidadosa do DDP" acima)
+   - Ler o DDP **COMPLETO** do início ao fim
+   - Identificar **TODAS as etapas** (INIT, FILA, LOOP STATION, END PROCESS)
+   - Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
+   - Identificar **TODOS os sistemas** (APIs, UI, Verifai, etc.)
+   - Identificar **TODAS as integrações** e **TODAS as exceções**
+   - **Contar exatamente** todas as etapas do LOOP STATION (não estimar)
+
+2. **Mapear completamente o DDP:**
+   - Criar uma lista mental ou escrita de **TODAS as etapas** identificadas
+   - Criar uma lista de **TODAS as exceções de negócio** identificadas
+   - Criar uma lista de **TODOS os sistemas** identificados
+   - Garantir que **NENHUMA informação** foi perdida
+
+**⚠️ PASSO 1 - OBRIGATÓRIO: Verificar Regras Obrigatórias de Separação**
+
+**APÓS ler o DDP completamente, a LLM DEVE:**
+
+1. **Ler a seção "🚨 2. Regras Obrigatórias de Separação" acima**
+2. **Aplicar os checklists binários das 5 regras obrigatórias:**
+   - REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente
+   - REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso
+   - REGRA OBRIGATÓRIA 3: Preparação Complexa + Execução Simples
+   - **REGRA OBRIGATÓRIA 4: Preferência de API sobre Telas** ⚠️ OBRIGATÓRIA
+   - **REGRA OBRIGATÓRIA 5: Extração de Documentos com Verifai** ⚠️ CRÍTICA
+3. **Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO**
+4. **Se NENHUMA regra obrigatória se aplicar → seguir para análise contextual abaixo**
+
+**⚠️ CRÍTICO:** Se o processo se enquadrar em uma regra obrigatória, a LLM NÃO deve fazer análise contextual. Deve separar imediatamente e criar a estrutura de múltiplos robôs.
+
+**⚠️ ATENÇÃO ESPECIAL - API sobre Telas:**
+- Se o DDP indica que o processo deve ser via API mas também mapeia telas, a LLM DEVE usar API (não telas)
+- Esta é uma regra obrigatória de escolha de tecnologia, não de separação de robôs
+- Documentar no spec.md que a API foi escolhida sobre as telas
+
+**⚠️ ATENÇÃO ESPECIAL - Verifai:**
+- Se o DDP mencionar "Verifai", "extração de documentos", "envio de PDF para extração", ou similar, a LLM DEVE verificar imediatamente a REGRA OBRIGATÓRIA 5
+- Quando um robô envia documento para o Verifai, ele DEVE encerrar após o envio (último passo) e um outro robô captura o resultado (primeiro passo)
+- O robô que captura DEVE incluir seção "Campos a Capturar do Verifai" com campos e prompts sugeridos
+- **NÃO HÁ LIMITE:** Isso pode resultar em 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo adequadamente
+
+**PASSO 2 - Análise Contextual (Apenas se NENHUMA regra obrigatória se aplicou):**
+
+**⚠️ ANTES de fazer a análise contextual, verificar novamente:**
+- [ ] **TODAS as etapas** do DDP foram identificadas?
+- [ ] **TODAS as exceções de negócio** do DDP foram identificadas?
+- [ ] **TODOS os sistemas** do DDP foram identificados?
+- [ ] Se alguma coisa foi esquecida → **REVISAR o DDP** antes de continuar
+
+Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os seguintes aspectos:
+
+**1. Análise de Complexidade do LOOP STATION:**
+   - Quantas etapas o LOOP STATION possui? (contar etapas do DDP)
+   - Quantas exceções de negócio estão envolvidas? (EXC* - validações, condições especiais, regras de processamento)
+   - Quantas integrações diferentes são necessárias? (sistemas UI, APIs, bancos de dados)
+   - A complexidade é gerenciável em um único robô ou seria mais organizado dividir?
+   - Existem fases logicamente distintas que poderiam ser separadas?
+
+**2. Análise da Complexidade da Preparação de Dados (FILA):**
+   - A lógica de preenchimento da fila é simples (leitura direta de Excel/CSV) ou complexa?
+   - São necessárias conciliações entre múltiplas fontes de dados?
+   - Há validações extensas ou enriquecimento de dados (APIs, consultas complexas)?
+   - A preparação de dados é significativamente mais complexa que o processamento em si?
+   - A preparação poderia ser feita de forma independente e assíncrona?
+
+**3. Análise de Separação Lógica e Responsabilidades:**
+   - O processo tem fases com responsabilidades claramente distintas?
+   - Um robô prepararia dados enquanto outro executaria ações em sistemas diferentes?
+   - A separação por sistema traria benefícios claros (manutenção, testes, evolução independente)?
+   - As etapas estão fortemente acopladas ou podem ser separadas sem criar dependências complexas?
+
+**4. Análise de Benefícios de Organização e Manutenção:**
+   - A separação facilitaria significativamente a manutenção do código?
+   - Cada robô teria responsabilidades bem definidas e distintas?
+   - O processo pode evoluir de forma independente em cada robô?
+   - A separação adicionaria complexidade desnecessária ou traria benefícios claros?
+
+**5. Análise de Processos Assíncronos e Controle de Retry:**
+   - O processo envolve etapas de verificação manual ou aguardar resposta de sistemas externos?
+   - Há necessidade de retry control diferenciado entre fases?
+   - Uma fase pode ser executada independentemente da outra?
+
+**6. Análise de Modularização:**
+   - Existem etapas opcionais que poderiam ser habilitadas/desabilitadas sem modificar código?
+   - A separação permitiria flexibilidade na execução de partes do processo?
+
+**7. Síntese e Decisão Final:**
+   - **Pesar todos os fatores acima** - não há uma regra binária
+   - Considerar o contexto completo do processo
+   - Avaliar se os benefícios da separação superam o overhead de gerenciar múltiplos robôs
+   - Decidir baseado no que faz mais sentido para este processo específico
+   - Documentar a justificativa da decisão na seção "Arquitetura de Robôs" do spec.md
+
+**⚠️ VERIFICAÇÃO FINAL OBRIGATÓRIA - ANTES DE CRIAR OS ARQUIVOS:**
+
+**A LLM DEVE verificar que a arquitetura proposta contempla TUDO do DDP:**
+
+- [ ] **TODAS as etapas** do DDP estão contempladas na arquitetura?
+- [ ] **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento) estão mapeadas no business-rules.md?
+- [ ] **TODOS os sistemas** mencionados no DDP estão contemplados?
+- [ ] **TODAS as integrações** necessárias estão consideradas?
+- [ ] **TODAS as exceções** mapeadas no DDP estão contempladas?
+- [ ] **TODAS as etapas do LOOP STATION** foram contadas e estão no spec.md?
+- [ ] Se alguma coisa do DDP não foi contemplada → **REVISAR** e **CORRIGIR** antes de criar os arquivos
+
+**⚠️ REGRA DE OURO FINAL:**
+- A arquitetura final **DEVE** ser capaz de executar **TODAS as etapas** mapeadas no DDP
+- **NENHUMA etapa, regra ou sistema do DDP pode ser ignorada ou esquecida**
+- Se houver dúvida, **REVISAR o DDP** novamente antes de criar os arquivos
+
+**⚠️ LEMBRE-SE:** Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs. A decisão deve ser baseada na análise cuidadosa de todos os aspectos, não em regras rígidas. Mas **TODAS as etapas e regras do DDP DEVEM estar contempladas**.
+
+### 📚 11. Exemplos Práticos
+
+**Exemplo 1: Standalone (Decisão Clara)**
+- **Processo:** Ler Excel, validar CPF, inserir no sistema SAP
+- **Análise:** 
+  - LOOP STATION simples (3-4 etapas)
+  - Preparação de fila direta (leitura Excel)
+  - Processo linear e coeso
+  - Sem benefício claro em separar
+- **Decisão:** Standalone
+- **Estrutura:** `specs/001-inserir-cpf/spec.md` (na raiz)
+
+**Exemplo 2: Dispatcher + Performer (Decisão Clara)**
+- **Processo:** Ler múltiplos Excels, fazer conciliação complexa entre eles, validar dados, enriquecer com API, depois processar no SAP
+- **Análise:**
+  - Preparação de dados muito complexa (múltiplas fontes, conciliações, validações, enriquecimento)
+  - Processamento no SAP é mais simples que a preparação
+  - Benefício claro: preparação pode ser feita independentemente
+  - Manutenção facilitada: lógica de preparação separada da execução
+- **Decisão:** Dispatcher + Performer
+- **Estrutura:**
+  - `specs/001-processo/robot1/` (Dispatcher - prepara dados)
+  - `specs/001-processo/robot2/` (Performer - processa no SAP)
+
+**Exemplo 2.1: Dispatcher + Performer (LOOP + Processamento Subsequente) - CASO REAL**
+- **Processo:** Capturar cards do Pipefy via API, consultar outras APIs para enriquecer dados, consolidar informações, lançar notas no SAP
+- **Análise:**
+  - **LOOP identificado:** Processamento de múltiplos cards do Pipefy
+  - **Processamento subsequente:** Lançamento de notas no SAP (sistema diferente)
+  - **Padrão:** LOOP que processa múltiplos itens → processamento em sistema diferente
+  - **Benefícios críticos da separação:**
+    - **Isolamento de erros:** Se um card do Pipefy falhar, não perde os outros cards. O framework trata o erro automaticamente no LOOP STATION e continua com os demais
+    - **Execução retroativa:** Robot2 pode rodar independentemente após Robot1 ter populado a fila
+    - **Retry control diferenciado:** Cada robô pode ter estratégias de retry próprias (APIs vs. SAP)
+    - **Modularização por objetivo:** Robot1 prepara/consolida dados, Robot2 executa no sistema final
+- **Decisão:** Dispatcher + Performer (obrigatório separar devido ao LOOP)
+- **Estrutura:**
+  - **Robot1 (Dispatcher):**
+    - INIT: Capturar cards do Pipefy via API → subir para própria fila
+    - LOOP STATION: Para cada card da fila → consultar outras APIs → consolidar informações → subir item para fila do performer
+    - END PROCESS: Finalizar com e-mail
+  - **Robot2 (Performer):**
+    - INIT: Não subir fila (já populada), iniciar SAP e realizar login
+    - LOOP STATION: Cadastrar nota (item da fila) no SAP
+    - END PROCESS: Finalizar SAP e enviar e-mail
+- **Justificativa:** Este é um caso típico onde a separação é obrigatória. Se um card falhar no mesmo robô que processa o SAP, todos os outros cards seriam perdidos. A separação garante isolamento de erros e execução retroativa.
+
+**Exemplo 3: Performer + Performer (Decisão Clara)**
+- **Processo:** Processar notas fiscais no sistema A, depois processar no sistema B
+- **Análise:**
+  - Dois sistemas diferentes com responsabilidades distintas
+  - Processamento sequencial claro
+  - Benefício: cada robô foca em um sistema específico
+  - Manutenção facilitada: mudanças em um sistema não afetam o outro
+- **Decisão:** Performer + Performer
+- **Estrutura:**
+  - `specs/001-processo/robot1/` (Performer 1 - sistema A)
+  - `specs/001-processo/robot2/` (Performer 2 - sistema B)
+
+**Exemplo 4: Caso que Requer Análise Cuidadosa (2 Sistemas UI)**
+- **Processo:** Consultar dados no sistema A, validar informações, inserir no sistema B
+- **Análise Contextual:**
+  - **Fator 1:** Dois sistemas UI diferentes
+  - **Fator 2:** Processo linear e simples (3-4 etapas)
+  - **Fator 3:** Lógica coesa - consulta e inserção fazem parte do mesmo fluxo
+  - **Fator 4:** Sem necessidade de retry diferenciado
+  - **Fator 5:** Separação adicionaria overhead sem benefício claro
+- **Decisão:** Standalone (apesar de ter 2 sistemas UI)
+- **Justificativa:** O processo é simples e coeso. Separar criaria complexidade desnecessária sem ganhos em manutenção ou organização.
+- **Estrutura:** `specs/001-processo/spec.md` (na raiz)
+
+**Exemplo 5: Caso que Requer Análise Cuidadosa (Processo Médio)**
+- **Processo:** Ler Excel, validar dados, processar no sistema A (10 etapas), depois processar no sistema B (5 etapas)
+- **Análise Contextual:**
+  - **Fator 1:** LOOP STATION extenso (15 etapas no total)
+  - **Fator 2:** Dois sistemas diferentes
+  - **Fator 3:** Processamento no sistema A é significativamente mais complexo que no B
+  - **Fator 4:** Separação facilitaria manutenção (cada robô foca em um sistema)
+  - **Fator 5:** Benefício claro: mudanças no sistema A não afetam o B
+- **Decisão:** Performer + Performer
+- **Justificativa:** Apesar de ser um processo linear, a complexidade e a separação por sistema trazem benefícios claros de manutenção e organização.
+- **Estrutura:**
+  - `specs/001-processo/robot1/` (Performer 1 - sistema A, 10 etapas)
+  - `specs/001-processo/robot2/` (Performer 2 - sistema B, 5 etapas)
+
+**Exemplo 6: Dispatcher + Performer + Performer (Verifai - CASO OBRIGATÓRIO)**
+- **Processo:** Ler Excel com referências de documentos → Enviar PDFs para Verifai → Capturar resultado da extração → Processar dados extraídos no SAP
+- **Análise - REGRA OBRIGATÓRIA 5:**
+  - **Checklist Verifai:**
+    - [✅] O processo envia documentos para o Verifai? **SIM** - Envia PDFs para extração
+    - [✅] Após enviar para o Verifai, há necessidade de capturar o resultado? **SIM** - Precisa capturar dados extraídos
+    - [✅] O resultado do Verifai será usado em processamento subsequente? **SIM** - Dados extraídos serão processados no SAP
+  - **RESULTADO:** **SEPARAR É OBRIGATÓRIO (mínimo 2 robôs, neste exemplo 3, mas pode haver mais se necessário)**
+- **Decisão:** Dispatcher + Performer + Performer (3 robôs neste exemplo - pode haver mais se necessário)
+- **Estrutura:**
+  - **Robot1 (Dispatcher):**
+    - INIT: Ler Excel com referências de documentos
+    - FILA: Criar item vazio na própria fila + popular fila do robot2 com referências dos PDFs
+    - LOOP STATION: Para cada item → **enviar PDF para Verifai** → **encerrar atividade principal** (último passo)
+    - END PROCESS: Finalizar com e-mail
+  - **Robot2 (Performer):**
+    - INIT: Não subir fila (já populada pelo robot1)
+    - LOOP STATION: Para cada item da fila → **capturar resultado do Verifai** (primeiro passo) → processar dados extraídos → popular fila do robot3
+    - **DEVE incluir seção "Campos a Capturar do Verifai"** no spec.md com:
+      - Lista de campos a capturar (CPF, Nome, Valor, etc.)
+      - Prompts sugeridos para cada campo (ex: "Qual o CPF desse documento?")
+    - END PROCESS: Finalizar com e-mail
+  - **Robot3 (Performer):**
+    - INIT: Não subir fila (já populada pelo robot2), iniciar SAP e realizar login
+    - LOOP STATION: Para cada item da fila → processar dados extraídos no SAP
+    - END PROCESS: Finalizar SAP e enviar e-mail
+- **Justificativa:** Este é um caso OBRIGATÓRIO de separação devido ao Verifai. Quando um robô envia documento para o Verifai, ele DEVE encerrar após o envio (último passo). Um outro robô captura o resultado (primeiro passo) e deve incluir seção com campos e prompts sugeridos. Como há processamento subsequente no SAP, um terceiro robô é necessário. A separação garante isolamento de erros, execução retroativa e permite que cada robô tenha responsabilidade clara.
+
+**⚠️ OBSERVAÇÃO IMPORTANTE:** Os exemplos 4 e 5 mostram que a decisão não é baseada em uma única característica (como "ter 2 sistemas UI"), mas sim na análise cuidadosa de todos os fatores do processo específico. O Exemplo 6 mostra que quando há Verifai, a separação é OBRIGATÓRIO e pode resultar em múltiplos robôs.
+
+---
+
 ## 📚 PARTE 2: ESPECIFICAÇÃO COMPLETA DO FRAMEWORK
 
 ### Visão Geral
@@ -1402,9 +1611,11 @@ O Framework T2C é uma estrutura completa para automação de processos (RPA) ba
 │             1. INICIALIZAÇÃO (Initialization)               │
 │  - Carrega configurações (Config.xlsx)                      │
 │  - Conecta com Maestro/Tracker                              │
-│  - Inicializa aplicações (InitAllApplications)              │
-│  - Preenche fila (add_to_queue)                             │
+│  - Preenche fila (add_to_queue) ← PRIMEIRO                  │
+│  - Inicializa aplicações (InitAllApplications) ← DEPOIS     │
 │  - Envia e-mail inicial                                     │
+│                                                             │
+│  ⚠️ IMPORTANTE: Ver seção 12.5 - REGRA 1 para ordem correta│
 └───────────────────────────┬───────────────────────────────────┘
                             │
                             ▼
@@ -1574,6 +1785,8 @@ var_intMaxTentativas = InitAllSettings.var_dictConfig["MaxRetryNumber"]
 
 ### Gerenciamento de Fila
 
+**⚠️ IMPORTANTE:** Ver **seção 12.5 - REGRA 4** para o princípio fundamental de fila como fonte única de dados e como especificar a fonte de dados ao preencher a fila.
+
 #### Estrutura da Tabela de Fila
 
 O framework espera uma tabela SQLite com a seguinte estrutura:
@@ -1647,7 +1860,7 @@ except Exception as err:
 
 **⚠️ IMPORTANTE - Sistemas que NÃO Precisam ser Inicializados:**
 
-**NÃO inicializar no INIT:** Office365 (Excel, Word, PowerPoint, etc.), Google Workspace (Google Docs, Sheets, etc.), OneDrive e sistemas similares que são abertos diretamente por arquivo ou link. Ver seção 12 para regra completa e detalhada.
+**NÃO inicializar no INIT:** Office365 (Excel, Word, PowerPoint, etc.), Google Workspace (Google Docs, Sheets, etc.), OneDrive e sistemas similares que são tratados em background. Ver seção 12.5 - REGRA 2 e REGRA 5 para regra completa e detalhada.
 
 #### Inicializar Navegador Web
 
@@ -1786,98 +1999,6 @@ Ao gerar os arquivos, substitua:
 - `{{PREENCHIMENTO_FILA}}` - Código para preencher fila
 - `{{INICIALIZACAO_APLICACOES}}` - Código de inicialização
 - `{{FECHAMENTO_APLICACOES}}` - Código de fechamento
-
----
-
-## 📐 PARTE 4: PADRÕES DE CÓDIGO
-
-**Nota:** Para nomenclatura completa, ver PARTE 8. Para tratamento de erros detalhado, ver PARTE 8. Para loops e outras boas práticas, ver PARTE 8.
-
-### Padrões de Código
-
-#### 1. Imports
-```python
-# Sempre nesta ordem:
-# 1. Imports dos módulos T2C
-from {{PROJECT_NAME}}.classes_t2c.framework.T2CInitAllSettings import T2CInitAllSettings as InitAllSettings
-
-# 2. Imports dos pacotes externos
-from botcity.web import WebBot
-```
-
-#### 2. Uso de Seletores Clicknium
-```python
-from clicknium import clicknium as cc, locator
-
-# Clicar
-cc.find_element(locator.pasta.elemento).click()
-
-# Preencher
-cc.find_element(locator.pasta.elemento).set_text("texto")
-
-# Ler
-texto = cc.find_element(locator.pasta.elemento).get_text()
-```
-
----
-
-## 💡 PARTE 5: EXEMPLOS PRÁTICOS
-
-**Nota:** Estes exemplos focam em padrões únicos. Para conceitos básicos (logging, tratamento de erros, loops), ver PARTE 1 e PARTE 8.
-
-### Exemplo 1: T2CProcess.execute() - Exceções de Negócio e Processamento
-
-**⚠️ IMPORTANTE:** Este exemplo mostra código SIMPLES e DIRETO. Apenas aplicar exceções que estão mapeadas no business-rules.md.
-
-```python
-@classmethod
-def execute(cls):
-    var_dictItem = GetTransaction.var_dictQueueItem
-    var_strReferencia = var_dictItem['referencia']
-    var_dictInfoAdicional = var_dictItem['info_adicionais']
-    
-    Maestro.write_log(f'Processando item: {var_strReferencia}')
-
-    # EXC001 - Exceção de negócio mapeada no business-rules.md
-    # APENAS aplicar se estiver mapeada no business-rules.md
-    var_strCpf = var_dictInfoAdicional.get('cpf', '')
-    if len(var_strCpf) != 11 or not var_strCpf.isdigit():
-        raise BusinessRuleException("CPF inválido ou incompleto")
-
-    # Código simples e direto - sem validações desnecessárias
-    # Sem try/except - o framework já trata erros automaticamente
-    cc.find_element(locator.login.campo_usuario).set_text(var_dictInfoAdicional.get('usuario', ''))
-    cc.find_element(locator.login.botao_entrar).click()
-    cc.find_element(locator.tela.campo_cpf).set_text(var_strCpf)
-    cc.find_element(locator.tela.botao_consultar).click()
-    
-    Maestro.write_log('Process Finished')
-```
-
-**Observações:**
-- ✅ Código simples, direto e fácil de entender
-- ✅ Apenas uma exceção de negócio (se mapeada no business-rules.md)
-- ✅ Sem try/except desnecessários
-- ✅ Sem validações que não estão no DDP
-- ✅ O framework cuida de tratamento de erros automaticamente
-
-### Exemplo 2: T2CInitAllApplications.add_to_queue() - Preencher Fila
-
-```python
-@classmethod
-def add_to_queue(cls):
-    import pandas as pd
-    df = pd.read_excel('dados.xlsx')
-    
-    for index, row in df.iterrows():
-        QueueManager.insert_new_queue_item(
-            arg_strReferencia=str(row['ID']),
-            arg_dictInfAdicional={
-                'cpf': str(row['CPF']),
-                'usuario': str(row['Usuario'])
-            }
-        )
-```
 
 ---
 
@@ -2269,6 +2390,34 @@ python-dotenv>=0.19.0
 
 **IMPORTANTE:** Todo o desenvolvimento DEVE obrigatoriamente seguir as boas práticas definidas abaixo.
 
+### Padrões de Código
+
+#### 1. Imports
+```python
+# Sempre nesta ordem:
+# 1. Imports dos módulos T2C
+from {{PROJECT_NAME}}.classes_t2c.framework.T2CInitAllSettings import T2CInitAllSettings as InitAllSettings
+
+# 2. Imports dos pacotes externos
+from botcity.web import WebBot
+```
+
+#### 2. Uso de Seletores Clicknium
+```python
+from clicknium import clicknium as cc, locator
+
+# Clicar
+cc.find_element(locator.pasta.elemento).click()
+
+# Preencher
+cc.find_element(locator.pasta.elemento).set_text("texto")
+
+# Ler
+texto = cc.find_element(locator.pasta.elemento).get_text()
+```
+
+**⚠️ IMPORTANTE:** Ver seção 5 para regras sobre quando criar seletores e seção 12.5 - REGRA 2 e REGRA 5 para sistemas que não precisam de seletores.
+
 ### Nomenclatura Padrão
 
 #### Projeto
@@ -2479,71 +2628,29 @@ while condicao and var_intTentativa < var_intMaxTentativas:
 
 ### Seletores
 
-- **Sempre usar locators do Clicknium** quando disponível (ver PARTE 1 e PARTE 4)
-- **Referenciar seletores conforme `selectors/selectors.md`**
+- **Sempre usar locators do Clicknium** quando disponível (ver seção 5 e PARTE 8 - Padrões de Código)
+- **Referenciar seletores conforme `selectors.md`**
 - **Nunca usar seletores hardcodados**
 - **Todos os seletores devem ser criados no Clicknium Recorder**
 - **Manter nomenclatura consistente**
+- **Ver seção 5** para regras sobre quando criar seletores (sistemas que não precisam de seletores)
 
 ### Tratativas de Erro
 
-**⚠️ IMPORTANTE:** Esta seção explica o uso de `raise` para exceções de negócio. A LLM deve gerar código SIMPLES e usar `raise` APENAS para exceções mapeadas no business-rules.md.
+**⚠️ IMPORTANTE:** Ver **seção 2** e **seção 11 - REGRA CRÍTICA** para regras completas sobre tratamento de erros e geração de código simples.
 
-#### Importância da Tratativa de Erro
-
-Muito importante saber utilizar o **raise**, é um aliado que nos salva em diversas situações, principalmente para não precisar colocar mil coisas dentro de um IF só porque você precisa encerrar um processo. O **raise** é a chamada de um erro, erro que você mesmo mapeia, tendo assim um controle próprio dos erros e conseguindo encerrar o processo para partir para o próximo item. Além de facilitar na questão de relatórios para facilitar o entendimento das operações realizadas e as respostas recebidas pelo robô.
-
-**⚠️ REGRA CRÍTICA:** 
-- **APENAS usar `raise BusinessRuleException`** para exceções mapeadas no business-rules.md
+**Resumo:**
+- **APENAS usar `raise BusinessRuleException`** para exceções mapeadas no `business-rules.md` (EXC*)
 - **NÃO adicionar validações/raises** que não estão mapeadas
+- **NÃO adicionar try/except genéricos** - o framework já trata erros automaticamente
 - **Código deve ser simples** - usar raise apenas quando necessário (exceções mapeadas)
 
-#### Exemplo de Utilização
-
-**Exemplo correto (exceção mapeada no business-rules.md):**
-```python
-# EXC002 - Exceção mapeada no business-rules.md: CNPJ não encontrado
-if not cnpj_encontrado:
-    raise BusinessRuleException("CNPJ não encontrado no sistema")
-
-# Resto do código continua normalmente - código simples e direto
-inserir_nota(cnpj, dados)
-```
-
-**Exemplo incorreto (código complexo desnecessário):**
-```python
-if cnpj_encontrado:
-    # Todo o código dentro do if
-    inserir_nota(cnpj, dados)
-    processar_dados()
-    # ... mais código
-else:
-    # Código vazio ou apenas log
-    pass
-```
-
-**Exemplo incorreto (validação não mapeada):**
-```python
-# ❌ INCORRETO: Validação que não está no business-rules.md
-if not cnpj or len(cnpj) != 14:
-    raise BusinessRuleException("CNPJ inválido")  # Só se estiver mapeado!
-```
-
-#### Tipos de Erros Utilizados por Padrão no Framework
-
-- **BusinessRuleException:** Para exceções de negócio mapeadas no business-rules.md (EXC*)
-  - **SOMENTE usar** se a exceção estiver mapeada no business-rules.md
-  - Exemplo: CNPJ não encontrado (se EXC002 estiver mapeado); Erro contábil (se mapeado)
-  - **NÃO adicionar** validações que não estão mapeadas
-
+**Tipos de Erros:**
+- **BusinessRuleException:** Para exceções de negócio mapeadas no `business-rules.md` (EXC*)
 - **TerminateException:** Para finalização antecipada com sucesso (quando item já foi processado)
+- **Exception genérica:** Para erros de sistema - framework gerencia automaticamente
 
-- **Exception genérica:** Para erros de sistema
-  - **NÃO é necessário** adicionar código para isso
-  - O framework gerencia automaticamente as retentativas
-  - **NÃO adicionar** try/except genéricos
-
-**⚠️ LEMBRE-SE:** O framework já cuida de tratamento de erros de sistema. A LLM deve focar em código simples e usar `raise` apenas para exceções de negócio mapeadas.
+**⚠️ LEMBRE-SE:** O framework já cuida de tratamento de erros de sistema. A LLM deve focar em código simples e usar `raise` apenas para exceções de negócio mapeadas. Ver seção 11 para exemplos completos de código correto e incorreto.
 
 ### TypeHint
 
@@ -2662,14 +2769,15 @@ Podemos nos deparar com situações em que será necessário executar a mesma au
 
 - [ ] Li e entendi todas as especificações do framework
 - [ ] Verifiquei `config/base.md` para integrações
-- [ ] Verifiquei `selectors/selectors.md` para seletores
-- [ ] Verifiquei `business-rules/business-rules.md` para exceções de negócio
+- [ ] Verifiquei `selectors.md` para seletores
+- [ ] Verifiquei `business-rules.md` para exceções de negócio
+- [ ] Consultei seção 12.5 - REGRAS CRÍTICAS DE ARQUITETURA DE EXECUÇÃO
 - [ ] Identifiquei os pontos de entrada necessários
-- [ ] **⚠️ CRÍTICO:** Entendi que devo gerar código SIMPLES e DIRETO, sem validações/tratativas desnecessárias
-- [ ] **⚠️ CRÍTICO:** Entendi que apenas devo aplicar exceções mapeadas no business-rules.md
+- [ ] **⚠️ CRÍTICO:** Entendi que devo gerar código SIMPLES e DIRETO (ver seção 11 - REGRA CRÍTICA)
+- [ ] **⚠️ CRÍTICO:** Entendi que apenas devo aplicar exceções mapeadas no `business-rules.md`
 - [ ] **⚠️ CRÍTICO:** Entendi que NÃO devo adicionar try/except genéricos (framework já trata)
 - [ ] Planejei o uso correto de logging
-- [ ] Identifiquei os templates a usar
+- [ ] Identifiquei os templates a usar (ver seção 0)
 - [ ] Entendi a estrutura de diretórios a criar
 
 ---

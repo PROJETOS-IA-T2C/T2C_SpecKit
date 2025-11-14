@@ -382,7 +382,8 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
    - Crie uma lista mental ou escrita de **TODAS as informações** identificadas
 
 2. **⚠️ OBRIGATÓRIO: Consulte o `@constitution.md`** (localizado em `.specify/memory/constitution.md`) antes de criar qualquer arquivo
-   - Leia especialmente a **seção 13: Arquitetura de Robôs - Decisão e Estruturação**
+   - **PRIMEIRO:** Leia a **seção 0: 🚨 REGRA CRÍTICA - SEGUIR ESTRUTURA DOS TEMPLATES EXATAMENTE** - Esta é EXTREMAMENTE IMPORTANTE
+   - **SEGUNDO:** Leia especialmente a **PARTE 1.5: Arquitetura de Robôs** (ou seção 13) para decisão de arquitetura
    - Leia a seção **"📖 LEITURA E ANÁLISE CUIDADOSA DO DDP"** e siga o checklist obrigatório
    - Verifique as **REGRAS OBRIGATÓRIAS DE SEPARAÇÃO** primeiro
    - Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO
@@ -441,14 +442,85 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 - **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
 - **business-rules.md**: Extrair todas as exceções de negócio (EXC* - validações, condições especiais, regras de processamento - tudo que pode gerar uma exceção ou regra específica)
 
+## 🚨 REGRA CRÍTICA - SEGUIR ESTRUTURA DO TEMPLATE EXATAMENTE
+
+**⚠️ EXTREMAMENTE IMPORTANTE - OBRIGATÓRIO:**
+
+Ao criar ou atualizar qualquer arquivo de especificação (especialmente `spec.md`), a LLM DEVE:
+
+1. **⚠️ OBRIGATÓRIO: Ler o template correspondente ANTES de criar o arquivo:**
+   - Para `spec.md`: Ler `@spec-template.md` (localizado em `.specify/templates/spec-template.md`)
+   - Para `tests.md`: Ler `@tests-template.md`
+   - Para `selectors.md`: Ler `@selectors-template.md`
+   - Para `business-rules.md`: Ler `@business-rules-template.md`
+
+2. **⚠️ OBRIGATÓRIO: Replicar a estrutura EXATAMENTE como está no template:**
+   - **TODAS as seções** do template devem estar presentes no arquivo criado
+   - **TODOS os títulos** (headers) devem estar presentes na mesma ordem
+   - **TODOS os subtítulos** devem estar presentes
+   - **TODOS os campos** (campos com `- **Campo:**`) devem estar presentes
+   - **A ordem das seções** deve ser EXATAMENTE a mesma do template
+   - **A formatação** (markdown, listas, blocos de código) deve ser EXATAMENTE a mesma
+
+3. **⚠️ OBRIGATÓRIO: Remover apenas anotações e exemplos:**
+   - Remover textos entre colchetes `[...]`
+   - Remover exemplos que não são do processo real
+   - Remover anotações explicativas
+   - **MANTER** toda a estrutura, seções, títulos e campos do template
+
+4. **⚠️ OBRIGATÓRIO: Preencher com informações reais do DDP:**
+   - Substituir `[Nome da Etapa]` por nomes reais das etapas do DDP
+   - Substituir `[Descrição]` por descrições reais do DDP
+   - Substituir `[N/A]` apenas quando realmente não se aplica
+   - Preencher TODOS os campos com informações reais do processo
+
+5. **⚠️ VERIFICAÇÃO OBRIGATÓRIA antes de finalizar:**
+   - [ ] Todas as seções do template estão presentes?
+   - [ ] Todos os títulos estão na mesma ordem do template?
+   - [ ] Todos os campos obrigatórios estão preenchidos?
+   - [ ] A estrutura está EXATAMENTE igual ao template (apenas sem anotações/exemplos)?
+   - [ ] Não foi adicionada nenhuma seção que não está no template?
+   - [ ] Não foi removida nenhuma seção que está no template?
+
+**Exemplo de estrutura correta para spec.md:**
+```
+1. Título principal (igual ao template)
+2. Aviso sobre remover anotações (igual ao template)
+3. Seção "Arquitetura de Robôs" (igual ao template)
+4. Seção "Stack Tecnológica" (igual ao template)
+5. Seção "Visão Geral do Fluxo" (igual ao template)
+6. Seção "INIT: Inicialização" (igual ao template)
+7. Seção "FILA: Preenchimento da Fila" (igual ao template)
+8. Seção "LOOP STATION: Processamento Principal" (igual ao template)
+9. Seção "END PROCESS: Finalização" (igual ao template)
+10. Seção "Integrações do Projeto" (igual ao template)
+11. Seção "Observações Gerais" (igual ao template)
+```
+
+**❌ NÃO FAZER:**
+- ❌ Criar seções que não estão no template
+- ❌ Remover seções que estão no template
+- ❌ Alterar a ordem das seções
+- ❌ Modificar a estrutura de campos
+- ❌ Adicionar campos que não estão no template
+- ❌ Remover campos que estão no template
+
+**✅ FAZER:**
+- ✅ Seguir EXATAMENTE a estrutura do template
+- ✅ Manter TODAS as seções do template
+- ✅ Preencher com informações reais do DDP
+- ✅ Remover apenas anotações e exemplos (textos entre `[...]`)
+
 ## Lembre-se
 
 - **SEMPRE consulte o `@constitution.md`** antes de criar os arquivos para seguir as regras de arquitetura
+- **SEMPRE consulte o template correspondente** (ex: `@spec-template.md`) ANTES de criar qualquer arquivo
+- **SEMPRE replique a estrutura EXATAMENTE** como está no template
 - O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto
 - Você apenas precisa EXECUTÁ-LO, não criá-lo
 - Use os templates em \`.specify/templates/\` como referência para a estrutura
 - Mantenha a numeração das regras (EXC001, EXC002, etc.)
-- Se os arquivos já existirem, atualize-os com as novas informações do DDP
+- Se os arquivos já existirem, atualize-os com as novas informações do DDP, mas **MANTENHA a estrutura do template**
 
 **🚨 REGRA ABSOLUTA - tasks.md:**
 - ❌ **NUNCA criar** \`tasks.md\` neste comando
