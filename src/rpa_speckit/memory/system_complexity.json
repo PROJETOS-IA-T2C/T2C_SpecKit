@@ -1,0 +1,209 @@
+{
+  "version": "1.0",
+  "description": "Base de dados de complexidade de sistemas para estimativas de tempo de desenvolvimento RPA",
+  "last_updated": "2024",
+  "multiplicadores_base": {
+    "sistemas_conhecidos": 1.0,
+    "sistemas_menos_conhecidos": 1.4,
+    "portais_governo": 1.7,
+    "sistemas_legados": 1.6,
+    "sistemas_customizados": 1.4
+  },
+  "sistemas": {
+    "conhecidos": {
+      "SAP": {
+        "multiplicador": 1.0,
+        "tipo": "ERP",
+        "interface": "Desktop/Web",
+        "observacao": "Sistema ERP conhecido, documentação ampla disponível"
+      },
+      "TOTVS": {
+        "multiplicador": 1.0,
+        "tipo": "ERP",
+        "interface": "Desktop/Web",
+        "observacao": "Sistema ERP brasileiro conhecido, documentação disponível"
+      },
+      "Oracle": {
+        "multiplicador": 1.0,
+        "tipo": "ERP",
+        "interface": "Desktop/Web",
+        "observacao": "Sistema ERP conhecido internacionalmente"
+      },
+      "Salesforce": {
+        "multiplicador": 1.0,
+        "tipo": "CRM",
+        "interface": "Web Moderna",
+        "observacao": "Sistema CRM conhecido, APIs bem documentadas"
+      },
+      "Microsoft Dynamics": {
+        "multiplicador": 1.0,
+        "tipo": "ERP",
+        "interface": "Web Moderna",
+        "observacao": "Sistema ERP conhecido, interface moderna"
+      }
+    },
+    "portais_governo": {
+      "e-CAC": {
+        "multiplicador": 1.8,
+        "tipo": "Portal Governo Federal",
+        "interface": "Web Legado",
+        "observacao": "Portal da Receita Federal, interface legada, seletores instáveis"
+      },
+      "eSocial": {
+        "multiplicador": 1.7,
+        "tipo": "Portal Governo Federal",
+        "interface": "Web Legado",
+        "observacao": "Portal do eSocial, processos burocráticos complexos"
+      },
+      "Portal da Transparência": {
+        "multiplicador": 1.6,
+        "tipo": "Portal Governo Federal",
+        "interface": "Web",
+        "observacao": "Portal de transparência, interface mais moderna"
+      },
+      "Portal e-Gov": {
+        "multiplicador": 1.7,
+        "tipo": "Portal Governo Federal",
+        "interface": "Web Legado",
+        "observacao": "Portal genérico do governo, interfaces variadas"
+      },
+      "Portal do Empreendedor": {
+        "multiplicador": 1.6,
+        "tipo": "Portal Governo Estadual",
+        "interface": "Web",
+        "observacao": "Portal estadual, complexidade média"
+      },
+      "Sintegra": {
+        "multiplicador": 1.7,
+        "tipo": "Portal Governo Estadual",
+        "interface": "Web Legado",
+        "observacao": "Portal de consulta estadual, interface legada"
+      },
+      "Portal Municipal": {
+        "multiplicador": 1.6,
+        "tipo": "Portal Governo Municipal",
+        "interface": "Web",
+        "observacao": "Portais municipais variam, usar multiplicador base"
+      }
+    },
+    "sistemas_legados": {
+      "AS400": {
+        "multiplicador": 1.8,
+        "tipo": "Terminal",
+        "interface": "Terminal/Verde",
+        "observacao": "Sistema terminal antigo, requer conhecimento específico"
+      },
+      "Mainframe": {
+        "multiplicador": 1.8,
+        "tipo": "Terminal",
+        "interface": "Terminal",
+        "observacao": "Sistemas mainframe, interface terminal"
+      },
+      "WinForms Antigo": {
+        "multiplicador": 1.6,
+        "tipo": "Desktop",
+        "interface": "Desktop Legado",
+        "observacao": "Aplicações desktop antigas, seletores menos estáveis"
+      }
+    },
+    "sistemas_menos_conhecidos": {
+      "ERPs Regionais": {
+        "multiplicador": 1.4,
+        "tipo": "ERP",
+        "interface": "Desktop/Web",
+        "observacao": "ERPs regionais ou menores, menos documentação"
+      },
+      "Sistemas Customizados": {
+        "multiplicador": 1.4,
+        "tipo": "Customizado",
+        "interface": "Variada",
+        "observacao": "Sistemas desenvolvidos internamente, documentação variável"
+      },
+      "Sistemas Proprietários": {
+        "multiplicador": 1.5,
+        "tipo": "Proprietário",
+        "interface": "Variada",
+        "observacao": "Sistemas proprietários, documentação limitada"
+      }
+    }
+  },
+  "fatores_tecnicos": {
+    "tipo_interface": {
+      "Web Moderna (React/Vue/Angular)": {
+        "multiplicador": 1.0,
+        "observacao": "Interfaces modernas, seletores mais estáveis"
+      },
+      "Web Legado (HTML Antigo)": {
+        "multiplicador": 1.3,
+        "observacao": "HTML antigo, seletores menos estáveis, mais tempo para encontrar elementos"
+      },
+      "Desktop Moderno (WPF/WinUI)": {
+        "multiplicador": 1.2,
+        "observacao": "Aplicações desktop modernas"
+      },
+      "Desktop Legado (WinForms Antigo)": {
+        "multiplicador": 1.5,
+        "observacao": "Aplicações desktop antigas, seletores menos confiáveis"
+      },
+      "Terminal/AS400": {
+        "multiplicador": 1.8,
+        "observacao": "Interfaces terminal, requer conhecimento específico"
+      },
+      "Mobile/App": {
+        "multiplicador": 1.4,
+        "observacao": "Aplicações mobile, automação mais complexa"
+      }
+    },
+    "documentacao": {
+      "Documentação Completa": {
+        "multiplicador": 1.0,
+        "observacao": "Documentação técnica completa disponível"
+      },
+      "Documentação Parcial": {
+        "multiplicador": 1.2,
+        "observacao": "Documentação incompleta, requer mais investigação"
+      },
+      "Sem Documentação": {
+        "multiplicador": 1.5,
+        "observacao": "Sem documentação técnica, requer análise reversa"
+      }
+    },
+    "estabilidade_seletores": {
+      "Seletores Estáveis": {
+        "multiplicador": 1.0,
+        "observacao": "Seletores raramente mudam, IDs/classes consistentes"
+      },
+      "Seletores Instáveis": {
+        "multiplicador": 1.4,
+        "observacao": "Seletores mudam frequentemente, IDs dinâmicos"
+      },
+      "Seletores Dinâmicos Necessários": {
+        "multiplicador": 1.6,
+        "observacao": "Requer seletores dinâmicos complexos, XPath avançado"
+      }
+    }
+  },
+  "regras_aplicacao": {
+    "como_usar": [
+      "1. Identificar o sistema no DDP",
+      "2. Verificar se está na base de dados (sistemas conhecidos)",
+      "3. Se não estiver, classificar por categoria (portal governo, legado, menos conhecido)",
+      "4. Aplicar multiplicador base da categoria",
+      "5. Aplicar multiplicadores adicionais por fatores técnicos (interface, documentação, seletores)",
+      "6. Multiplicar a estimativa base pelo multiplicador final",
+      "7. Documentar na justificativa da estimativa"
+    ],
+    "exemplo": {
+      "sistema": "e-CAC",
+      "estimativa_base": "2 horas",
+      "multiplicadores": {
+        "sistema": 1.8,
+        "interface": 1.3,
+        "seletores": 1.4
+      },
+      "calculo": "2h × 1.8 × 1.3 × 1.4 = 6.55h ≈ 7 horas",
+      "justificativa": "Portal do governo (1.8x) + Interface legada (1.3x) + Seletores instáveis (1.4x)"
+    }
+  }
+}
+

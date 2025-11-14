@@ -18,18 +18,33 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
   - `T2CCloseAllApplications.execute()` - Fechar aplicações
 
 ### 2. Tratamento de Erros
-- **BusinessRuleException:** Para erros de negócio (não tenta novamente)
+
+**⚠️ IMPORTANTE:** O framework JÁ gerencia tratamento de erros automaticamente. A LLM deve gerar código simples e direto, sem adicionar validações ou tratativas desnecessárias.
+
+**APENAS usar exceções quando:**
+- **BusinessRuleException:** Para exceções de negócio mapeadas no business-rules.md (EXC*)
   ```python
   from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import BusinessRuleException
   raise BusinessRuleException("Mensagem de erro de negócio")
   ```
-- **TerminateException:** Para finalização antecipada com sucesso
+  - **SOMENTE** se a exceção estiver mapeada no business-rules.md
+  - **NÃO** adicionar validações que não estão mapeadas
+
+- **TerminateException:** Para finalização antecipada com sucesso (quando item já foi processado)
   ```python
   from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import TerminateException
   raise TerminateException("Item já processado")
   ```
-- **Exception genérica:** Para erros de sistema (permite retentativa)
-  - O framework gerencia automaticamente as retentativas
+
+**O que NÃO fazer:**
+- ❌ **NÃO adicionar try/except genéricos** - o framework já trata
+- ❌ **NÃO adicionar validações desnecessárias** - apenas as mapeadas no business-rules.md
+- ❌ **NÃO adicionar verificações de "se existe", "se é válido"** que não estão no DDP
+- ❌ **NÃO adicionar tratamento de Exception genérica** - o framework gerencia automaticamente
+
+**Exception genérica:** Para erros de sistema (permite retentativa)
+- O framework gerencia automaticamente as retentativas
+- **NÃO é necessário** adicionar código para isso
 
 ### 3. Logging
 - **Sempre usar `Maestro.write_log()`** para logs importantes
@@ -73,11 +88,11 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
   cc.find_element(locator.login.botao_entrar).click()
   ```
 
-### 6. Regras de Negócio
-- **Sempre aplicar regras conforme `business-rules/rules.md`**
-- **Validar dados de entrada** antes de processar
-- **Aplicar condições especiais** quando necessário
-- **Usar BusinessRuleException ou TerminateException** conforme especificado nas regras
+### 6. Exceções de Negócio
+- **Sempre aplicar exceções conforme `business-rules/business-rules.md`**
+- **Todas as regras de negócio são consolidadas como Exceções de Negócio** (EXC*)
+- **Inclui:** validações, condições especiais, regras de processamento - tudo que pode gerar uma exceção ou regra específica
+- **Usar BusinessRuleException ou TerminateException** conforme especificado nas exceções
 
 ### 7. Fila de Processamento
 - **Sempre usar `QueueManager`** para gerenciar fila
@@ -133,24 +148,212 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 - **Arquivos customizados:** Gerar apenas T2CProcess, T2CInitAllApplications, T2CCloseAllApplications, bot.py, Config.xlsx
 - **Arquivos do framework:** Copiar de referência do framework T2C (não modificar)
 - **Templates:** Usar templates definidos abaixo
-- **Substituir variáveis:** `{{PROJECT_NAME}}`, `{{IMPORTS}}`, `{{VALIDACOES_ENTRADA}}`, etc.
+- **Substituir variáveis:** `{{PROJECT_NAME}}`, `{{IMPORTS}}`, `{{EXCECOES_NEGOCIO}}`, etc.
 - **Gerar em diretório separado:** Framework gerado em `generated/<nome-automacao>/`
 
+#### 🚨 REGRA CRÍTICA - Geração de Código Simples e Direto
+
+**⚠️ EXTREMAMENTE IMPORTANTE:** Ao gerar código através das tasks (comando `/t2c.implement`), a LLM DEVE seguir estas regras rigorosamente:
+
+**1. Código Simples e Direto:**
+- ✅ **GERAR código simples, direto e fácil de entender**
+- ✅ **SEGUIR boas práticas de nomenclatura** (conforme PARTE 8)
+- ✅ **ESCREVER código limpo e legível**
+- ❌ **NÃO adicionar validações desnecessárias**
+- ❌ **NÃO adicionar tratativas de erros desnecessárias**
+- ❌ **NÃO adicionar try/except desnecessários**
+- ❌ **NÃO adicionar verificações que não estão no DDP**
+
+**2. Tratamento de Erros - APENAS Exceções de Negócio:**
+- ✅ **ÚNICA tratativa obrigatória:** Quando houver uma **exceção de negócio mapeada no business-rules.md**, lançar `BusinessRuleException`
+- ✅ **Aplicar exceções conforme business-rules.md** (EXC001, EXC002, etc.)
+- ❌ **NÃO adicionar validações que não estão no business-rules.md**
+- ❌ **NÃO adicionar try/except genéricos**
+- ❌ **NÃO adicionar verificações de "se existe", "se é válido", etc. que não estão mapeadas**
+
+**3. O que o Framework Já Faz:**
+- O framework **JÁ gerencia** tratamento de erros de sistema automaticamente
+- O framework **JÁ faz** retentativas automaticamente
+- O framework **JÁ trata** exceções genéricas
+- **NÃO é necessário** adicionar código para isso
+
+**4. Exemplo de Código CORRETO (Simples):**
+```python
+@classmethod
+def execute(cls):
+    var_dictItem = GetTransaction.var_dictQueueItem
+    var_strReferencia = var_dictItem['referencia']
+    var_dictInfoAdicional = var_dictItem['info_adicionais']
+    
+    Maestro.write_log(f'Processando item: {var_strReferencia}')
+
+    # EXC001 - Exceção de negócio mapeada no business-rules.md
+    if not var_dictInfoAdicional.get('cpf'):
+        raise BusinessRuleException("CPF não informado")
+
+    # Código simples e direto - sem validações desnecessárias
+    cc.find_element(locator.login.campo_usuario).set_text(var_dictInfoAdicional.get('usuario', ''))
+    cc.find_element(locator.login.botao_entrar).click()
+    cc.find_element(locator.tela.campo_cpf).set_text(var_dictInfoAdicional.get('cpf', ''))
+    cc.find_element(locator.tela.botao_consultar).click()
+    
+    Maestro.write_log('Process Finished')
+```
+
+**5. Exemplo de Código INCORRETO (Complexo demais):**
+```python
+@classmethod
+def execute(cls):
+    var_dictItem = GetTransaction.var_dictQueueItem
+    var_strReferencia = var_dictItem['referencia']
+    var_dictInfoAdicional = var_dictItem['info_adicionais']
+    
+    # ❌ INCORRETO: Validação desnecessária
+    if var_dictItem is None:
+        raise Exception("Item não encontrado")
+    
+    # ❌ INCORRETO: Validação desnecessária
+    if not var_strReferencia:
+        raise Exception("Referência inválida")
+    
+    # ❌ INCORRETO: Try/except desnecessário
+    try:
+        Maestro.write_log(f'Processando item: {var_strReferencia}')
+    except Exception as e:
+        raise Exception(f"Erro ao logar: {e}")
+    
+    # ❌ INCORRETO: Validação que não está no business-rules.md
+    if len(var_dictInfoAdicional.get('cpf', '')) != 11:
+        raise BusinessRuleException("CPF inválido")  # Só se estiver mapeado no business-rules.md
+    
+    # ❌ INCORRETO: Try/except desnecessário - framework já trata
+    try:
+        cc.find_element(locator.login.campo_usuario).set_text(var_dictInfoAdicional.get('usuario', ''))
+    except Exception as e:
+        raise Exception(f"Erro ao preencher campo: {e}")
+    
+    # ... mais código complexo desnecessário
+```
+
+**6. Regra de Ouro:**
+- **Se não está no DDP ou business-rules.md → NÃO adicionar**
+- **Código deve ser o mais simples possível**
+- **Fácil de entender e manter**
+- **Seguir boas práticas de nomenclatura**
+- **Deixar o framework fazer seu trabalho (tratamento de erros, retentativas, etc.)**
+
+**⚠️ LEMBRE-SE:** O objetivo é gerar código **simples, direto e fácil de entender**. O framework já cuida da complexidade de tratamento de erros e retentativas. A LLM deve focar em implementar a lógica do processo de forma clara e objetiva.
+
 ### 12. Inicialização e Finalização de Aplicações
-- **Inicialização:** Usar `InitAllSettings.initiate_web_manipulator()` para navegadores
+
+**🚨 REGRA OBRIGATÓRIA - Sistemas que NÃO Precisam ser Inicializados:**
+
+**⚠️ CRÍTICO:** Os seguintes sistemas **NÃO DEVEM** ser inicializados no método `T2CInitAllApplications.execute()`. Eles são abertos diretamente pelos arquivos ou links, sem necessidade de inicialização prévia.
+
+**Sistemas que NÃO precisam de inicialização (SEM EXCEÇÃO):**
+
+1. **Office365:**
+   - Excel (arquivos .xlsx, .xls)
+   - Word (arquivos .docx, .doc)
+   - PowerPoint (arquivos .pptx, .ppt)
+   - Outlook (aberto via e-mail ou link)
+   - OneNote
+   - Access
+   - Qualquer outro aplicativo do Office365
+
+2. **Google Workspace:**
+   - Google Docs (aberto via link ou arquivo)
+   - Google Sheets (aberto via link ou arquivo)
+   - Google Slides (aberto via link ou arquivo)
+   - Google Drive (acesso via link ou arquivo)
+
+3. **OneDrive:**
+   - Acesso via link ou arquivo
+   - Não precisa inicialização
+
+4. **Outros sistemas similares:**
+   - Qualquer sistema que seja aberto diretamente por arquivo ou link
+   - Sistemas baseados em nuvem acessados via link
+   - Editores de documentos online acessados via link
+
+**⚠️ REGRA DE OURO:**
+- Se o sistema é aberto **diretamente por arquivo ou link**, **NÃO inicializar** no INIT
+- Apenas sistemas que precisam ser **abertos programaticamente** (navegadores, SAP, TOTVS, etc.) devem ser inicializados
+- **SEM EXCEÇÃO** - todos os sistemas similares seguem esta regra
+
+**Inicialização de Sistemas que PRECISAM ser inicializados:**
+- **Navegadores:** Usar `InitAllSettings.initiate_web_manipulator()` para navegadores
   - Usar `InitAllSettings.var_botWebbot` para manipular navegador
   - Usar `InitAllSettings.var_botDesktopbot` para manipular desktop
   - Implementar loop de tentativas conforme padrão do framework (ver PARTE 8)
-- **Finalização:** Fechar navegador com `InitAllSettings.var_botWebbot.stop_browser()`
-  - Fechar aplicações desktop conforme necessário
-  - Implementar loop de tentativas para fechamento
+- **Sistemas UI:** SAP, TOTVS, sistemas desktop que precisam ser abertos programaticamente
+- **APIs:** Não precisam inicialização (são chamadas diretamente)
+
+**Finalização:**
+- Fechar navegador com `InitAllSettings.var_botWebbot.stop_browser()`
+- Fechar aplicações desktop conforme necessário
+- Implementar loop de tentativas para fechamento
+- **Nota:** Sistemas abertos por arquivo/link geralmente não precisam ser fechados explicitamente (fecham com o arquivo)
+
 - **Ver PARTE 2 e PARTE 5 para exemplos completos**
 
 ### 13. Arquitetura de Robôs - Decisão e Estruturação
 
 **⚠️ DECISÃO CRÍTICA:** Durante a análise do DDP (ao executar `/t2c.extract-ddp` e preencher as specs), a LLM DEVE decidir se o processo será:
 - **Standalone**: Um único robô faz todo o processo
-- **Múltiplos robôs**: Dispatcher + Performer ou Performer + Performer
+- **Múltiplos robôs**: Dispatcher + Performer ou Performer + Performer (ou mais combinações)
+
+**🚨 IMPORTANTE - NÃO HÁ LIMITE DE ROBÔS:**
+- A LLM pode criar **1, 2, 3, 4, 5 ou quantos robôs forem necessários** para organizar o processo da melhor forma possível
+- A decisão de quantos robôs criar deve ser baseada na **complexidade, organização e manutenibilidade** do processo
+- Não existe um limite máximo - o objetivo é criar a arquitetura mais organizada e manutenível possível
+- Cada robô adicional segue o mesmo padrão de estrutura (robot1/, robot2/, robot3/, robot4/, robot5/, etc.)
+
+#### 📖 LEITURA E ANÁLISE CUIDADOSA DO DDP - OBRIGATÓRIO
+
+**⚠️ CRÍTICO - ANTES DE QUALQUER DECISÃO DE ARQUITETURA:**
+
+A LLM DEVE ler o DDP com **ATENÇÃO TOTAL** e **NÃO DEIXAR PASSAR NENHUMA ETAPA OU REGRA** mapeada no documento.
+
+**Checklist obrigatório de leitura do DDP:**
+
+1. **Leitura Completa e Detalhada:**
+   - [ ] Ler o DDP **COMPLETO** do início ao fim, sem pular seções
+   - [ ] Identificar **TODAS as etapas** do processo (INIT, FILA, LOOP STATION, END PROCESS)
+   - [ ] Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
+   - [ ] Identificar **TODOS os sistemas** envolvidos (APIs, UI, bancos de dados, Verifai, etc.)
+   - [ ] Identificar **TODAS as integrações** necessárias
+   - [ ] Identificar **TODAS as exceções** mapeadas
+
+2. **Mapeamento Completo:**
+   - [ ] Contar **TODAS as etapas** do LOOP STATION (não estimar, contar exatamente)
+   - [ ] Identificar **TODAS as exceções de negócio** (EXC001, EXC002, etc.) - incluindo validações, condições especiais e regras de processamento
+   - [ ] Identificar **TODOS os sistemas** mencionados (SAP, TOTVS, APIs, Verifai, etc.)
+
+3. **Verificação de Completude:**
+   - [ ] Verificar se **TODAS as etapas** do DDP foram contempladas na arquitetura
+   - [ ] Verificar se **TODAS as exceções de negócio** do DDP foram mapeadas nas business-rules.md
+   - [ ] Verificar se **TODOS os sistemas** foram identificados no spec.md
+   - [ ] Verificar se **TODAS as integrações** foram consideradas
+   - [ ] Verificar se **TODAS as exceções** foram mapeadas
+
+4. **Arquitetura Deve Contemplar Tudo:**
+   - [ ] A arquitetura proposta **DEVE contemplar TODAS as etapas** do DDP
+   - [ ] A arquitetura proposta **DEVE contemplar TODAS as exceções de negócio** do DDP
+   - [ ] A arquitetura proposta **DEVE contemplar TODOS os sistemas** do DDP
+   - [ ] Se alguma etapa/exceção/sistema não foi contemplado → **REVISAR A ARQUITETURA**
+
+**⚠️ REGRA DE OURO:** 
+- **NENHUMA etapa, regra ou sistema do DDP pode ser ignorada ou esquecida**
+- Se o DDP menciona algo, **DEVE** estar contemplado na arquitetura e nas specs
+- Se houver dúvida se algo foi contemplado, **REVISAR** o DDP novamente
+- A arquitetura final **DEVE** ser capaz de executar **TODAS as etapas** mapeadas no DDP
+
+**⚠️ ATENÇÃO ESPECIAL:**
+- Ler **palavra por palavra** seções críticas (LOOP STATION, exceções de negócio)
+- Não fazer suposições - se algo não está claro no DDP, **NÃO inventar**, mas garantir que está contemplado
+- Se o DDP menciona múltiplas etapas em sequência, **TODAS** devem estar no spec.md
+- Se o DDP menciona exceções de negócio (validações, condições especiais, regras de processamento), **TODAS** devem estar no business-rules.md como exceções (EXC*)
 
 #### 🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO - VERIFICAR PRIMEIRO
 
@@ -216,7 +419,50 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 **Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
 
-**⚠️ IMPORTANTE:** Se o processo se enquadrar em QUALQUER uma das regras obrigatórias acima, a LLM DEVE separar em múltiplos robôs. Não é uma sugestão, é uma OBRIGAÇÃO.
+**REGRA OBRIGATÓRIA 4: Extração de Documentos com Verifai**
+
+**⚠️ REGRA CRÍTICA:** Quando o processo envolve extração de documentos usando Verifai, a separação é OBRIGATÓRIA.
+
+**O que é Verifai:**
+- Sistema de extração de documentos utilizado pela T2C
+- Envia arquivos em PDF para o Verifai
+- Retorna resultado da extração dos documentos
+- Normalmente especificado no DDP quando há necessidade de extração de documentos
+
+**SEPARAR OBRIGATORIAMENTE quando:**
+- ✅ O processo envia documentos (PDFs) para o Verifai
+- ✅ Após enviar para o Verifai, é necessário capturar o resultado da extração
+- ✅ O resultado do Verifai será usado em processamento subsequente
+
+**Checklist binário (SE TODAS AS RESPOSTAS FOREM SIM, SEPARAR É OBRIGATÓRIO):**
+- [ ] O processo envia documentos para o Verifai?
+- [ ] Após enviar para o Verifai, há necessidade de capturar o resultado?
+- [ ] O resultado do Verifai será usado em processamento subsequente?
+
+**Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO**
+
+**⚠️ REGRA FUNDAMENTAL:** Quando um robô envia um documento para o Verifai, ele DEVE encerrar sua atividade principal. Um outro robô será responsável por capturar o resultado do Verifai. Isso é uma regra essencial e pode resultar em múltiplos robôs no processo (2, 3, 4 ou quantos forem necessários para organizar o processo adequadamente).
+
+**Estrutura típica com Verifai (exemplo - pode haver mais robôs se necessário):**
+- **Robot1:** Prepara dados, envia documentos para o Verifai → popula fila do Robot2
+- **Robot2:** Captura resultado do Verifai, processa dados extraídos → popula fila do Robot3 (se houver processamento subsequente)
+- **Robot3:** (Opcional) Processa dados extraídos no sistema final (ex: SAP, TOTVS)
+- **Robot4+:** (Se necessário) Processamento adicional em outros sistemas ou fases
+
+**Exemplo detalhado - Caso com Verifai:**
+- **Processo:** Ler Excel com referências → Enviar PDFs para Verifai → Capturar resultado da extração → Processar dados extraídos no SAP
+- **Checklist REGRA OBRIGATÓRIA 4:**
+  - [✅] O processo envia documentos para o Verifai? **SIM** - Envia PDFs para extração
+  - [✅] Após enviar para o Verifai, há necessidade de capturar o resultado? **SIM** - Precisa capturar dados extraídos
+  - [✅] O resultado do Verifai será usado em processamento subsequente? **SIM** - Dados extraídos serão processados no SAP
+- **RESULTADO:** **SEPARAR É OBRIGATÓRIO (mínimo 2 robôs, podendo ser 3, 4 ou quantos forem necessários)**
+- **Estrutura obrigatória (exemplo - pode haver mais robôs se necessário):**
+  - `robot1/spec.md` - Dispatcher: Lê Excel, envia PDFs para Verifai, popula fila do robot2
+  - `robot2/spec.md` - Performer: Captura resultado do Verifai, processa dados extraídos, popula fila do robot3 (se houver)
+  - `robot3/spec.md` - (Opcional) Performer: Processa dados no SAP
+  - `robot4+/spec.md` - (Se necessário) Processamento adicional em outros sistemas ou fases
+
+**⚠️ IMPORTANTE:** Se o processo se enquadrar em QUALQUER uma das regras obrigatórias acima (incluindo Verifai), a LLM DEVE separar em múltiplos robôs. Não é uma sugestão, é uma OBRIGAÇÃO.
 
 **Se NENHUMA das regras obrigatórias se aplicar, então seguir para análise contextual abaixo.**
 
@@ -226,7 +472,7 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 ```
 specs/001-[nome]/
-├── robot1/              # Robô 1 (Dispatcher)
+├── robot1/              # Robô 1 (Dispatcher ou Performer)
 │   ├── spec.md          # ARQUIVO PRINCIPAL do robô 1
 │   ├── selectors.md     # Seletores específicos do robô 1
 │   ├── business-rules.md # Regras de negócio específicas do robô 1
@@ -236,9 +482,20 @@ specs/001-[nome]/
 │   ├── selectors.md     # Seletores específicos do robô 2
 │   ├── business-rules.md # Regras de negócio específicas do robô 2
 │   └── tests.md         # Testes específicos do robô 2
+├── robot3/              # Robô 3 (Performer) - OPCIONAL, pode haver mais robôs
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 3
+│   ├── selectors.md     # Seletores específicos do robô 3
+│   ├── business-rules.md # Regras de negócio específicas do robô 3
+│   └── tests.md         # Testes específicos do robô 3
 ├── tasks.md             # Compartilhado - lista plana com referência ao robô
 └── DDP/                 # Compartilhado
 ```
+
+**⚠️ IMPORTANTE:** 
+- **NÃO HÁ LIMITE DE ROBÔS:** A LLM pode criar 1, 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo da melhor forma possível
+- A decisão de quantos robôs criar deve ser baseada na complexidade, organização e manutenibilidade do processo
+- **Com Verifai:** Geralmente resulta em 2 ou 3 robôs (envio → captura → processamento), mas pode haver mais se necessário
+- Cada robô adicional segue o mesmo padrão de estrutura (robot4/, robot5/, robot6/, etc.)
 
 **⚠️ AÇÃO OBRIGATÓRIA:** Ao criar os arquivos `spec.md` de cada robô, a LLM DEVE:
 
@@ -429,9 +686,19 @@ specs/001-[nome]/
 │   ├── selectors.md     # Seletores específicos do robô 2
 │   ├── business-rules.md # Regras de negócio específicas do robô 2
 │   └── tests.md         # Testes específicos do robô 2
+├── robot3/              # Robô 3 (Performer) - OPCIONAL, pode haver mais robôs
+│   ├── spec.md          # ARQUIVO PRINCIPAL do robô 3
+│   ├── selectors.md     # Seletores específicos do robô 3
+│   ├── business-rules.md # Regras de negócio específicas do robô 3
+│   └── tests.md         # Testes específicos do robô 3
 ├── tasks.md             # Compartilhado - lista plana com referência ao robô
 └── DDP/                 # Compartilhado
 ```
+
+**⚠️ NOTA IMPORTANTE:** 
+- **NÃO HÁ LIMITE DE ROBÔS:** A LLM pode criar 1, 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo da melhor forma possível
+- A decisão de quantos robôs criar deve ser baseada na complexidade, organização e manutenibilidade do processo
+- Com Verifai, geralmente resulta em 2 ou 3 robôs (envio → captura → processamento subsequente), mas pode haver mais se necessário
 
 #### Regras Específicas por Tipo
 
@@ -567,27 +834,57 @@ specs/001-[nome]/
 
 #### Guia de Análise para Decisão de Arquitetura
 
-**⚠️ PASSO 0 - OBRIGATÓRIO: Verificar Regras Obrigatórias de Separação**
+**⚠️ PASSO 0 - OBRIGATÓRIO: Leitura Cuidadosa do DDP**
 
-**ANTES de qualquer análise contextual, a LLM DEVE:**
+**PRIMEIRO, ANTES DE QUALQUER OUTRA AÇÃO, a LLM DEVE:**
+
+1. **Ler o DDP com ATENÇÃO TOTAL** (ver seção "📖 LEITURA E ANÁLISE CUIDADOSA DO DDP" acima)
+   - Ler o DDP **COMPLETO** do início ao fim
+   - Identificar **TODAS as etapas** (INIT, FILA, LOOP STATION, END PROCESS)
+   - Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
+   - Identificar **TODOS os sistemas** (APIs, UI, Verifai, etc.)
+   - Identificar **TODAS as integrações** e **TODAS as exceções**
+   - **Contar exatamente** todas as etapas do LOOP STATION (não estimar)
+
+2. **Mapear completamente o DDP:**
+   - Criar uma lista mental ou escrita de **TODAS as etapas** identificadas
+   - Criar uma lista de **TODAS as exceções de negócio** identificadas
+   - Criar uma lista de **TODOS os sistemas** identificados
+   - Garantir que **NENHUMA informação** foi perdida
+
+**⚠️ PASSO 1 - OBRIGATÓRIO: Verificar Regras Obrigatórias de Separação**
+
+**APÓS ler o DDP completamente, a LLM DEVE:**
 
 1. **Ler a seção "🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO" acima**
-2. **Aplicar os checklists binários das 3 regras obrigatórias:**
+2. **Aplicar os checklists binários das 4 regras obrigatórias:**
    - REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente
    - REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso
    - REGRA OBRIGATÓRIA 3: Preparação Complexa + Execução Simples
+   - **REGRA OBRIGATÓRIA 4: Extração de Documentos com Verifai** ⚠️ CRÍTICA
 3. **Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO**
 4. **Se NENHUMA regra obrigatória se aplicar → seguir para análise contextual abaixo**
 
 **⚠️ CRÍTICO:** Se o processo se enquadrar em uma regra obrigatória, a LLM NÃO deve fazer análise contextual. Deve separar imediatamente e criar a estrutura de múltiplos robôs.
 
-**PASSO 1 - Análise Contextual (Apenas se NENHUMA regra obrigatória se aplicou):**
+**⚠️ ATENÇÃO ESPECIAL - Verifai:**
+- Se o DDP mencionar "Verifai", "extração de documentos", "envio de PDF para extração", ou similar, a LLM DEVE verificar imediatamente a REGRA OBRIGATÓRIA 4
+- Quando um robô envia documento para o Verifai, ele DEVE encerrar e um outro robô captura o resultado
+- **NÃO HÁ LIMITE:** Isso pode resultar em 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo adequadamente
+
+**PASSO 2 - Análise Contextual (Apenas se NENHUMA regra obrigatória se aplicou):**
+
+**⚠️ ANTES de fazer a análise contextual, verificar novamente:**
+- [ ] **TODAS as etapas** do DDP foram identificadas?
+- [ ] **TODAS as exceções de negócio** do DDP foram identificadas?
+- [ ] **TODOS os sistemas** do DDP foram identificados?
+- [ ] Se alguma coisa foi esquecida → **REVISAR o DDP** antes de continuar
 
 Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os seguintes aspectos:
 
 **1. Análise de Complexidade do LOOP STATION:**
    - Quantas etapas o LOOP STATION possui? (contar etapas do DDP)
-   - Quantas regras de negócio estão envolvidas? (VAL*, COND*, REG*)
+   - Quantas exceções de negócio estão envolvidas? (EXC* - validações, condições especiais, regras de processamento)
    - Quantas integrações diferentes são necessárias? (sistemas UI, APIs, bancos de dados)
    - A complexidade é gerenciável em um único robô ou seria mais organizado dividir?
    - Existem fases logicamente distintas que poderiam ser separadas?
@@ -627,7 +924,24 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
    - Decidir baseado no que faz mais sentido para este processo específico
    - Documentar a justificativa da decisão na seção "Arquitetura de Robôs" do spec.md
 
-**⚠️ LEMBRE-SE:** Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs. A decisão deve ser baseada na análise cuidadosa de todos os aspectos, não em regras rígidas.
+**⚠️ VERIFICAÇÃO FINAL OBRIGATÓRIA - ANTES DE CRIAR OS ARQUIVOS:**
+
+**A LLM DEVE verificar que a arquitetura proposta contempla TUDO do DDP:**
+
+- [ ] **TODAS as etapas** do DDP estão contempladas na arquitetura?
+- [ ] **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento) estão mapeadas no business-rules.md?
+- [ ] **TODOS os sistemas** mencionados no DDP estão contemplados?
+- [ ] **TODAS as integrações** necessárias estão consideradas?
+- [ ] **TODAS as exceções** mapeadas no DDP estão contempladas?
+- [ ] **TODAS as etapas do LOOP STATION** foram contadas e estão no spec.md?
+- [ ] Se alguma coisa do DDP não foi contemplada → **REVISAR** e **CORRIGIR** antes de criar os arquivos
+
+**⚠️ REGRA DE OURO FINAL:**
+- A arquitetura final **DEVE** ser capaz de executar **TODAS as etapas** mapeadas no DDP
+- **NENHUMA etapa, regra ou sistema do DDP pode ser ignorada ou esquecida**
+- Se houver dúvida, **REVISAR o DDP** novamente antes de criar os arquivos
+
+**⚠️ LEMBRE-SE:** Nem sempre ter 2 sistemas UI significa necessariamente 2 robôs. A decisão deve ser baseada na análise cuidadosa de todos os aspectos, não em regras rígidas. Mas **TODAS as etapas e regras do DDP DEVEM estar contempladas**.
 
 #### Exemplos Práticos
 
@@ -714,7 +1028,32 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
   - `specs/001-processo/robot1/` (Performer 1 - sistema A, 10 etapas)
   - `specs/001-processo/robot2/` (Performer 2 - sistema B, 5 etapas)
 
-**⚠️ OBSERVAÇÃO IMPORTANTE:** Os exemplos 4 e 5 mostram que a decisão não é baseada em uma única característica (como "ter 2 sistemas UI"), mas sim na análise cuidadosa de todos os fatores do processo específico.
+**Exemplo 6: Dispatcher + Performer + Performer (Verifai - CASO OBRIGATÓRIO)**
+- **Processo:** Ler Excel com referências de documentos → Enviar PDFs para Verifai → Capturar resultado da extração → Processar dados extraídos no SAP
+- **Análise - REGRA OBRIGATÓRIA 4:**
+  - **Checklist Verifai:**
+    - [✅] O processo envia documentos para o Verifai? **SIM** - Envia PDFs para extração
+    - [✅] Após enviar para o Verifai, há necessidade de capturar o resultado? **SIM** - Precisa capturar dados extraídos
+    - [✅] O resultado do Verifai será usado em processamento subsequente? **SIM** - Dados extraídos serão processados no SAP
+  - **RESULTADO:** **SEPARAR É OBRIGATÓRIO (mínimo 2 robôs, neste exemplo 3, mas pode haver mais se necessário)**
+- **Decisão:** Dispatcher + Performer + Performer (3 robôs neste exemplo - pode haver mais se necessário)
+- **Estrutura:**
+  - **Robot1 (Dispatcher):**
+    - INIT: Ler Excel com referências de documentos
+    - FILA: Criar item vazio na própria fila + popular fila do robot2 com referências dos PDFs
+    - LOOP STATION: Para cada item → enviar PDF para Verifai → encerrar atividade principal
+    - END PROCESS: Finalizar com e-mail
+  - **Robot2 (Performer):**
+    - INIT: Não subir fila (já populada pelo robot1)
+    - LOOP STATION: Para cada item da fila → capturar resultado do Verifai → processar dados extraídos → popular fila do robot3
+    - END PROCESS: Finalizar com e-mail
+  - **Robot3 (Performer):**
+    - INIT: Não subir fila (já populada pelo robot2), iniciar SAP e realizar login
+    - LOOP STATION: Para cada item da fila → processar dados extraídos no SAP
+    - END PROCESS: Finalizar SAP e enviar e-mail
+- **Justificativa:** Este é um caso OBRIGATÓRIO de separação devido ao Verifai. Quando um robô envia documento para o Verifai, ele DEVE encerrar sua atividade principal. Um outro robô captura o resultado. Como há processamento subsequente no SAP, um terceiro robô é necessário. A separação garante isolamento de erros, execução retroativa e permite que cada robô tenha responsabilidade clara.
+
+**⚠️ OBSERVAÇÃO IMPORTANTE:** Os exemplos 4 e 5 mostram que a decisão não é baseada em uma única característica (como "ter 2 sistemas UI"), mas sim na análise cuidadosa de todos os fatores do processo específico. O Exemplo 6 mostra que quando há Verifai, a separação é OBRIGATÓRIA e pode resultar em múltiplos robôs.
 
 ### 14. Estimativas de Tempo para Tasks
 
@@ -725,6 +1064,79 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
 - **Perfil considerado:** Desenvolvedor pleno (não mencionar isso no documento, apenas usar como referência interna)
 - **Formato:** Horas (ex: "2 horas", "4 horas", "0.5 horas", "8 horas")
 - **Precisão:** Usar valores inteiros ou meias horas (0.5, 1, 1.5, 2, etc.)
+
+#### 🗄️ Base de Dados de Complexidade de Sistemas
+
+**⚠️ OBRIGATÓRIO:** A LLM DEVE consultar a base de dados de complexidade de sistemas antes de fazer estimativas. Esta base contém multiplicadores objetivos baseados em dados reais, não em suposições.
+
+**Localização:** `src/rpa_speckit/memory/system_complexity.json`
+
+**Como usar a base de dados:**
+
+1. **Identificar o sistema no DDP:**
+   - Verificar se o sistema está listado na base de dados (sistemas conhecidos)
+   - Se não estiver, classificar por categoria:
+     - Portal do governo
+     - Sistema legado
+     - Sistema menos conhecido
+     - Sistema customizado
+
+2. **Aplicar multiplicadores:**
+   - **Multiplicador do sistema:** Baseado na categoria ou sistema específico
+   - **Multiplicador de interface:** Tipo de interface (Web Moderna, Web Legado, Desktop, Terminal)
+   - **Multiplicador de documentação:** Disponibilidade de documentação
+   - **Multiplicador de seletores:** Estabilidade dos seletores
+
+3. **Calcular estimativa final:**
+   ```
+   Estimativa Final = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores
+   ```
+
+4. **Documentar na justificativa:**
+   - Sempre mencionar os multiplicadores aplicados
+   - Explicar por que cada multiplicador foi usado
+
+**Multiplicadores Base (se sistema não estiver na base):**
+- **Sistemas conhecidos (SAP, TOTVS, Oracle, etc.):** 1.0x
+- **Sistemas menos conhecidos:** 1.4x
+- **Portais do governo:** 1.7x (geralmente mais complexos)
+- **Sistemas legados:** 1.6x
+- **Sistemas customizados:** 1.4x
+
+**Fatores Técnicos (aplicar adicionalmente):**
+- **Tipo de Interface:**
+  - Web Moderna: 1.0x
+  - Web Legado: 1.3x
+  - Desktop Moderno: 1.2x
+  - Desktop Legado: 1.5x
+  - Terminal/AS400: 1.8x
+  - Mobile/App: 1.4x
+
+- **Documentação:**
+  - Completa: 1.0x
+  - Parcial: 1.2x
+  - Sem documentação: 1.5x
+
+- **Estabilidade de Seletores:**
+  - Estáveis: 1.0x
+  - Instáveis: 1.4x
+  - Dinâmicos necessários: 1.6x
+
+**Exemplo de cálculo:**
+- **Sistema:** e-CAC (Portal do governo)
+- **Estimativa base:** 2 horas (para uma etapa simples)
+- **Multiplicadores:**
+  - Sistema (e-CAC): 1.8x
+  - Interface (Web Legado): 1.3x
+  - Seletores (Instáveis): 1.4x
+- **Cálculo:** 2h × 1.8 × 1.3 × 1.4 = 6.55h ≈ 7 horas
+- **Justificativa:** "Portal do governo (1.8x) + Interface legada (1.3x) + Seletores instáveis (1.4x) = 7 horas"
+
+**⚠️ IMPORTANTE:**
+- **SEMPRE consultar a base de dados** antes de fazer estimativas
+- **NUNCA usar multiplicadores aleatórios** - usar apenas os da base de dados
+- **Documentar claramente** quais multiplicadores foram aplicados
+- Se o sistema não estiver na base, usar a categoria mais próxima e documentar
 
 #### Fatores a Considerar na Estimativa
 
@@ -746,10 +1158,11 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
 - **E-mail:** +0.5h (configuração e template)
 - **T2CTracker:** +0.5-1h (configuração de steps)
 
-**4. Regras de Negócio:**
-- **Cada validação (VAL*):** +0.5-1h
-- **Cada condição especial (COND*):** +1-2h
-- **Cada regra de processamento (REG*):** +1-3h
+**4. Exceções de Negócio:**
+- **Cada exceção de negócio (EXC*):** +0.5-3h (dependendo da complexidade)
+  - Validações simples: +0.5-1h
+  - Condições especiais: +1-2h
+  - Regras de processamento complexas: +1-3h
 
 **5. Tratamento de Erros:**
 - Tratamento básico: +0.5h por tipo de erro
@@ -789,10 +1202,15 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
 
 **2. Cada Task:**
 - Campo "Estimativa:" com tempo e justificativa breve
-- Justificativa deve mencionar: complexidade, número de etapas, integrações, regras de negócio
+- **Justificativa OBRIGATÓRIA deve incluir:**
+  - Referência à base de dados (se sistema estiver listado) ou categoria aplicada
+  - Multiplicadores aplicados (sistema, interface, documentação, seletores)
+  - Cálculo básico mostrando como chegou ao valor
+  - Complexidade, número de etapas, integrações, exceções de negócio
 
 #### Exemplo de Estimativa
 
+**Exemplo 1: Sistema Conhecido (SAP)**
 ```markdown
 ### Task 2.1: Login e Navegação no Sistema SAP
 - **Robô:** robot1
@@ -801,6 +1219,33 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
 - **Método:** execute()
 - **Descrição:** Realizar login no SAP, validar acesso, navegar até tela de processamento
 - **Estimativa:** 3 horas - Login (1h) + Validação de acesso (0.5h) + Navegação com seletores Clicknium (1h) + Tratamento de erros (0.5h)
+- **Justificativa:** Sistema conhecido (SAP - 1.0x), interface desktop estável, seletores estáveis. Base: 2h × 1.0 (sistema) × 1.0 (interface) × 1.0 (seletores) = 2h + 1h (tratamento erros) = 3h
+- **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
+```
+
+**Exemplo 2: Portal do Governo (e-CAC)**
+```markdown
+### Task 3.1: Consultar CNPJ no Portal e-CAC
+- **Robô:** robot1
+- **Consolida etapas do spec:** `robot1/spec.md` - LOOP STATION: Etapa 5
+- **Arquivo:** T2CProcess.py
+- **Método:** execute()
+- **Descrição:** Acessar portal e-CAC, realizar login, consultar CNPJ e extrair dados
+- **Estimativa:** 7 horas - Consulta base (2h) × Portal governo (1.8x) × Interface legada (1.3x) × Seletores instáveis (1.4x) = 6.55h ≈ 7h
+- **Justificativa:** Portal do governo (e-CAC - 1.8x da base de dados) + Interface web legada (1.3x) + Seletores instáveis típicos de portais governo (1.4x). Base: 2h × 1.8 × 1.3 × 1.4 = 7h
+- **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
+```
+
+**Exemplo 3: Sistema Menos Conhecido**
+```markdown
+### Task 4.1: Processar Dados em Sistema Customizado
+- **Robô:** robot2
+- **Consolida etapas do spec:** `robot2/spec.md` - LOOP STATION: Etapas 2-4
+- **Arquivo:** T2CProcess.py
+- **Método:** execute()
+- **Descrição:** Processar dados em sistema customizado interno, sem documentação disponível
+- **Estimativa:** 6 horas - Processamento base (2h) × Sistema menos conhecido (1.4x) × Sem documentação (1.5x) = 4.2h ≈ 4h + 2h (análise e testes) = 6h
+- **Justificativa:** Sistema customizado (1.4x) + Sem documentação técnica (1.5x) + Tempo adicional para análise reversa (2h). Base: 2h × 1.4 × 1.5 = 4.2h + 2h análise = 6h
 - **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
 ```
 
@@ -1089,6 +1534,10 @@ except Exception as err:
 
 ### Inicialização de Aplicações
 
+**⚠️ IMPORTANTE - Sistemas que NÃO Precisam ser Inicializados:**
+
+**NÃO inicializar no INIT:** Office365 (Excel, Word, PowerPoint, etc.), Google Workspace (Google Docs, Sheets, etc.), OneDrive e sistemas similares que são abertos diretamente por arquivo ou link. Ver seção 12 para regra completa e detalhada.
+
 #### Inicializar Navegador Web
 
 ```python
@@ -1221,8 +1670,7 @@ Se `AtivarClicknium=SIM` no Config.xlsx (ver PARTE 4 para uso de seletores):
 Ao gerar os arquivos, substitua:
 - `{{PROJECT_NAME}}` - Nome do projeto (ex: `projeto_ia_spec`)
 - `{{IMPORTS}}` - Imports necessários baseados nas specs
-- `{{VALIDACOES_ENTRADA}}` - Código de validações
-- `{{CONDICOES_ESPECIAIS}}` - Código de condições especiais
+- `{{EXCECOES_NEGOCIO}}` - Código de exceções de negócio (EXC* - validações, condições especiais, regras de processamento)
 - `{{PROCESSAMENTO_PRINCIPAL}}` - Código principal de processamento
 - `{{PREENCHIMENTO_FILA}}` - Código para preencher fila
 - `{{INICIALIZACAO_APLICACOES}}` - Código de inicialização
@@ -1266,7 +1714,9 @@ texto = cc.find_element(locator.pasta.elemento).get_text()
 
 **Nota:** Estes exemplos focam em padrões únicos. Para conceitos básicos (logging, tratamento de erros, loops), ver PARTE 1 e PARTE 8.
 
-### Exemplo 1: T2CProcess.execute() - Validações e Processamento
+### Exemplo 1: T2CProcess.execute() - Exceções de Negócio e Processamento
+
+**⚠️ IMPORTANTE:** Este exemplo mostra código SIMPLES e DIRETO. Apenas aplicar exceções que estão mapeadas no business-rules.md.
 
 ```python
 @classmethod
@@ -1277,17 +1727,28 @@ def execute(cls):
     
     Maestro.write_log(f'Processando item: {var_strReferencia}')
 
-    # VAL001 - Validação de CPF (ver PARTE 8 para uso de raise)
+    # EXC001 - Exceção de negócio mapeada no business-rules.md
+    # APENAS aplicar se estiver mapeada no business-rules.md
     var_strCpf = var_dictInfoAdicional.get('cpf', '')
     if len(var_strCpf) != 11 or not var_strCpf.isdigit():
         raise BusinessRuleException("CPF inválido ou incompleto")
 
-    # Processamento principal com Clicknium (ver PARTE 4 para seletores)
+    # Código simples e direto - sem validações desnecessárias
+    # Sem try/except - o framework já trata erros automaticamente
     cc.find_element(locator.login.campo_usuario).set_text(var_dictInfoAdicional.get('usuario', ''))
     cc.find_element(locator.login.botao_entrar).click()
+    cc.find_element(locator.tela.campo_cpf).set_text(var_strCpf)
+    cc.find_element(locator.tela.botao_consultar).click()
     
     Maestro.write_log('Process Finished')
 ```
+
+**Observações:**
+- ✅ Código simples, direto e fácil de entender
+- ✅ Apenas uma exceção de negócio (se mapeada no business-rules.md)
+- ✅ Sem try/except desnecessários
+- ✅ Sem validações que não estão no DDP
+- ✅ O framework cuida de tratamento de erros automaticamente
 
 ### Exemplo 2: T2CInitAllApplications.add_to_queue() - Preencher Fila
 
@@ -1346,8 +1807,7 @@ Criar estrutura completa em `generated/<nome-automacao>/` conforme estrutura def
 **5.2. T2CProcess.py** - Usar template abaixo, substituir:
 - `{{PROJECT_NAME}}`
 - `{{IMPORTS}}` - baseado em selectors.md e spec.md
-- `{{VALIDACOES_ENTRADA}}` - baseado em business-rules.md (VAL*)
-- `{{CONDICOES_ESPECIAIS}}` - baseado em business-rules.md (COND*)
+- `{{EXCECOES_NEGOCIO}}` - baseado em business-rules.md (EXC* - todas as exceções de negócio)
 - `{{PROCESSAMENTO_PRINCIPAL}}` - baseado em tasks.md e spec.md (LOOP STATION)
 
 **5.3. T2CInitAllApplications.py** - Usar template abaixo, substituir:
@@ -1525,9 +1985,7 @@ class T2CProcess:
         
         Maestro.write_log(f'Processando item: {var_strReferencia}')
 
-        # {{VALIDACOES_ENTRADA}}
-        
-        # {{CONDICOES_ESPECIAIS}}
+        # {{EXCECOES_NEGOCIO}}
         
         # {{PROCESSAMENTO_PRINCIPAL}}
         
@@ -1853,7 +2311,7 @@ Comentários em códigos devem ser usados sempre com bom senso, alocados em part
 
 **Exemplo:**
 ```python
-# VAL001 - Validação de CPF
+# EXC001 - Exceção de negócio: CPF inválido
 var_strCpf = var_dictInfoAdicional.get('cpf', '')
 if len(var_strCpf) != 11 or not var_strCpf.isdigit():
     raise BusinessRuleException("CPF inválido ou incompleto")
@@ -1918,25 +2376,30 @@ while condicao and var_intTentativa < var_intMaxTentativas:
 
 ### Tratativas de Erro
 
+**⚠️ IMPORTANTE:** Esta seção explica o uso de `raise` para exceções de negócio. A LLM deve gerar código SIMPLES e usar `raise` APENAS para exceções mapeadas no business-rules.md.
+
 #### Importância da Tratativa de Erro
 
 Muito importante saber utilizar o **raise**, é um aliado que nos salva em diversas situações, principalmente para não precisar colocar mil coisas dentro de um IF só porque você precisa encerrar um processo. O **raise** é a chamada de um erro, erro que você mesmo mapeia, tendo assim um controle próprio dos erros e conseguindo encerrar o processo para partir para o próximo item. Além de facilitar na questão de relatórios para facilitar o entendimento das operações realizadas e as respostas recebidas pelo robô.
 
+**⚠️ REGRA CRÍTICA:** 
+- **APENAS usar `raise BusinessRuleException`** para exceções mapeadas no business-rules.md
+- **NÃO adicionar validações/raises** que não estão mapeadas
+- **Código deve ser simples** - usar raise apenas quando necessário (exceções mapeadas)
+
 #### Exemplo de Utilização
 
-Vou inserir uma nota, através do CNPJ deverá retornar as informações básicas do cliente, mas o CNPJ não foi cadastrado. Inicialmente deve-se pensar que a melhor maneira é "Ah vou colocar um if, do lado verdadeiro encontrou o CNPJ e coloco tudo que deve ser feito para inserir a nota lá, e no lado falso deixo vazio para o robô não executar nada". Aí que começam os problemas coloca dentro do if aí daqui a pouco tem mais uma checagem e precisa de mais um if, e assim sucessivamente. Uma solução que deixaria o código limpo seria colocar um if, no lado falso (que não encontrou o CNPJ) colocaria um **raise** com um erro de negócio reportando que o CNPJ não foi encontrado, e todo o resto do código fica fora do if.
-
-**Exemplo correto:**
+**Exemplo correto (exceção mapeada no business-rules.md):**
 ```python
-# Verificar se CNPJ existe
+# EXC002 - Exceção mapeada no business-rules.md: CNPJ não encontrado
 if not cnpj_encontrado:
     raise BusinessRuleException("CNPJ não encontrado no sistema")
 
-# Resto do código continua normalmente
+# Resto do código continua normalmente - código simples e direto
 inserir_nota(cnpj, dados)
 ```
 
-**Exemplo incorreto:**
+**Exemplo incorreto (código complexo desnecessário):**
 ```python
 if cnpj_encontrado:
     # Todo o código dentro do if
@@ -1948,17 +2411,28 @@ else:
     pass
 ```
 
+**Exemplo incorreto (validação não mapeada):**
+```python
+# ❌ INCORRETO: Validação que não está no business-rules.md
+if not cnpj or len(cnpj) != 14:
+    raise BusinessRuleException("CNPJ inválido")  # Só se estiver mapeado!
+```
+
 #### Tipos de Erros Utilizados por Padrão no Framework
 
-- **Exception:** Nativo do Python, é referente aos erros de aplicação.
-  - Exemplo: Aplicação não abriu; Página não carregou; Erros desconhecidos.
+- **BusinessRuleException:** Para exceções de negócio mapeadas no business-rules.md (EXC*)
+  - **SOMENTE usar** se a exceção estiver mapeada no business-rules.md
+  - Exemplo: CNPJ não encontrado (se EXC002 estiver mapeado); Erro contábil (se mapeado)
+  - **NÃO adicionar** validações que não estão mapeadas
 
-- **BusinessRuleException:** Não nativo do Python, ou seja, tipo de erro personalizado desenvolvido para ser referente aos erros de negócios. Para ser utilizado, o mesmo deve ser importado.
-  - Exemplo: CNPJ não encontrado; Erro contábil; E-mail inexistente.
+- **TerminateException:** Para finalização antecipada com sucesso (quando item já foi processado)
 
-- **TerminateException:** Para finalização antecipada com sucesso (quando item já foi processado, por exemplo).
+- **Exception genérica:** Para erros de sistema
+  - **NÃO é necessário** adicionar código para isso
+  - O framework gerencia automaticamente as retentativas
+  - **NÃO adicionar** try/except genéricos
 
-Vale ressaltar que nada impede do desenvolvedor utilizar de outros erros, sejam nativos do Python ou não, para facilitar nas tratativas, desde que faça sentido com o contexto aplicado.
+**⚠️ LEMBRE-SE:** O framework já cuida de tratamento de erros de sistema. A LLM deve focar em código simples e usar `raise` apenas para exceções de negócio mapeadas.
 
 ### TypeHint
 
@@ -2062,10 +2536,14 @@ Podemos nos deparar com situações em que será necessário executar a mesma au
 1. ❌ **NÃO modificar arquivos core do framework**
 2. ❌ **NÃO hardcodar valores** (usar configurações)
 3. ❌ **NÃO usar seletores hardcodados** (usar Clicknium)
-4. ❌ **NÃO ignorar tratamento de erros**
-5. ❌ **NÃO pular validações de entrada**
-6. ❌ **NÃO usar integrações sem verificar configuração**
-7. ❌ **NÃO criar código fora dos pontos de entrada definidos**
+4. ❌ **NÃO adicionar validações desnecessárias** - apenas as mapeadas no business-rules.md
+5. ❌ **NÃO adicionar try/except genéricos** - o framework já trata erros automaticamente
+6. ❌ **NÃO adicionar verificações que não estão no DDP** - código deve ser simples e direto
+7. ❌ **NÃO adicionar tratamento de erros complexo** - apenas BusinessRuleException para exceções mapeadas
+8. ❌ **NÃO pular exceções de negócio mapeadas** (todas as exceções do business-rules.md devem ser implementadas)
+9. ❌ **NÃO usar integrações sem verificar configuração**
+10. ❌ **NÃO criar código fora dos pontos de entrada definidos**
+11. ❌ **NÃO gerar código complexo** - código deve ser simples, direto e fácil de entender
 
 ---
 
@@ -2074,9 +2552,11 @@ Podemos nos deparar com situações em que será necessário executar a mesma au
 - [ ] Li e entendi todas as especificações do framework
 - [ ] Verifiquei `config/base.md` para integrações
 - [ ] Verifiquei `selectors/selectors.md` para seletores
-- [ ] Verifiquei `business-rules/rules.md` para regras
+- [ ] Verifiquei `business-rules/business-rules.md` para exceções de negócio
 - [ ] Identifiquei os pontos de entrada necessários
-- [ ] Planejei o tratamento de erros adequado
+- [ ] **⚠️ CRÍTICO:** Entendi que devo gerar código SIMPLES e DIRETO, sem validações/tratativas desnecessárias
+- [ ] **⚠️ CRÍTICO:** Entendi que apenas devo aplicar exceções mapeadas no business-rules.md
+- [ ] **⚠️ CRÍTICO:** Entendi que NÃO devo adicionar try/except genéricos (framework já trata)
 - [ ] Planejei o uso correto de logging
 - [ ] Identifiquei os templates a usar
 - [ ] Entendi a estrutura de diretórios a criar

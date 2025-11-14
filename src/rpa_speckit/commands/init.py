@@ -372,16 +372,36 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 
 **PASSO 2 - Se o comando funcionar:**
 
-1. **⚠️ OBRIGATÓRIO: Consulte o `@constitution.md`** (localizado em `.specify/memory/constitution.md`) antes de criar qualquer arquivo
+1. **⚠️ OBRIGATÓRIO: Leia o DDP com ATENÇÃO TOTAL**
+   - Leia o texto extraído que será exibido no output **COMPLETO** do início ao fim
+   - **NÃO DEIXE PASSAR NENHUMA ETAPA OU REGRA** mapeada no DDP
+   - Identifique **TODAS as etapas** (INIT, FILA, LOOP STATION, END PROCESS)
+   - Identifique **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
+   - Identifique **TODOS os sistemas** (APIs, UI, Verifai, etc.)
+   - **Conte exatamente** todas as etapas do LOOP STATION (não estime)
+   - Crie uma lista mental ou escrita de **TODAS as informações** identificadas
+
+2. **⚠️ OBRIGATÓRIO: Consulte o `@constitution.md`** (localizado em `.specify/memory/constitution.md`) antes de criar qualquer arquivo
    - Leia especialmente a **seção 13: Arquitetura de Robôs - Decisão e Estruturação**
+   - Leia a seção **"📖 LEITURA E ANÁLISE CUIDADOSA DO DDP"** e siga o checklist obrigatório
    - Verifique as **REGRAS OBRIGATÓRIAS DE SEPARAÇÃO** primeiro
    - Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO
-2. Leia o texto extraído que será exibido no output
+
 3. **Decida a arquitetura** baseado nas regras do `constitution.md`:
    - **Standalone**: Criar `spec.md` na raiz de `specs/001-[nome]/`
-   - **Múltiplos robôs**: Criar estrutura `robot1/` e `robot2/` com seus respectivos `spec.md`
-4. Crie ou atualize os arquivos de especificação baseado na decisão de arquitetura
-5. Preencha cada arquivo baseado no conteúdo do DDP
+   - **Múltiplos robôs**: Criar estrutura `robot1/`, `robot2/`, `robot3/` (ou quantos forem necessários) com seus respectivos `spec.md`
+
+4. **⚠️ VERIFICAÇÃO FINAL OBRIGATÓRIA - ANTES DE CRIAR OS ARQUIVOS:**
+   - [ ] **TODAS as etapas** do DDP estão contempladas na arquitetura?
+   - [ ] **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento) estão mapeadas no business-rules.md?
+   - [ ] **TODOS os sistemas** mencionados no DDP estão contemplados?
+   - [ ] **TODAS as integrações** necessárias estão consideradas?
+   - [ ] **TODAS as exceções** mapeadas no DDP estão contempladas?
+   - [ ] **TODAS as etapas do LOOP STATION** foram contadas e estão no spec.md?
+   - Se alguma coisa do DDP não foi contemplada → **REVISAR o DDP** e **CORRIGIR** antes de criar os arquivos
+
+5. Crie ou atualize os arquivos de especificação baseado na decisão de arquitetura
+6. Preencha cada arquivo baseado no conteúdo do DDP, garantindo que **TODAS as etapas e regras** estejam contempladas
 
 ## Arquivos a preencher
 
@@ -410,7 +430,7 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 - **spec.md**: ARQUIVO PRINCIPAL - Definir arquitetura completa (INIT, FILA, LOOP STATION, END PROCESS), stack tecnológica, integrações, estrutura de dados. **DEVE incluir seção "Arquitetura de Robôs" no início** conforme `constitution.md` seção 13.
 - **tests.md**: Extrair cenários de usuário, requisitos funcionais/não-funcionais, critérios de sucesso, entidades principais
 - **selectors.md**: Identificar elementos de UI mencionados no DDP (botões, campos, tabelas, etc.)
-- **business-rules.md**: Extrair validações (VAL*), condições especiais (COND*), regras de processamento (REG*)
+- **business-rules.md**: Extrair todas as exceções de negócio (EXC* - validações, condições especiais, regras de processamento - tudo que pode gerar uma exceção ou regra específica)
 
 ## Lembre-se
 
