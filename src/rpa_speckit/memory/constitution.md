@@ -78,6 +78,28 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
   ```
 
 ### 5. Seletores
+
+**⚠️ REGRA OBRIGATÓRIA - Sistemas que NÃO Precisam de Seletores:**
+
+**CRÍTICO:** Assim como sistemas que abrem arquivos não precisam ser inicializados, eles também **NÃO precisam de seletores**. A LLM não deve criar seletores para sistemas que são abertos diretamente por arquivo ou link.
+
+**Sistemas que NÃO precisam de seletores (SEM EXCEÇÃO):**
+- **Office365:** Excel, Word, PowerPoint, Outlook, OneNote, Access, etc.
+- **Google Workspace:** Google Docs, Google Sheets, Google Slides, Google Drive
+- **OneDrive:** Acesso via link ou arquivo
+- **Outros sistemas similares:** Qualquer sistema aberto diretamente por arquivo ou link
+
+**⚠️ REGRA DE OURO:**
+- Se o sistema é aberto **diretamente por arquivo ou link**, **NÃO criar seletores**
+- Seletores são necessários apenas para sistemas com **interface UI que precisa ser automatizada** (navegadores, SAP, TOTVS, etc.)
+- **SEM EXCEÇÃO** - todos os sistemas similares seguem esta regra
+
+**Sistemas que PRECISAM de seletores:**
+- **Aplicações Web:** Navegadores (Chrome, Edge, Firefox) que precisam interagir com elementos da página
+- **Aplicações Desktop:** Programas com interface gráfica que precisam ser automatizados (SAP, TOTVS, etc.)
+- **Qualquer sistema que exija interação visual** com elementos da interface
+
+**Regras Gerais:**
 - **Sempre usar locators do Clicknium** quando disponível
 - **Referenciar seletores conforme `selectors/selectors.md`**
 - **Nunca usar seletores hardcodados**
@@ -419,7 +441,29 @@ A LLM DEVE ler o DDP com **ATENÇÃO TOTAL** e **NÃO DEIXAR PASSAR NENHUMA ETAP
 
 **Se TODAS as respostas forem SIM → SEPARAR É OBRIGATÓRIO (Dispatcher + Performer)**
 
-**REGRA OBRIGATÓRIA 4: Extração de Documentos com Verifai**
+**REGRA OBRIGATÓRIA 4: Preferência de API sobre Telas**
+
+**⚠️ REGRA OBRIGATÓRIA:** Se no DDP está indicando que o processo deve ser via API mas está mapeado as telas, a LLM DEVE dar preferência a utilizar API para o processamento, em vez de usar as telas.
+
+**APLICAR OBRIGATORIAMENTE quando:**
+- ✅ O DDP indica que o processo deve ser via API
+- ✅ O DDP também mapeia telas/interface do sistema
+- ✅ A API está disponível e funcional
+
+**Ação obrigatória:**
+- **Usar API** para o processamento, mesmo que telas estejam mapeadas
+- **NÃO usar** a interface/telas se a API estiver disponível
+- **Documentar** no spec.md que a API foi escolhida sobre as telas
+- **Justificar** a escolha na seção de arquitetura
+
+**Exemplo:**
+- **DDP indica:** "Processar via API do sistema X" e também mapeia telas do sistema X
+- **Decisão:** Usar API do sistema X (não usar as telas)
+- **Justificativa:** DDP indica preferência por API, mesmo com telas mapeadas
+
+**⚠️ IMPORTANTE:** Esta é uma regra obrigatória. Se o DDP indica API, usar API, não telas.
+
+**REGRA OBRIGATÓRIA 5: Extração de Documentos com Verifai**
 
 **⚠️ REGRA CRÍTICA:** Quando o processo envolve extração de documentos usando Verifai, a separação é OBRIGATÓRIA.
 
@@ -443,22 +487,79 @@ A LLM DEVE ler o DDP com **ATENÇÃO TOTAL** e **NÃO DEIXAR PASSAR NENHUMA ETAP
 
 **⚠️ REGRA FUNDAMENTAL:** Quando um robô envia um documento para o Verifai, ele DEVE encerrar sua atividade principal. Um outro robô será responsável por capturar o resultado do Verifai. Isso é uma regra essencial e pode resultar em múltiplos robôs no processo (2, 3, 4 ou quantos forem necessários para organizar o processo adequadamente).
 
+**🚨 REGRA CRÍTICA - Envio e Captura do Verifai:**
+
+**⚠️ OBRIGATÓRIO:**
+- **O último passo do robô que envia** é o **envio do documento para o Verifai** (NÃO a captura)
+- **A captura é realizada pelo robô seguinte** (OBRIGATÓRIO)
+- **Por isso quebre os robôs** para que um envie e outro capture e continue o processamento
+
+**Estrutura obrigatória com Verifai:**
+- **Robot1 (Dispatcher):**
+  - Prepara dados
+  - **ÚLTIMO PASSO:** Envia documentos para o Verifai
+  - **ENCERRA** após o envio (não captura)
+  - Popula fila do Robot2 com referências dos documentos enviados
+
+- **Robot2 (Performer):**
+  - **PRIMEIRO PASSO:** Captura resultado do Verifai
+  - Processa dados extraídos
+  - Popula fila do Robot3 (se houver processamento subsequente)
+
+- **Robot3+:** (Se necessário) Processamento adicional em outros sistemas ou fases
+
+**⚠️ IMPORTANTE - Campos e Prompts para Captura:**
+
+Ao criar o `robot2/spec.md` (robô que captura), a LLM DEVE:
+
+1. **Indicar quais campos precisam ser capturados** do resultado do Verifai
+2. **Sugerir prompts específicos** para cada campo que será capturado
+3. **Formato dos prompts:** Perguntas ou pedidos para uma outra LLM capturar o campo específico
+
+**Exemplo de campos e prompts no spec.md do Robot2:**
+```markdown
+## Campos a Capturar do Verifai
+
+### Campo: CPF
+- **Prompt sugerido:** "Qual o CPF desse documento?"
+- **Tipo:** String
+- **Validação:** (se necessário, conforme business-rules.md)
+
+### Campo: Nome do Cliente
+- **Prompt sugerido:** "Qual o nome completo do cliente nesse documento?"
+- **Tipo:** String
+
+### Campo: Valor Total
+- **Prompt sugerido:** "Qual o valor total da nota fiscal?"
+- **Tipo:** Decimal
+```
+
 **Estrutura típica com Verifai (exemplo - pode haver mais robôs se necessário):**
-- **Robot1:** Prepara dados, envia documentos para o Verifai → popula fila do Robot2
-- **Robot2:** Captura resultado do Verifai, processa dados extraídos → popula fila do Robot3 (se houver processamento subsequente)
+- **Robot1:** Prepara dados, **envia documentos para o Verifai** (último passo) → popula fila do Robot2
+- **Robot2:** **Captura resultado do Verifai** (primeiro passo), processa dados extraídos → popula fila do Robot3 (se houver processamento subsequente)
 - **Robot3:** (Opcional) Processa dados extraídos no sistema final (ex: SAP, TOTVS)
 - **Robot4+:** (Se necessário) Processamento adicional em outros sistemas ou fases
 
 **Exemplo detalhado - Caso com Verifai:**
 - **Processo:** Ler Excel com referências → Enviar PDFs para Verifai → Capturar resultado da extração → Processar dados extraídos no SAP
-- **Checklist REGRA OBRIGATÓRIA 4:**
+- **Checklist REGRA OBRIGATÓRIA 5:**
   - [✅] O processo envia documentos para o Verifai? **SIM** - Envia PDFs para extração
   - [✅] Após enviar para o Verifai, há necessidade de capturar o resultado? **SIM** - Precisa capturar dados extraídos
   - [✅] O resultado do Verifai será usado em processamento subsequente? **SIM** - Dados extraídos serão processados no SAP
 - **RESULTADO:** **SEPARAR É OBRIGATÓRIO (mínimo 2 robôs, podendo ser 3, 4 ou quantos forem necessários)**
 - **Estrutura obrigatória (exemplo - pode haver mais robôs se necessário):**
-  - `robot1/spec.md` - Dispatcher: Lê Excel, envia PDFs para Verifai, popula fila do robot2
-  - `robot2/spec.md` - Performer: Captura resultado do Verifai, processa dados extraídos, popula fila do robot3 (se houver)
+  - `robot1/spec.md` - Dispatcher: 
+    - Lê Excel com referências de documentos
+    - **ÚLTIMO PASSO:** Envia PDFs para Verifai
+    - **ENCERRA** após o envio (não captura)
+    - Popula fila do robot2 com referências dos documentos enviados
+  - `robot2/spec.md` - Performer: 
+    - **PRIMEIRO PASSO:** Captura resultado do Verifai
+    - **DEVE incluir seção "Campos a Capturar do Verifai"** com:
+      - Lista de campos a capturar (CPF, Nome, Valor, etc.)
+      - Prompts sugeridos para cada campo (ex: "Qual o CPF desse documento?")
+    - Processa dados extraídos
+    - Popula fila do robot3 (se houver)
   - `robot3/spec.md` - (Opcional) Performer: Processa dados no SAP
   - `robot4+/spec.md` - (Se necessário) Processamento adicional em outros sistemas ou fases
 
@@ -857,19 +958,26 @@ specs/001-[nome]/
 **APÓS ler o DDP completamente, a LLM DEVE:**
 
 1. **Ler a seção "🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO" acima**
-2. **Aplicar os checklists binários das 4 regras obrigatórias:**
+2. **Aplicar os checklists binários das 5 regras obrigatórias:**
    - REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente
    - REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso
    - REGRA OBRIGATÓRIA 3: Preparação Complexa + Execução Simples
-   - **REGRA OBRIGATÓRIA 4: Extração de Documentos com Verifai** ⚠️ CRÍTICA
+   - **REGRA OBRIGATÓRIA 4: Preferência de API sobre Telas** ⚠️ OBRIGATÓRIA
+   - **REGRA OBRIGATÓRIA 5: Extração de Documentos com Verifai** ⚠️ CRÍTICA
 3. **Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO**
 4. **Se NENHUMA regra obrigatória se aplicar → seguir para análise contextual abaixo**
 
 **⚠️ CRÍTICO:** Se o processo se enquadrar em uma regra obrigatória, a LLM NÃO deve fazer análise contextual. Deve separar imediatamente e criar a estrutura de múltiplos robôs.
 
+**⚠️ ATENÇÃO ESPECIAL - API sobre Telas:**
+- Se o DDP indica que o processo deve ser via API mas também mapeia telas, a LLM DEVE usar API (não telas)
+- Esta é uma regra obrigatória de escolha de tecnologia, não de separação de robôs
+- Documentar no spec.md que a API foi escolhida sobre as telas
+
 **⚠️ ATENÇÃO ESPECIAL - Verifai:**
-- Se o DDP mencionar "Verifai", "extração de documentos", "envio de PDF para extração", ou similar, a LLM DEVE verificar imediatamente a REGRA OBRIGATÓRIA 4
-- Quando um robô envia documento para o Verifai, ele DEVE encerrar e um outro robô captura o resultado
+- Se o DDP mencionar "Verifai", "extração de documentos", "envio de PDF para extração", ou similar, a LLM DEVE verificar imediatamente a REGRA OBRIGATÓRIA 5
+- Quando um robô envia documento para o Verifai, ele DEVE encerrar após o envio (último passo) e um outro robô captura o resultado (primeiro passo)
+- O robô que captura DEVE incluir seção "Campos a Capturar do Verifai" com campos e prompts sugeridos
 - **NÃO HÁ LIMITE:** Isso pode resultar em 2, 3, 4, 5 ou quantos robôs forem necessários para organizar o processo adequadamente
 
 **PASSO 2 - Análise Contextual (Apenas se NENHUMA regra obrigatória se aplicou):**
@@ -1030,7 +1138,7 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
 
 **Exemplo 6: Dispatcher + Performer + Performer (Verifai - CASO OBRIGATÓRIO)**
 - **Processo:** Ler Excel com referências de documentos → Enviar PDFs para Verifai → Capturar resultado da extração → Processar dados extraídos no SAP
-- **Análise - REGRA OBRIGATÓRIA 4:**
+- **Análise - REGRA OBRIGATÓRIA 5:**
   - **Checklist Verifai:**
     - [✅] O processo envia documentos para o Verifai? **SIM** - Envia PDFs para extração
     - [✅] Após enviar para o Verifai, há necessidade de capturar o resultado? **SIM** - Precisa capturar dados extraídos
@@ -1041,17 +1149,20 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
   - **Robot1 (Dispatcher):**
     - INIT: Ler Excel com referências de documentos
     - FILA: Criar item vazio na própria fila + popular fila do robot2 com referências dos PDFs
-    - LOOP STATION: Para cada item → enviar PDF para Verifai → encerrar atividade principal
+    - LOOP STATION: Para cada item → **enviar PDF para Verifai** → **encerrar atividade principal** (último passo)
     - END PROCESS: Finalizar com e-mail
   - **Robot2 (Performer):**
     - INIT: Não subir fila (já populada pelo robot1)
-    - LOOP STATION: Para cada item da fila → capturar resultado do Verifai → processar dados extraídos → popular fila do robot3
+    - LOOP STATION: Para cada item da fila → **capturar resultado do Verifai** (primeiro passo) → processar dados extraídos → popular fila do robot3
+    - **DEVE incluir seção "Campos a Capturar do Verifai"** no spec.md com:
+      - Lista de campos a capturar (CPF, Nome, Valor, etc.)
+      - Prompts sugeridos para cada campo (ex: "Qual o CPF desse documento?")
     - END PROCESS: Finalizar com e-mail
   - **Robot3 (Performer):**
     - INIT: Não subir fila (já populada pelo robot2), iniciar SAP e realizar login
     - LOOP STATION: Para cada item da fila → processar dados extraídos no SAP
     - END PROCESS: Finalizar SAP e enviar e-mail
-- **Justificativa:** Este é um caso OBRIGATÓRIO de separação devido ao Verifai. Quando um robô envia documento para o Verifai, ele DEVE encerrar sua atividade principal. Um outro robô captura o resultado. Como há processamento subsequente no SAP, um terceiro robô é necessário. A separação garante isolamento de erros, execução retroativa e permite que cada robô tenha responsabilidade clara.
+- **Justificativa:** Este é um caso OBRIGATÓRIO de separação devido ao Verifai. Quando um robô envia documento para o Verifai, ele DEVE encerrar após o envio (último passo). Um outro robô captura o resultado (primeiro passo) e deve incluir seção com campos e prompts sugeridos. Como há processamento subsequente no SAP, um terceiro robô é necessário. A separação garante isolamento de erros, execução retroativa e permite que cada robô tenha responsabilidade clara.
 
 **⚠️ OBSERVAÇÃO IMPORTANTE:** Os exemplos 4 e 5 mostram que a decisão não é baseada em uma única característica (como "ter 2 sistemas UI"), mas sim na análise cuidadosa de todos os fatores do processo específico. O Exemplo 6 mostra que quando há Verifai, a separação é OBRIGATÓRIA e pode resultar em múltiplos robôs.
 

@@ -405,11 +405,18 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 
 ## Arquivos a preencher
 
+**🚨 REGRA CRÍTICA - NÃO CRIAR tasks.md:**
+- ❌ **NÃO criar** \`tasks.md\` neste comando
+- ❌ **NÃO gerar** tasks.md automaticamente
+- ✅ **tasks.md** deve ser criado APENAS quando o usuário executar o comando `/t2c.tasks`
+- ✅ **Aguardar** o comando explícito do usuário para gerar tasks.md
+
 ### Se Standalone (1 robô):
 - \`specs/001-[nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
 - \`specs/001-[nome]/tests.md\` - Cenários de teste e validações
 - \`specs/001-[nome]/selectors.md\` - Seletores Clicknium
 - \`specs/001-[nome]/business-rules.md\` - Regras de negócio
+- ❌ **NÃO criar** \`tasks.md\` - será criado apenas com o comando `/t2c.tasks`
 
 ### Se Múltiplos Robôs (quando regra obrigatória se aplicar):
 - \`specs/001-[nome]/robot1/spec.md\` - Especificação do robô 1 (Dispatcher)
@@ -420,10 +427,12 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 - \`specs/001-[nome]/robot2/tests.md\` - Testes do robô 2
 - \`specs/001-[nome]/robot2/selectors.md\` - Seletores do robô 2
 - \`specs/001-[nome]/robot2/business-rules.md\` - Regras de negócio do robô 2
+- ❌ **NÃO criar** \`tasks.md\` - será criado apenas com o comando `/t2c.tasks`
 
 **⚠️ IMPORTANTE:** 
 - Se houver múltiplos robôs, **NÃO criar** \`spec.md\` na raiz
 - Cada robô tem seu próprio \`spec.md\` dentro de sua pasta (\`robot1/\`, \`robot2/\`)
+- **NUNCA criar tasks.md** neste comando - aguardar comando `/t2c.tasks` do usuário
 
 ## Detalhes dos arquivos
 
@@ -438,8 +447,14 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 - O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto
 - Você apenas precisa EXECUTÁ-LO, não criá-lo
 - Use os templates em \`.specify/templates/\` como referência para a estrutura
-- Mantenha a numeração das regras (VAL001, VAL002, etc.) e tarefas (Task 1.1, Task 2.1, etc.)
-- Se os arquivos já existirem, atualize-os com as novas informações do DDP""",
+- Mantenha a numeração das regras (EXC001, EXC002, etc.)
+- Se os arquivos já existirem, atualize-os com as novas informações do DDP
+
+**🚨 REGRA ABSOLUTA - tasks.md:**
+- ❌ **NUNCA criar** \`tasks.md\` neste comando
+- ❌ **NÃO gerar** tasks.md automaticamente
+- ✅ **tasks.md** será criado APENAS quando o usuário executar explicitamente o comando `/t2c.tasks`
+- ✅ **Aguardar** o comando do usuário - não antecipar a criação de tasks.md""",
         "t2c.tasks": """# Gerar Tasks
 
 Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estimativas de tempo para cada tarefa.
@@ -478,10 +493,44 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estima
 
 ## Estimativas de Tempo
 
+**⚠️ OBRIGATÓRIO - Consultar Base de Dados de Complexidade:**
+
+Antes de calcular qualquer estimativa, a LLM DEVE:
+
+1. **Consultar o arquivo `@system_complexity.json`** (localizado em `src/rpa_speckit/memory/system_complexity.json`)
+   - Este arquivo contém multiplicadores objetivos baseados em dados reais
+   - NÃO fazer estimativas baseadas em suposições - sempre consultar a base de dados
+
+2. **Identificar os sistemas mencionados no spec.md:**
+   - Verificar se o sistema está listado na base de dados (sistemas conhecidos)
+   - Se não estiver, classificar por categoria (portal governo, legado, menos conhecido, customizado)
+
+3. **Aplicar multiplicadores conforme a base de dados:**
+   - Multiplicador do sistema (baseado na categoria ou sistema específico)
+   - Multiplicador de interface (Web Moderna, Web Legado, Desktop, Terminal)
+   - Multiplicador de documentação (Completa, Parcial, Sem documentação)
+   - Multiplicador de seletores (Estáveis, Instáveis, Dinâmicos)
+
+4. **Calcular estimativa final:**
+   ```
+   Estimativa Final = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores
+   ```
+
+5. **Documentar na justificativa:**
+   - Sempre mencionar os multiplicadores aplicados da base de dados
+   - Explicar por que cada multiplicador foi usado
+   - Referenciar o sistema e categoria aplicada
+
+**Regras de Estimativa:**
 - **Base:** Desenvolvedor pleno (não mencionar isso no documento, apenas usar como referência)
 - **Formato:** Horas (ex: "2 horas", "4 horas", "0.5 horas")
-- **Justificativa:** Breve explicação do porquê da estimativa (complexidade, número de etapas, integrações, etc.)
+- **Justificativa:** DEVE incluir referência aos multiplicadores aplicados da base de dados
 - **Tabela de visão geral:** Inclui tempo total, top 5 tasks mais demoradas, distribuição por fase e por robô
+
+**⚠️ IMPORTANTE:** 
+- NUNCA fazer estimativas sem consultar `@system_complexity.json`
+- SEMPRE documentar quais multiplicadores foram aplicados
+- Ver seção 14 do `@constitution.md` para instruções detalhadas sobre como usar a base de dados
 
 ## Notas
 

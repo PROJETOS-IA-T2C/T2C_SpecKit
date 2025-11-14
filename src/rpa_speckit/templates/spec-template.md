@@ -223,12 +223,29 @@ row = df[df['id'] == var_strReferencia]
 
 **IMPORTANTE:** Todas as etapas do DDP devem estar documentadas aqui, sem exceção.
 
+**📌 Como criar links diretos para seletores e exceções:**
+
+Os links devem apontar diretamente para a seção específica no arquivo usando âncoras Markdown:
+
+- **Para seletores:** Use o formato `[selectors.md#nome-seção](./selectors.md#nome-seção)`
+  - Converta o nome da seção para minúsculas e substitua espaços por hífens
+  - Exemplo: Seção "Login SAP" → `#login-sap`
+  - Exemplo: Seção "Tela de Consulta" → `#tela-de-consulta`
+
+- **Para exceções:** Use o formato `[business-rules.md#exc001](./business-rules.md#exc001)`
+  - Use o código da exceção em minúsculas
+  - Exemplo: "EXC001" → `#exc001`
+  - Exemplo: "EXC002" → `#exc002`
+  - Para múltiplas exceções, use vírgulas: `#exc001, #exc002`
+
+**Nota:** As âncoras são criadas automaticamente a partir dos títulos (headers) nos arquivos Markdown. Certifique-se de que os títulos nos arquivos `selectors.md` e `business-rules.md` correspondem aos links criados aqui.
+
 #### Exemplo de Etapa (Modelo a seguir)
 
 **Etapa 1: Login no Sistema SAP**
 - **Descrição:** Realizar login no sistema SAP usando credenciais obtidas do item da fila. Validar se o login foi bem-sucedido verificando a presença do menu principal.
-- **Seletores utilizados:** Ver `selectors.md` - Seção "Login SAP" (campo_usuario, campo_senha, botao_entrar, menu_principal)
-- **Exceções de negócio:** Ver `business-rules.md` - EXC001 (se usuário estiver bloqueado, pular item e registrar erro de negócio)
+- **Seletores:** Ver [`selectors.md#login-sap`](./selectors.md#login-sap) (link direto para a seção)
+- **Exceções de negócio:** Ver [`business-rules.md#exc001`](./business-rules.md#exc001) (link direto para a exceção)
 - **T2CTracker Step:** 10 - "Iniciando login no sistema SAP"
 - **Observações:** 
   - Aguardar 3 segundos após clicar em entrar para garantir carregamento completo
@@ -238,9 +255,11 @@ row = df[df['id'] == var_strReferencia]
 ---
 
 #### Etapa 1: [Nome da Etapa]
-- **Descrição:** [O que esta etapa faz - seja específico e detalhado]
-- **Seletores utilizados:** Ver `selectors.md` - [Seção específica] ([lista de seletores usados])
-- **Exceções de negócio:** Ver `business-rules.md` - [EXC001, EXC002, etc.] (se aplicável)
+- **Descrição:** [O que esta etapa faz - seja específico e detalhado. Incluir informações sobre ações, validações, navegação, etc.]
+- **Seletores:** Ver [`selectors.md#[nome-seção]`](./selectors.md#[nome-seção]) (ou "N/A" se não usar seletores - sistemas que abrem arquivos não precisam)
+  - **Nota:** Substituir `[nome-seção]` pelo nome da seção em minúsculas com hífens (ex: "Login SAP" → `#login-sap`)
+- **Exceções de negócio:** Ver [`business-rules.md#[exc001]`](./business-rules.md#[exc001]) (ou "N/A" se não houver exceções)
+  - **Nota:** Substituir `[exc001]` pelo código da exceção em minúsculas (ex: "EXC001" → `#exc001`, "EXC002" → `#exc002`)
 - **T2CTracker Step:** [Número do step] - "[Mensagem descritiva]"
 - **Observações:** 
   - [Aguardas necessárias, timeouts, etc.]
@@ -248,9 +267,11 @@ row = df[df['id'] == var_strReferencia]
   - [Qualquer informação relevante para implementação]
 
 #### Etapa 2: [Nome da Etapa]
-- **Descrição:** [O que esta etapa faz - seja específico e detalhado]
-- **Seletores utilizados:** Ver `selectors.md` - [Seção específica] ([lista de seletores usados])
-- **Exceções de negócio:** Ver `business-rules.md` - [EXC003, etc.] (se aplicável)
+- **Descrição:** [O que esta etapa faz - seja específico e detalhado. Incluir informações sobre ações, validações, navegação, etc.]
+- **Seletores:** Ver [`selectors.md#[nome-seção]`](./selectors.md#[nome-seção]) (ou "N/A" se não usar seletores)
+  - **Nota:** Substituir `[nome-seção]` pelo nome da seção em minúsculas com hífens
+- **Exceções de negócio:** Ver [`business-rules.md#[exc003]`](./business-rules.md#[exc003]) (ou "N/A" se não houver exceções)
+  - **Nota:** Substituir `[exc003]` pelo código da exceção em minúsculas
 - **T2CTracker Step:** [Número do step] - "[Mensagem descritiva]"
 - **Observações:** 
   - [Aguardas necessárias, timeouts, etc.]
@@ -258,9 +279,11 @@ row = df[df['id'] == var_strReferencia]
   - [Qualquer informação relevante para implementação]
 
 #### Etapa 3: [Nome da Etapa]
-- **Descrição:** [O que esta etapa faz - seja específico e detalhado]
-- **Seletores utilizados:** Ver `selectors.md` - [Seção específica] ([lista de seletores usados])
-- **Exceções de negócio:** Ver `business-rules.md` - [EXC004, etc.] (se aplicável)
+- **Descrição:** [O que esta etapa faz - seja específico e detalhado. Incluir informações sobre ações, validações, navegação, etc.]
+- **Seletores:** Ver [`selectors.md#[nome-seção]`](./selectors.md#[nome-seção]) (ou "N/A" se não usar seletores)
+  - **Nota:** Substituir `[nome-seção]` pelo nome da seção em minúsculas com hífens
+- **Exceções de negócio:** Ver [`business-rules.md#[exc004]`](./business-rules.md#[exc004]) (ou "N/A" se não houver exceções)
+  - **Nota:** Substituir `[exc004]` pelo código da exceção em minúsculas
 - **T2CTracker Step:** [Número do step] - "[Mensagem descritiva]"
 - **Observações:** 
   - [Aguardas necessárias, timeouts, etc.]
@@ -271,9 +294,9 @@ row = df[df['id'] == var_strReferencia]
 
 ### Tratamento de Business Exceptions
 
-**IMPORTANTE:** Todas as BusinessRuleException devem estar documentadas em `business-rules-template.md` e apenas referenciadas aqui.
+**IMPORTANTE:** Todas as BusinessRuleException devem estar documentadas em [`business-rules.md`](./business-rules.md) e apenas referenciadas aqui.
 
-- **Exceções de Negócio (EXC*):** Ver `business-rules-template.md`
+- **Exceções de Negócio (EXC*):** Ver [`business-rules.md`](./business-rules.md) para lista completa de todas as exceções mapeadas
 
 ### Integração T2CTracker
 
