@@ -6,6 +6,38 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 ---
 
+## 🚨 REGRA FUNDAMENTAL - LEITURA CUIDADOSA DO DDP
+
+**⚠️ EXTREMAMENTE CRÍTICO - SEM ISSO TUDO ESTARÁ ERRADO:**
+
+**A leitura cuidadosa e completa do DDP é a BASE de todo o trabalho. Se a LLM não ler o DDP com atenção total e não considerar TUDO que está mapeado, TODAS as especificações estarão incorretas.**
+
+**⚠️ OBRIGATÓRIO - ANTES DE QUALQUER OUTRA AÇÃO:**
+
+1. **Ler o DDP COMPLETO** - palavra por palavra, do início ao fim
+2. **NÃO pular NENHUMA seção** - mesmo que pareça irrelevante
+3. **NÃO fazer suposições** - se algo não está claro, revisar o DDP
+4. **Identificar TUDO** - TODAS as etapas, TODOS os sistemas, TODAS as exceções
+5. **Contar EXATAMENTE** - não estimar, contar cada etapa do LOOP STATION
+6. **Verificar TUDO** - garantir que NADA foi esquecido antes de criar arquivos
+
+**⚠️ CONSEQUÊNCIAS DE NÃO SEGUIR ESTA REGRA:**
+- ❌ Etapas serão esquecidas
+- ❌ Sistemas não serão identificados
+- ❌ Exceções de negócio não serão mapeadas
+- ❌ Arquitetura estará incompleta
+- ❌ Especificações estarão incorretas
+- ❌ Código gerado não funcionará corretamente
+
+**⚠️ REGRA DE OURO:**
+- **Se o DDP menciona, DEVE estar contemplado**
+- **Se não está contemplado, REVISAR o DDP novamente**
+- **NENHUMA informação do DDP pode ser ignorada ou esquecida**
+
+**👉 Ver seção "📖 LEITURA E ANÁLISE CUIDADOSA DO DDP - OBRIGATÓRIO" na seção 13 para checklist completo.**
+
+---
+
 ## 📋 PARTE 1: REGRAS FUNDAMENTAIS
 
 ### 1. Estrutura do Framework
@@ -81,18 +113,11 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 **⚠️ REGRA OBRIGATÓRIA - Sistemas que NÃO Precisam de Seletores:**
 
-**CRÍTICO:** Assim como sistemas que abrem arquivos não precisam ser inicializados, eles também **NÃO precisam de seletores**. A LLM não deve criar seletores para sistemas que são abertos diretamente por arquivo ou link.
+**CRÍTICO:** Sistemas que manipulam arquivos diretamente (Office365, Google Workspace, etc.) **NÃO precisam de seletores**, pois são tratados em background. **Ver seção 12.5 - REGRA 2 e REGRA 5** para detalhes completos sobre manipulação de arquivos em background.
 
-**Sistemas que NÃO precisam de seletores (SEM EXCEÇÃO):**
-- **Office365:** Excel, Word, PowerPoint, Outlook, OneNote, Access, etc.
-- **Google Workspace:** Google Docs, Google Sheets, Google Slides, Google Drive
-- **OneDrive:** Acesso via link ou arquivo
-- **Outros sistemas similares:** Qualquer sistema aberto diretamente por arquivo ou link
-
-**⚠️ REGRA DE OURO:**
-- Se o sistema é aberto **diretamente por arquivo ou link**, **NÃO criar seletores**
-- Seletores são necessários apenas para sistemas com **interface UI que precisa ser automatizada** (navegadores, SAP, TOTVS, etc.)
-- **SEM EXCEÇÃO** - todos os sistemas similares seguem esta regra
+**Sistemas que NÃO precisam de seletores:**
+- **Office365, Google Workspace, OneDrive e sistemas similares** - Ver seção 12.5 - REGRA 5
+- **Qualquer sistema que manipula arquivos diretamente** - tratado em background, sem necessidade de seletores
 
 **Sistemas que PRECISAM de seletores:**
 - **Aplicações Web:** Navegadores (Chrome, Edge, Firefox) que precisam interagir com elementos da página
@@ -111,12 +136,19 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
   ```
 
 ### 6. Exceções de Negócio
-- **Sempre aplicar exceções conforme `business-rules/business-rules.md`**
+- **Sempre aplicar exceções conforme `business-rules.md`** (localizado em `specs/001-[nome]/business-rules.md` ou `specs/001-[nome]/robot*/business-rules.md`)
 - **Todas as regras de negócio são consolidadas como Exceções de Negócio** (EXC*)
 - **Inclui:** validações, condições especiais, regras de processamento - tudo que pode gerar uma exceção ou regra específica
 - **Usar BusinessRuleException ou TerminateException** conforme especificado nas exceções
 
 ### 7. Fila de Processamento
+
+**⚠️ IMPORTANTE:** Consulte a **seção 12.5 - REGRA 1 e REGRA 4** para entender:
+- Ordem correta de execução (FILA antes de aplicações) - REGRA 1
+- Princípio de fila como fonte única de dados - REGRA 4
+- Como especificar fonte de dados ao preencher a fila - REGRA 4
+
+**Resumo:**
 - **Sempre usar `QueueManager`** para gerenciar fila
 - **Acessar item atual via `GetTransaction.var_dictQueueItem`** no método `T2CProcess.execute()`
 - **Estrutura do item:**
@@ -124,27 +156,13 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
   {
       'id': int,
       'referencia': str,
-      'info_adicionais': dict,  # JSON parseado
+      'info_adicionais': dict,  # JSON parseado - FONTE ÚNICA DE DADOS
       'status': str,
       'obs': str
   }
   ```
 - **Adicionar itens:** Usar `QueueManager.insert_new_queue_item()` em `T2CInitAllApplications.add_to_queue()`
-  - Sempre fornecer `arg_strReferencia` (identificador único)
-  - Sempre fornecer `arg_dictInfAdicional` (dicionário com dados)
-- **Atualizar status corretamente:**
-  - `SUCESSO` - Processamento bem-sucedido
-  - `BUSINESS ERROR` - Erro de regra de negócio
-  - `APP ERROR` - Erro de sistema/aplicação
-- **Exemplo básico:**
-  ```python
-  from {{PROJECT_NAME}}.classes_t2c.framework.T2CGetTransaction import T2CGetTransaction as GetTransaction
-  from {{PROJECT_NAME}}.classes_t2c.queue.T2CQueueManager import T2CQueueManager as QueueManager
-  
-  var_dictItem = GetTransaction.var_dictQueueItem
-  var_strReferencia = var_dictItem['referencia']
-  var_dictInfoAdicional = var_dictItem['info_adicionais']
-  ```
+- **Status possíveis:** `SUCESSO`, `BUSINESS ERROR`, `APP ERROR`
 - **Ver PARTE 2 para detalhes completos de gerenciamento de fila**
 
 ### 8. Integrações
@@ -268,9 +286,14 @@ def execute(cls):
 
 ### 12. Inicialização e Finalização de Aplicações
 
+**⚠️ IMPORTANTE:** Antes de ler esta seção, consulte a **seção 12.5: 🚨 REGRAS CRÍTICAS DE ARQUITETURA DE EXECUÇÃO** para entender:
+- Ordem correta de execução (FILA antes de aplicações) - REGRA 1
+- Manipulação de arquivos em background - REGRA 2 e REGRA 5
+- Login e acesso inicial no INIT - REGRA 3
+
 **🚨 REGRA OBRIGATÓRIA - Sistemas que NÃO Precisam ser Inicializados:**
 
-**⚠️ CRÍTICO:** Os seguintes sistemas **NÃO DEVEM** ser inicializados no método `T2CInitAllApplications.execute()`. Eles são abertos diretamente pelos arquivos ou links, sem necessidade de inicialização prévia.
+**⚠️ CRÍTICO:** Os seguintes sistemas **NÃO DEVEM** ser inicializados no método `T2CInitAllApplications.execute()`. Eles são tratados diretamente em background, manipulando arquivos diretamente, sem necessidade de inicialização prévia ou abertura de aplicações. **Ver seção 12.5 - REGRA 2 e REGRA 5** para detalhes completos sobre manipulação de arquivos em background.
 
 **Sistemas que NÃO precisam de inicialização (SEM EXCEÇÃO):**
 
@@ -299,9 +322,11 @@ def execute(cls):
    - Editores de documentos online acessados via link
 
 **⚠️ REGRA DE OURO:**
-- Se o sistema é aberto **diretamente por arquivo ou link**, **NÃO inicializar** no INIT
+- Se o sistema manipula arquivos diretamente (sem necessidade de interface gráfica), **NÃO inicializar** no INIT
+- Arquivos devem ser lidos/manipulados em background usando bibliotecas Python (pandas, python-docx, etc.)
 - Apenas sistemas que precisam ser **abertos programaticamente** (navegadores, SAP, TOTVS, etc.) devem ser inicializados
 - **SEM EXCEÇÃO** - todos os sistemas similares seguem esta regra
+- **Ver seção 12.5 - REGRA 2 e REGRA 5** para detalhes completos sobre manipulação de arquivos em background
 
 **Inicialização de Sistemas que PRECISAM ser inicializados:**
 - **Navegadores:** Usar `InitAllSettings.initiate_web_manipulator()` para navegadores
@@ -319,6 +344,219 @@ def execute(cls):
 
 - **Ver PARTE 2 e PARTE 5 para exemplos completos**
 
+### 12.5. 🚨 REGRAS CRÍTICAS DE ARQUITETURA DE EXECUÇÃO
+
+**⚠️ EXTREMAMENTE IMPORTANTE - OBRIGATÓRIO:**
+
+Estas são regras fundamentais que definem a ordem e o comportamento correto de execução do framework. A LLM DEVE seguir estas regras rigorosamente ao criar especificações e código.
+
+#### REGRA 1: Fila Deve Ser Populada ANTES de Inicializar Aplicações
+
+**⚠️ OBRIGATÓRIO:** A fila DEVE ser preenchida ANTES de iniciar qualquer aplicação.
+
+**Ordem correta de execução no INIT:**
+1. **PRIMEIRO:** `add_to_queue()` - Preencher fila com todos os itens
+2. **DEPOIS:** `execute()` - Inicializar aplicações (navegadores, sistemas UI, etc.)
+
+**Por que isso é importante:**
+- Garante que todos os dados estejam disponíveis antes de abrir sistemas
+- Permite validação dos dados antes de consumir recursos de inicialização
+- Facilita tratamento de erros na fase de preparação de dados
+
+**Implementação no código:**
+```python
+@classmethod
+def execute(cls, arg_boolFirstRun=False):
+    # 1. PRIMEIRO: Preencher fila (se primeira execução)
+    if(arg_boolFirstRun):
+        cls.add_to_queue()  # ← SEMPRE ANTES de inicializar aplicações
+    
+    # 2. DEPOIS: Inicializar aplicações
+    for var_intTentativa in range(var_intMaxTentativas):
+        # {{INICIALIZACAO_APLICACOES}}
+```
+
+**❌ NÃO FAZER:**
+- ❌ Inicializar aplicações antes de preencher a fila
+- ❌ Preencher fila dentro do loop de inicialização de aplicações
+
+#### REGRA 2: Arquivos São Lidos em Background (NÃO São Abertos)
+
+**⚠️ OBRIGATÓRIO:** Arquivos (Excel, CSV, JSON, etc.) NÃO devem ser abertos através de aplicações. Eles devem ser lidos diretamente em background usando bibliotecas Python.
+
+**O que isso significa:**
+- **Excel/CSV:** Usar `pandas.read_excel()`, `pandas.read_csv()` - NÃO abrir Excel
+- **Word:** Usar bibliotecas como `python-docx` - NÃO abrir Word
+- **JSON:** Usar `json.load()` - NÃO abrir editor
+- **PDF:** Usar bibliotecas como `PyPDF2`, `pdfplumber` - NÃO abrir leitor de PDF
+
+**Exemplo correto:**
+```python
+# ✅ CORRETO: Ler Excel em background
+import pandas as pd
+df = pd.read_excel('dados.xlsx')  # Lê diretamente, sem abrir Excel
+
+# ✅ CORRETO: Ler CSV em background
+df = pd.read_csv('dados.csv')  # Lê diretamente, sem abrir aplicação
+
+# ✅ CORRETO: Ler JSON em background
+import json
+with open('dados.json', 'r') as f:
+    dados = json.load(f)  # Lê diretamente, sem abrir editor
+```
+
+**❌ NÃO FAZER:**
+- ❌ Abrir Excel, Word ou qualquer aplicação para ler arquivos
+- ❌ Usar seletores para interagir com aplicações de arquivos
+- ❌ Inicializar aplicações Office365 para ler arquivos
+
+**⚠️ IMPORTANTE:** Esta regra se aplica a TODOS os arquivos, não apenas Office365. Qualquer arquivo deve ser lido em background.
+
+#### REGRA 3: Login, Abertura e Acesso Inicial ao Sistema Principal DEVEM Estar no INIT
+
+**⚠️ OBRIGATÓRIO:** Qualquer etapa de abertura, login, acesso ou navegação inicial ao sistema principal (homepage, tela inicial) DEVE estar no INIT, NÃO no LOOP STATION.
+
+**O que vai no INIT:**
+- ✅ Abrir navegador e navegar para URL inicial
+- ✅ Realizar login no sistema
+- ✅ Navegar até a tela/homepage inicial do sistema
+- ✅ Validar que o sistema está pronto para processamento
+- ✅ Qualquer preparação inicial necessária antes do LOOP STATION
+
+**O que vai no LOOP STATION:**
+- ✅ Processar cada item da fila
+- ✅ Navegação entre telas durante o processamento
+- ✅ Ações específicas para cada item
+- ❌ NÃO fazer login (já feito no INIT)
+- ❌ NÃO navegar para homepage inicial (já feito no INIT)
+
+**Exemplo correto:**
+```python
+# INIT (T2CInitAllApplications.execute)
+# ✅ CORRETO: Login e navegação inicial no INIT
+InitAllSettings.initiate_web_manipulator(...)
+InitAllSettings.var_botWebbot.navigate_to("https://sistema.com")
+cc.find_element(locator.login.campo_usuario).set_text(usuario)
+cc.find_element(locator.login.campo_senha).set_text(senha)
+cc.find_element(locator.login.botao_entrar).click()
+# Validar que chegou na homepage/tela inicial
+cc.wait_for_element(locator.homepage.menu_principal)
+
+# LOOP STATION (T2CProcess.execute)
+# ✅ CORRETO: Apenas processar itens (sistema já está logado)
+var_dictItem = GetTransaction.var_dictQueueItem
+# Processar item usando sistema já logado
+```
+
+**❌ NÃO FAZER:**
+- ❌ Fazer login no LOOP STATION (deve estar no INIT)
+- ❌ Navegar para homepage no LOOP STATION (deve estar no INIT)
+- ❌ Abrir navegador no LOOP STATION (deve estar no INIT)
+
+**⚠️ REGRA DE OURO:** O sistema deve estar completamente pronto (logado, na tela inicial) ANTES de entrar no LOOP STATION. O LOOP STATION apenas processa itens, não prepara o ambiente.
+
+#### REGRA 4: Fila como Fonte Única - Especificar Fonte de Dados ao Preencher
+
+**⚠️ OBRIGATÓRIO:** Ao preencher a fila, é necessário especificar qual a fonte de dados. A partir do momento que a fila é preenchida, qualquer outra fonte de informação não é necessária - apenas o item da fila.
+
+**Ao preencher a fila (`add_to_queue()`):**
+- ✅ **Especificar a fonte de dados:** Excel, CSV, API, Banco de Dados, etc.
+- ✅ **Ler TODOS os dados necessários** da fonte
+- ✅ **Fazer conciliações, validações, cálculos** se necessário
+- ✅ **Criar itens na fila** com TODOS os dados necessários para processamento
+- ✅ **Documentar no spec.md** qual é a fonte de dados
+
+**No LOOP STATION (`execute()`):**
+- ✅ **Usar APENAS** os dados do item da fila (`info_adicionais`)
+- ✅ **NÃO ler** Excel, CSV, arquivos externos
+- ✅ **NÃO fazer** conciliações complexas (já feitas na FILA)
+- ✅ **NÃO consultar** outras fontes de dados (exceto sistemas para processamento)
+
+**Exemplo correto:**
+```python
+# FILA (add_to_queue) - Especificar fonte e preparar dados
+@classmethod
+def add_to_queue(cls):
+    # ✅ CORRETO: Especificar fonte de dados
+    # Fonte: Arquivo Excel 'dados.xlsx'
+    import pandas as pd
+    df = pd.read_excel('dados.xlsx')  # Ler fonte
+    
+    # Preparar dados (conciliações, validações)
+    for index, row in df.iterrows():
+        # Criar item com TODOS os dados necessários
+        QueueManager.insert_new_queue_item(
+            arg_strReferencia=str(row['ID']),
+            arg_dictInfAdicional={
+                'cpf': str(row['CPF']),
+                'nome': str(row['Nome']),
+                'valor': float(row['Valor']),
+                # TODOS os dados necessários para processamento
+            }
+        )
+
+# LOOP STATION (execute) - Usar APENAS dados da fila
+@classmethod
+def execute(cls):
+    var_dictItem = GetTransaction.var_dictQueueItem
+    var_dictInfo = var_dictItem['info_adicionais']
+    
+    # ✅ CORRETO: Usar APENAS dados da fila
+    cpf = var_dictInfo['cpf']  # Já está na fila
+    nome = var_dictInfo['nome']  # Já está na fila
+    valor = var_dictInfo['valor']  # Já está na fila
+    
+    # ❌ INCORRETO: Ler Excel novamente
+    # df = pd.read_excel('dados.xlsx')  # NÃO FAZER ISSO!
+```
+
+**⚠️ PRINCÍPIO FUNDAMENTAL:** A fila é a fonte única de dados durante o LOOP STATION. Tudo que é necessário para processar um item deve estar no `info_adicionais` do item da fila.
+
+#### REGRA 5: Office365 e Sistemas de Arquivos São Tratados em Background
+
+**⚠️ OBRIGATÓRIO:** Excel, Word, Drive, Office365 ou qualquer outro sistema de arquivos NÃO deve ser INICIALIZADO ou ABERTO. Eles são tratados diretamente em background, manipulando os arquivos diretamente.
+
+**Sistemas que NÃO devem ser inicializados/abertos:**
+- **Office365:** Excel, Word, PowerPoint, Outlook, OneNote, Access, etc.
+- **Google Workspace:** Google Docs, Google Sheets, Google Slides, Google Drive
+- **OneDrive:** Acesso via link ou arquivo
+- **Outros sistemas de arquivos:** Qualquer sistema que manipula arquivos diretamente
+
+**Como tratar em background:**
+- **Excel:** Usar `pandas.read_excel()`, `openpyxl` - manipular arquivo diretamente
+- **Word:** Usar `python-docx` - manipular arquivo diretamente
+- **CSV:** Usar `pandas.read_csv()` - manipular arquivo diretamente
+- **JSON:** Usar `json.load()`, `json.dump()` - manipular arquivo diretamente
+- **PDF:** Usar `PyPDF2`, `pdfplumber` - manipular arquivo diretamente
+
+**Exemplo correto:**
+```python
+# ✅ CORRETO: Manipular Excel em background
+import pandas as pd
+df = pd.read_excel('dados.xlsx')  # Lê sem abrir Excel
+df['novo_campo'] = df['campo1'] + df['campo2']  # Manipula dados
+df.to_excel('resultado.xlsx', index=False)  # Salva sem abrir Excel
+
+# ✅ CORRETO: Manipular Word em background
+from docx import Document
+doc = Document('documento.docx')  # Abre sem abrir Word
+doc.add_paragraph('Novo parágrafo')  # Manipula documento
+doc.save('documento_atualizado.docx')  # Salva sem abrir Word
+
+# ✅ CORRETO: Ler CSV em background
+df = pd.read_csv('dados.csv')  # Lê sem abrir aplicação
+```
+
+**❌ NÃO FAZER:**
+- ❌ Inicializar Excel no INIT (`T2CInitAllApplications.execute()`)
+- ❌ Abrir Word para ler/escrever documentos
+- ❌ Usar seletores para interagir com Office365
+- ❌ Abrir aplicações para manipular arquivos
+
+**⚠️ REGRA DE OURO:** Se o sistema manipula arquivos diretamente (sem necessidade de interface gráfica), ele deve ser tratado em background usando bibliotecas Python, NÃO inicializado ou aberto como aplicação.
+
+**⚠️ IMPORTANTE:** Esta regra se aplica a TODOS os sistemas de arquivos, não apenas Office365. Qualquer sistema que pode ser manipulado em background deve seguir esta regra.
+
 ### 13. Arquitetura de Robôs - Decisão e Estruturação
 
 **⚠️ DECISÃO CRÍTICA:** Durante a análise do DDP (ao executar `/t2c.extract-ddp` e preencher as specs), a LLM DEVE decidir se o processo será:
@@ -333,49 +571,73 @@ def execute(cls):
 
 #### 📖 LEITURA E ANÁLISE CUIDADOSA DO DDP - OBRIGATÓRIO
 
-**⚠️ CRÍTICO - ANTES DE QUALQUER DECISÃO DE ARQUITETURA:**
+**🚨 REGRA FUNDAMENTAL - SEM ISSO TUDO ESTARÁ ERRADO:**
 
-A LLM DEVE ler o DDP com **ATENÇÃO TOTAL** e **NÃO DEIXAR PASSAR NENHUMA ETAPA OU REGRA** mapeada no documento.
+**⚠️ EXTREMAMENTE CRÍTICO - ANTES DE QUALQUER DECISÃO DE ARQUITETURA:**
 
-**Checklist obrigatório de leitura do DDP:**
+A leitura cuidadosa e completa do DDP é a BASE FUNDAMENTAL de todo o trabalho. Se a LLM não ler o DDP com atenção total e não considerar TUDO que está mapeado, TODAS as especificações estarão incorretas e o processo não funcionará.
 
-1. **Leitura Completa e Detalhada:**
-   - [ ] Ler o DDP **COMPLETO** do início ao fim, sem pular seções
-   - [ ] Identificar **TODAS as etapas** do processo (INIT, FILA, LOOP STATION, END PROCESS)
-   - [ ] Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
-   - [ ] Identificar **TODOS os sistemas** envolvidos (APIs, UI, bancos de dados, Verifai, etc.)
-   - [ ] Identificar **TODAS as integrações** necessárias
-   - [ ] Identificar **TODAS as exceções** mapeadas
+**A LLM DEVE ler o DDP com ATENÇÃO TOTAL e NÃO DEIXAR PASSAR NENHUMA ETAPA, REGRA, SISTEMA OU EXCEÇÃO mapeada no documento.**
 
-2. **Mapeamento Completo:**
-   - [ ] Contar **TODAS as etapas** do LOOP STATION (não estimar, contar exatamente)
-   - [ ] Identificar **TODAS as exceções de negócio** (EXC001, EXC002, etc.) - incluindo validações, condições especiais e regras de processamento
-   - [ ] Identificar **TODOS os sistemas** mencionados (SAP, TOTVS, APIs, Verifai, etc.)
+**⚠️ PROCESSO OBRIGATÓRIO DE LEITURA:**
 
-3. **Verificação de Completude:**
-   - [ ] Verificar se **TODAS as etapas** do DDP foram contempladas na arquitetura
-   - [ ] Verificar se **TODAS as exceções de negócio** do DDP foram mapeadas nas business-rules.md
-   - [ ] Verificar se **TODOS os sistemas** foram identificados no spec.md
-   - [ ] Verificar se **TODAS as integrações** foram consideradas
-   - [ ] Verificar se **TODAS as exceções** foram mapeadas
+**PASSO 1 - Leitura Completa (OBRIGATÓRIO):**
+- [ ] Ler o DDP **COMPLETO** do início ao fim, **palavra por palavra**
+- [ ] **NÃO pular NENHUMA seção** - mesmo que pareça irrelevante
+- [ ] **NÃO fazer suposições** - se algo não está claro, revisar o DDP
+- [ ] Ler **múltiplas vezes** se necessário para garantir compreensão completa
+- [ ] Identificar **TODAS as etapas** do processo (INIT, FILA, LOOP STATION, END PROCESS)
+- [ ] Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
+- [ ] Identificar **TODOS os sistemas** envolvidos (APIs, UI, bancos de dados, Verifai, etc.)
+- [ ] Identificar **TODAS as integrações** necessárias
+- [ ] Identificar **TODAS as exceções** mapeadas
 
-4. **Arquitetura Deve Contemplar Tudo:**
-   - [ ] A arquitetura proposta **DEVE contemplar TODAS as etapas** do DDP
-   - [ ] A arquitetura proposta **DEVE contemplar TODAS as exceções de negócio** do DDP
-   - [ ] A arquitetura proposta **DEVE contemplar TODOS os sistemas** do DDP
-   - [ ] Se alguma etapa/exceção/sistema não foi contemplado → **REVISAR A ARQUITETURA**
+**PASSO 2 - Mapeamento Completo (OBRIGATÓRIO):**
+- [ ] Criar uma lista escrita de **TODAS as etapas** identificadas
+- [ ] Criar uma lista escrita de **TODAS as exceções de negócio** identificadas (EXC001, EXC002, etc.)
+- [ ] Criar uma lista escrita de **TODOS os sistemas** identificados
+- [ ] Criar uma lista escrita de **TODAS as integrações** identificadas
+- [ ] **Contar EXATAMENTE** todas as etapas do LOOP STATION (não estimar, contar uma por uma)
+- [ ] Garantir que **NENHUMA informação** foi perdida
+
+**PASSO 3 - Verificação de Completude (OBRIGATÓRIO):**
+- [ ] Verificar se **TODAS as etapas** do DDP foram contempladas na arquitetura
+- [ ] Verificar se **TODAS as exceções de negócio** do DDP foram mapeadas nas business-rules.md
+- [ ] Verificar se **TODOS os sistemas** foram identificados no spec.md
+- [ ] Verificar se **TODAS as integrações** foram consideradas
+- [ ] Verificar se **TODAS as exceções** foram mapeadas
+- [ ] Verificar se **TODAS as etapas do LOOP STATION** foram contadas e estão no spec.md
+
+**PASSO 4 - Arquitetura Deve Contemplar Tudo (OBRIGATÓRIO):**
+- [ ] A arquitetura proposta **DEVE contemplar TODAS as etapas** do DDP
+- [ ] A arquitetura proposta **DEVE contemplar TODAS as exceções de negócio** do DDP
+- [ ] A arquitetura proposta **DEVE contemplar TODOS os sistemas** do DDP
+- [ ] A arquitetura proposta **DEVE contemplar TODAS as integrações** do DDP
+- [ ] Se alguma etapa/exceção/sistema/integração não foi contemplado → **REVISAR A ARQUITETURA** e **REVISAR O DDP**
 
 **⚠️ REGRA DE OURO:** 
-- **NENHUMA etapa, regra ou sistema do DDP pode ser ignorada ou esquecida**
+- **NENHUMA etapa, regra, sistema ou exceção do DDP pode ser ignorada ou esquecida**
 - Se o DDP menciona algo, **DEVE** estar contemplado na arquitetura e nas specs
 - Se houver dúvida se algo foi contemplado, **REVISAR** o DDP novamente
 - A arquitetura final **DEVE** ser capaz de executar **TODAS as etapas** mapeadas no DDP
+- **Se não está contemplado, REVISAR o DDP antes de criar os arquivos**
 
 **⚠️ ATENÇÃO ESPECIAL:**
 - Ler **palavra por palavra** seções críticas (LOOP STATION, exceções de negócio)
-- Não fazer suposições - se algo não está claro no DDP, **NÃO inventar**, mas garantir que está contemplado
+- **NÃO fazer suposições** - se algo não está claro no DDP, **NÃO inventar**, mas garantir que está contemplado
 - Se o DDP menciona múltiplas etapas em sequência, **TODAS** devem estar no spec.md
 - Se o DDP menciona exceções de negócio (validações, condições especiais, regras de processamento), **TODAS** devem estar no business-rules.md como exceções (EXC*)
+- **NÃO pular etapas** mesmo que pareçam simples ou óbvias
+- **NÃO assumir** que algo não é necessário - se está no DDP, está lá por um motivo
+
+**⚠️ CONSEQUÊNCIAS DE NÃO SEGUIR ESTA REGRA:**
+- ❌ Etapas serão esquecidas nas especificações
+- ❌ Sistemas não serão identificados
+- ❌ Exceções de negócio não serão mapeadas
+- ❌ Arquitetura estará incompleta
+- ❌ Especificações estarão incorretas
+- ❌ Código gerado não funcionará corretamente
+- ❌ Processo não executará todas as etapas necessárias
 
 #### 🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO - VERIFICAR PRIMEIRO
 
@@ -939,33 +1201,35 @@ specs/001-[nome]/
 
 **PRIMEIRO, ANTES DE QUALQUER OUTRA AÇÃO, a LLM DEVE:**
 
-1. **Ler o DDP com ATENÇÃO TOTAL** (ver seção "📖 LEITURA E ANÁLISE CUIDADOSA DO DDP" acima)
-   - Ler o DDP **COMPLETO** do início ao fim
+1. **Seguir o processo completo da seção "📖 LEITURA E ANÁLISE CUIDADOSA DO DDP" acima**
+   - Isso inclui ler o DDP **COMPLETO** do início ao fim, **palavra por palavra**
    - Identificar **TODAS as etapas** (INIT, FILA, LOOP STATION, END PROCESS)
-   - Identificar **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
+   - Identificar **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento)
    - Identificar **TODOS os sistemas** (APIs, UI, Verifai, etc.)
-   - Identificar **TODAS as integrações** e **TODAS as exceções**
-   - **Contar exatamente** todas as etapas do LOOP STATION (não estimar)
-
-2. **Mapear completamente o DDP:**
-   - Criar uma lista mental ou escrita de **TODAS as etapas** identificadas
-   - Criar uma lista de **TODAS as exceções de negócio** identificadas
-   - Criar uma lista de **TODOS os sistemas** identificados
-   - Garantir que **NENHUMA informação** foi perdida
+   - Identificar **TODAS as integrações** necessárias
+   - **Contar EXATAMENTE** todas as etapas do LOOP STATION (não estimar, contar uma por uma)
+   - **Criar listas escritas** de TODAS as etapas, exceções, sistemas e integrações identificadas
+   - **⚠️ CRÍTICO:** Estas listas escritas serão usadas nos passos seguintes para decidir a arquitetura. Sem elas, a decisão estará baseada em informações incompletas.
 
 **⚠️ PASSO 1 - OBRIGATÓRIO: Verificar Regras Obrigatórias de Separação**
 
-**APÓS ler o DDP completamente, a LLM DEVE:**
+**APÓS ler o DDP completamente e criar as listas escritas, a LLM DEVE:**
 
 1. **Ler a seção "🚨 REGRAS OBRIGATÓRIAS DE SEPARAÇÃO" acima**
-2. **Aplicar os checklists binários das 5 regras obrigatórias:**
+2. **Usar as listas criadas no PASSO 0 para verificar as regras obrigatórias:**
+   - **Lista de sistemas** → verificar REGRA OBRIGATÓRIA 2 (Sistemas Diferentes com LOOP Extenso)
+   - **Lista de etapas** → verificar REGRA OBRIGATÓRIA 1 (LOOP STATION + Processamento Subsequente)
+   - **Lista de etapas** → verificar REGRA OBRIGATÓRIA 3 (Preparação Complexa + Execução Simples)
+   - **Lista de sistemas** → verificar REGRA OBRIGATÓRIA 4 (Preferência de API sobre Telas)
+   - **Lista de sistemas/integrações** → verificar REGRA OBRIGATÓRIA 5 (Extração de Documentos com Verifai)
+3. **Aplicar os checklists binários das 5 regras obrigatórias:**
    - REGRA OBRIGATÓRIA 1: LOOP STATION + Processamento Subsequente
    - REGRA OBRIGATÓRIA 2: Sistemas Diferentes com LOOP Extenso
    - REGRA OBRIGATÓRIA 3: Preparação Complexa + Execução Simples
    - **REGRA OBRIGATÓRIA 4: Preferência de API sobre Telas** ⚠️ OBRIGATÓRIA
    - **REGRA OBRIGATÓRIA 5: Extração de Documentos com Verifai** ⚠️ CRÍTICA
-3. **Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO**
-4. **Se NENHUMA regra obrigatória se aplicar → seguir para análise contextual abaixo**
+4. **Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO**
+5. **Se NENHUMA regra obrigatória se aplicar → seguir para análise contextual abaixo**
 
 **⚠️ CRÍTICO:** Se o processo se enquadrar em uma regra obrigatória, a LLM NÃO deve fazer análise contextual. Deve separar imediatamente e criar a estrutura de múltiplos robôs.
 
@@ -982,18 +1246,23 @@ specs/001-[nome]/
 
 **PASSO 2 - Análise Contextual (Apenas se NENHUMA regra obrigatória se aplicou):**
 
-**⚠️ ANTES de fazer a análise contextual, verificar novamente:**
-- [ ] **TODAS as etapas** do DDP foram identificadas?
-- [ ] **TODAS as exceções de negócio** do DDP foram identificadas?
-- [ ] **TODOS os sistemas** do DDP foram identificados?
-- [ ] Se alguma coisa foi esquecida → **REVISAR o DDP** antes de continuar
+**⚠️ USAR AS LISTAS CRIADAS NO PASSO 0 (seção de leitura cuidadosa do DDP):**
 
-Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os seguintes aspectos:
+A análise contextual **DEVE ser baseada nas listas escritas** criadas durante a leitura cuidadosa do DDP. Não fazer suposições - usar os dados reais das listas.
+
+**⚠️ ANTES de fazer a análise contextual, verificar novamente:**
+- [ ] As listas escritas do PASSO 0 estão completas?
+- [ ] **TODAS as etapas** do DDP foram identificadas nas listas?
+- [ ] **TODAS as exceções de negócio** do DDP foram identificadas nas listas?
+- [ ] **TODOS os sistemas** do DDP foram identificados nas listas?
+- [ ] Se alguma coisa foi esquecida → **REVISAR o DDP** e **ATUALIZAR as listas** antes de continuar
+
+Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as listas criadas** e considerando os seguintes aspectos:
 
 **1. Análise de Complexidade do LOOP STATION:**
-   - Quantas etapas o LOOP STATION possui? (contar etapas do DDP)
-   - Quantas exceções de negócio estão envolvidas? (EXC* - validações, condições especiais, regras de processamento)
-   - Quantas integrações diferentes são necessárias? (sistemas UI, APIs, bancos de dados)
+   - **Usar a lista de etapas criada:** Quantas etapas o LOOP STATION possui? (número exato da lista, não estimar)
+   - **Usar a lista de exceções criada:** Quantas exceções de negócio estão envolvidas? (número exato da lista - EXC* - validações, condições especiais, regras de processamento)
+   - **Usar a lista de sistemas/integrações criada:** Quantas integrações diferentes são necessárias? (número exato da lista - sistemas UI, APIs, bancos de dados)
    - A complexidade é gerenciável em um único robô ou seria mais organizado dividir?
    - Existem fases logicamente distintas que poderiam ser separadas?
 
@@ -1005,9 +1274,9 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual considerando os s
    - A preparação poderia ser feita de forma independente e assíncrona?
 
 **3. Análise de Separação Lógica e Responsabilidades:**
-   - O processo tem fases com responsabilidades claramente distintas?
-   - Um robô prepararia dados enquanto outro executaria ações em sistemas diferentes?
-   - A separação por sistema traria benefícios claros (manutenção, testes, evolução independente)?
+   - **Usar a lista de sistemas criada:** O processo tem fases com responsabilidades claramente distintas? (verificar sistemas diferentes na lista)
+   - **Usar a lista de etapas criada:** Um robô prepararia dados enquanto outro executaria ações em sistemas diferentes? (verificar etapas de preparação vs. execução)
+   - **Usar a lista de sistemas criada:** A separação por sistema traria benefícios claros? (verificar quantos sistemas diferentes estão na lista)
    - As etapas estão fortemente acopladas ou podem ser separadas sem criar dependências complexas?
 
 **4. Análise de Benefícios de Organização e Manutenção:**
@@ -1402,9 +1671,11 @@ O Framework T2C é uma estrutura completa para automação de processos (RPA) ba
 │             1. INICIALIZAÇÃO (Initialization)               │
 │  - Carrega configurações (Config.xlsx)                      │
 │  - Conecta com Maestro/Tracker                              │
-│  - Inicializa aplicações (InitAllApplications)              │
-│  - Preenche fila (add_to_queue)                             │
+│  - Preenche fila (add_to_queue) ← PRIMEIRO                  │
+│  - Inicializa aplicações (InitAllApplications) ← DEPOIS     │
 │  - Envia e-mail inicial                                     │
+│                                                             │
+│  ⚠️ IMPORTANTE: Ver seção 12.5 - REGRA 1 para ordem correta│
 └───────────────────────────┬───────────────────────────────────┘
                             │
                             ▼
@@ -1574,6 +1845,11 @@ var_intMaxTentativas = InitAllSettings.var_dictConfig["MaxRetryNumber"]
 
 ### Gerenciamento de Fila
 
+**⚠️ IMPORTANTE:** Ver **seção 12.5 - REGRA 1 e REGRA 4** para entender:
+- Ordem correta de execução (FILA antes de aplicações) - REGRA 1
+- Princípio de fila como fonte única de dados - REGRA 4
+- Como especificar fonte de dados ao preencher a fila - REGRA 4
+
 #### Estrutura da Tabela de Fila
 
 O framework espera uma tabela SQLite com a seguinte estrutura:
@@ -1647,7 +1923,7 @@ except Exception as err:
 
 **⚠️ IMPORTANTE - Sistemas que NÃO Precisam ser Inicializados:**
 
-**NÃO inicializar no INIT:** Office365 (Excel, Word, PowerPoint, etc.), Google Workspace (Google Docs, Sheets, etc.), OneDrive e sistemas similares que são abertos diretamente por arquivo ou link. Ver seção 12 para regra completa e detalhada.
+**NÃO inicializar no INIT:** Office365 (Excel, Word, PowerPoint, etc.), Google Workspace (Google Docs, Sheets, etc.), OneDrive e sistemas similares que são tratados em background. Ver seção 12.5 - REGRA 2 e REGRA 5 para regra completa e detalhada.
 
 #### Inicializar Navegador Web
 
@@ -2662,8 +2938,8 @@ Podemos nos deparar com situações em que será necessário executar a mesma au
 
 - [ ] Li e entendi todas as especificações do framework
 - [ ] Verifiquei `config/base.md` para integrações
-- [ ] Verifiquei `selectors/selectors.md` para seletores
-- [ ] Verifiquei `business-rules/business-rules.md` para exceções de negócio
+- [ ] Verifiquei `selectors.md` para seletores
+- [ ] Verifiquei `business-rules.md` para exceções de negócio
 - [ ] Identifiquei os pontos de entrada necessários
 - [ ] **⚠️ CRÍTICO:** Entendi que devo gerar código SIMPLES e DIRETO, sem validações/tratativas desnecessárias
 - [ ] **⚠️ CRÍTICO:** Entendi que apenas devo aplicar exceções mapeadas no business-rules.md

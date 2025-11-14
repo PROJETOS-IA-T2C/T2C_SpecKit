@@ -340,6 +340,53 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 /t2c.extract-ddp specs/001-automacao-exemplo/DDP/ddp.pptx
 \`\`\`
 
+## 🚨 REGRA FUNDAMENTAL - LEITURA CUIDADOSA DO DDP
+
+**⚠️ EXTREMAMENTE CRÍTICO - SEM ISSO TUDO ESTARÁ ERRADO:**
+
+**ANTES DE QUALQUER OUTRA AÇÃO, a LLM DEVE:**
+
+1. **⚠️ OBRIGATÓRIO: Ler o DDP com ATENÇÃO TOTAL** (localizado em `specs/001-[nome]/DDP/ddp.pptx` ou caminho fornecido)
+   - Ler o DDP **COMPLETO** do início ao fim, **palavra por palavra**
+   - **NÃO pular NENHUMA seção** - mesmo que pareça irrelevante
+   - **NÃO fazer suposições** - se algo não está claro, revisar o DDP
+   - Ler **múltiplas vezes** se necessário para garantir compreensão completa
+   - **Identificar TUDO** que está mapeado no DDP
+
+2. **⚠️ OBRIGATÓRIO: Mapear COMPLETAMENTE o DDP:**
+   - Criar uma lista de **TODAS as etapas** identificadas (INIT, FILA, LOOP STATION, END PROCESS)
+   - Criar uma lista de **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento)
+   - Criar uma lista de **TODOS os sistemas** mencionados (SAP, TOTVS, APIs, Verifai, etc.)
+   - Criar uma lista de **TODAS as integrações** necessárias
+   - **Contar EXATAMENTE** todas as etapas do LOOP STATION (não estimar, contar uma por uma)
+   - Garantir que **NENHUMA informação** foi perdida
+
+3. **⚠️ OBRIGATÓRIO: Verificar COMPLETUDE antes de criar arquivos:**
+   - [ ] **TODAS as etapas** do DDP foram identificadas?
+   - [ ] **TODAS as exceções de negócio** do DDP foram identificadas?
+   - [ ] **TODOS os sistemas** do DDP foram identificados?
+   - [ ] **TODAS as integrações** foram identificadas?
+   - [ ] **TODAS as etapas do LOOP STATION** foram contadas exatamente?
+   - Se alguma coisa foi esquecida → **REVISAR o DDP** antes de continuar
+
+**⚠️ CONSEQUÊNCIAS DE NÃO SEGUIR ESTA REGRA:**
+- ❌ Etapas serão esquecidas nas especificações
+- ❌ Sistemas não serão identificados
+- ❌ Exceções de negócio não serão mapeadas
+- ❌ Arquitetura estará incompleta
+- ❌ Especificações estarão incorretas
+- ❌ Código gerado não funcionará corretamente
+
+**⚠️ REGRA DE OURO:**
+- **Se o DDP menciona algo, DEVE estar contemplado nas especificações**
+- **Se não está contemplado, REVISAR o DDP novamente**
+- **NENHUMA informação do DDP pode ser ignorada ou esquecida**
+- **A arquitetura final DEVE ser capaz de executar TODAS as etapas mapeadas no DDP**
+
+**👉 Ver `@constitution.md` seção "📖 LEITURA E ANÁLISE CUIDADOSA DO DDP - OBRIGATÓRIO" para checklist completo.**
+
+---
+
 ## ⚠️ REGRA ABSOLUTA - LEIA ANTES DE QUALQUER AÇÃO
 
 **VOCÊ NÃO DEVE CRIAR NENHUM SCRIPT PYTHON. NUNCA. EM NENHUMA CIRCUNSTÂNCIA.**
@@ -372,37 +419,46 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 
 **PASSO 2 - Se o comando funcionar:**
 
-1. **⚠️ OBRIGATÓRIO: Leia o DDP com ATENÇÃO TOTAL**
-   - Leia o texto extraído que será exibido no output **COMPLETO** do início ao fim
-   - **NÃO DEIXE PASSAR NENHUMA ETAPA OU REGRA** mapeada no DDP
+1. **🚨 REGRA FUNDAMENTAL - Leia o DDP com ATENÇÃO TOTAL (OBRIGATÓRIO):**
+   - Leia o texto extraído que será exibido no output **COMPLETO** do início ao fim, **palavra por palavra**
+   - **NÃO pular NENHUMA seção** - mesmo que pareça irrelevante
+   - **NÃO fazer suposições** - se algo não está claro, revisar o DDP
+   - Ler **múltiplas vezes** se necessário para garantir compreensão completa
+   - **NÃO DEIXE PASSAR NENHUMA ETAPA, REGRA, SISTEMA OU EXCEÇÃO** mapeada no DDP
    - Identifique **TODAS as etapas** (INIT, FILA, LOOP STATION, END PROCESS)
-   - Identifique **TODAS as exceções de negócio** (EXC* - tudo que pode gerar uma exceção ou regra específica)
+   - Identifique **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento - tudo que pode gerar uma exceção ou regra específica)
    - Identifique **TODOS os sistemas** (APIs, UI, Verifai, etc.)
-   - **Conte exatamente** todas as etapas do LOOP STATION (não estime)
-   - Crie uma lista mental ou escrita de **TODAS as informações** identificadas
+   - Identifique **TODAS as integrações** necessárias
+   - **Conte EXATAMENTE** todas as etapas do LOOP STATION (não estime, conte uma por uma)
+   - Crie uma lista **ESCRITA** de **TODAS as informações** identificadas (etapas, exceções, sistemas, integrações)
+   - Garantir que **NENHUMA informação** foi perdida
 
-2. **⚠️ OBRIGATÓRIO: Consulte o `@constitution.md`** (localizado em `.specify/memory/constitution.md`) antes de criar qualquer arquivo
-   - **PRIMEIRO:** Leia a **seção 0: 🚨 REGRA CRÍTICA - SEGUIR ESTRUTURA DOS TEMPLATES EXATAMENTE** - Esta é EXTREMAMENTE IMPORTANTE
-   - **SEGUNDO:** Leia especialmente a **PARTE 1.5: Arquitetura de Robôs** (ou seção 13) para decisão de arquitetura
-   - Leia a seção **"📖 LEITURA E ANÁLISE CUIDADOSA DO DDP"** e siga o checklist obrigatório
+2. **⚠️ OBRIGATÓRIO: Consulte o `@constitution.md`** (localizado em `src/rpa_speckit/memory/constitution.md`) antes de criar qualquer arquivo
+   - **PRIMEIRO:** Leia a **seção "🚨 REGRA FUNDAMENTAL - LEITURA CUIDADOSA DO DDP"** no início do documento - Esta é EXTREMAMENTE CRÍTICA
+   - **SEGUNDO:** Leia a **seção 0: 🚨 REGRA CRÍTICA - SEGUIR ESTRUTURA DOS TEMPLATES EXATAMENTE** - Esta é EXTREMAMENTE IMPORTANTE
+   - **TERCEIRO:** Leia especialmente a **PARTE 1.5: Arquitetura de Robôs** (ou seção 13) para decisão de arquitetura
+   - Leia a seção **"📖 LEITURA E ANÁLISE CUIDADOSA DO DDP - OBRIGATÓRIO"** e siga o checklist obrigatório COMPLETO
    - Verifique as **REGRAS OBRIGATÓRIAS DE SEPARAÇÃO** primeiro
    - Se QUALQUER regra obrigatória se aplicar → SEPARAR É OBRIGATÓRIO
 
 3. **Decida a arquitetura** baseado nas regras do `constitution.md`:
    - **Standalone**: Criar `spec.md` na raiz de `specs/001-[nome]/`
    - **Múltiplos robôs**: Criar estrutura `robot1/`, `robot2/`, `robot3/` (ou quantos forem necessários) com seus respectivos `spec.md`
+   - **NÃO HÁ LIMITE** - criar quantos robôs forem necessários para organizar o processo adequadamente
 
-4. **⚠️ VERIFICAÇÃO FINAL OBRIGATÓRIA - ANTES DE CRIAR OS ARQUIVOS:**
-   - [ ] **TODAS as etapas** do DDP estão contempladas na arquitetura?
-   - [ ] **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento) estão mapeadas no business-rules.md?
-   - [ ] **TODOS os sistemas** mencionados no DDP estão contemplados?
-   - [ ] **TODAS as integrações** necessárias estão consideradas?
-   - [ ] **TODAS as exceções** mapeadas no DDP estão contempladas?
-   - [ ] **TODAS as etapas do LOOP STATION** foram contadas e estão no spec.md?
-   - Se alguma coisa do DDP não foi contemplada → **REVISAR o DDP** e **CORRIGIR** antes de criar os arquivos
+4. **🚨 VERIFICAÇÃO FINAL OBRIGATÓRIA - ANTES DE CRIAR OS ARQUIVOS:**
+   - [ ] **TODAS as etapas** do DDP foram identificadas e estão contempladas na arquitetura?
+   - [ ] **TODAS as exceções de negócio** (EXC* - validações, condições especiais, regras de processamento) do DDP foram identificadas e estão mapeadas no business-rules.md?
+   - [ ] **TODOS os sistemas** mencionados no DDP foram identificados e estão contemplados?
+   - [ ] **TODAS as integrações** necessárias foram identificadas e estão consideradas?
+   - [ ] **TODAS as exceções** mapeadas no DDP foram identificadas e estão contempladas?
+   - [ ] **TODAS as etapas do LOOP STATION** foram contadas EXATAMENTE (não estimadas) e estão no spec.md?
+   - [ ] **NENHUMA informação** do DDP foi esquecida ou ignorada?
+   - Se **QUALQUER coisa** do DDP não foi contemplada → **REVISAR o DDP COMPLETO novamente** e **CORRIGIR** antes de criar os arquivos
+   - **REGRA DE OURO:** Se o DDP menciona algo, DEVE estar contemplado nas especificações
 
 5. Crie ou atualize os arquivos de especificação baseado na decisão de arquitetura
-6. Preencha cada arquivo baseado no conteúdo do DDP, garantindo que **TODAS as etapas e regras** estejam contempladas
+6. Preencha cada arquivo baseado no conteúdo do DDP, garantindo que **TODAS as etapas, TODAS as exceções, TODOS os sistemas e TODAS as regras** estejam contempladas
 
 ## Arquivos a preencher
 
@@ -513,9 +569,11 @@ Ao criar ou atualizar qualquer arquivo de especificação (especialmente `spec.m
 
 ## Lembre-se
 
-- **SEMPRE consulte o `@constitution.md`** antes de criar os arquivos para seguir as regras de arquitetura
+- **🚨 REGRA FUNDAMENTAL:** **SEMPRE leia o DDP com ATENÇÃO TOTAL** - palavra por palavra, do início ao fim. **NÃO DEIXE PASSAR NENHUMA ETAPA, REGRA, SISTEMA OU EXCEÇÃO**. Se algo do DDP não for contemplado, **TODAS as especificações estarão incorretas**.
+- **SEMPRE consulte o `@constitution.md`** antes de criar os arquivos para seguir as regras de arquitetura, especialmente a seção "🚨 REGRA FUNDAMENTAL - LEITURA CUIDADOSA DO DDP"
 - **SEMPRE consulte o template correspondente** (ex: `@spec-template.md`) ANTES de criar qualquer arquivo
 - **SEMPRE replique a estrutura EXATAMENTE** como está no template
+- **SEMPRE verifique** que **TODAS as etapas, TODAS as exceções, TODOS os sistemas e TODAS as regras** do DDP estão contempladas antes de criar os arquivos
 - O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto
 - Você apenas precisa EXECUTÁ-LO, não criá-lo
 - Use os templates em \`.specify/templates/\` como referência para a estrutura
