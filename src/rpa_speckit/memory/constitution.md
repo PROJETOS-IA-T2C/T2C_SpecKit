@@ -51,21 +51,37 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 ### 2. Tratamento de Erros
 
-**⚠️ IMPORTANTE:** O framework JÁ gerencia tratamento de erros automaticamente. A LLM deve gerar código simples e direto, sem adicionar validações ou tratativas desnecessárias.
+**⚠️ EXTREMAMENTE IMPORTANTE:** O framework JÁ gerencia tratamento de erros automaticamente. O código gerado deve ser **PURO**, sem try/except. O framework trata automaticamente tanto BusinessRuleException quanto SystemException.
+
+**🚨 REGRA FUNDAMENTAL - Código Puro Sem Try/Except:**
+
+- ✅ **Código deve ser DIRETO e PURO** - sem blocos try/except
+- ✅ **Apenas lançar exceções** quando necessário - NÃO tratar
+- ✅ **Deixar o framework fazer o tratamento** - ele gerencia automaticamente
+- ❌ **NUNCA adicionar try/except** no código customizado
+- ❌ **NUNCA tratar BusinessRuleException** - apenas lançar
+- ❌ **NUNCA tratar SystemException** - o framework trata automaticamente
 
 **APENAS usar exceções quando:**
 - **BusinessRuleException:** Para exceções de negócio mapeadas no business-rules.md (EXC*)
   ```python
   from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import BusinessRuleException
-  raise BusinessRuleException("Mensagem de erro de negócio")
+  
+  # ✅ CORRETO: Apenas lançar, sem tratamento
+  if not var_dictInfoAdicional.get('cpf'):
+      raise BusinessRuleException("CPF não informado (EXC001)")
   ```
   - **SOMENTE** se a exceção estiver mapeada no business-rules.md
   - **NÃO** adicionar validações que não estão mapeadas
+  - **NÃO** tratar a exceção - apenas lançar
 
 - **TerminateException:** Para finalização antecipada com sucesso (quando item já foi processado)
   ```python
   from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import TerminateException
-  raise TerminateException("Item já processado")
+  
+  # ✅ CORRETO: Apenas lançar, sem tratamento
+  if item_ja_processado:
+      raise TerminateException("Item já processado")
   ```
 
 **O que NÃO fazer:**
@@ -73,10 +89,63 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 - ❌ **NÃO adicionar validações desnecessárias** - apenas as mapeadas no business-rules.md
 - ❌ **NÃO adicionar verificações de "se existe", "se é válido"** que não estão no DDP
 - ❌ **NÃO adicionar tratamento de Exception genérica** - o framework gerencia automaticamente
+- ❌ **NÃO tratar BusinessRuleException** - apenas lançar e deixar o framework tratar
+- ❌ **NÃO tratar SystemException** - o framework trata automaticamente com retentativas
+
+**Exemplo de código CORRETO (puro, sem try/except):**
+```python
+@classmethod
+def execute(cls):
+    var_dictItem = GetTransaction.var_dictQueueItem
+    var_strReferencia = var_dictItem['referencia']
+    var_dictInfoAdicional = var_dictItem['info_adicionais']
+    
+    Maestro.write_log(f'Processando item: {var_strReferencia}')
+    
+    # ✅ CORRETO: Apenas lançar BusinessRuleException, sem tratamento
+    if not var_dictInfoAdicional.get('cpf'):
+        raise BusinessRuleException("CPF não informado (EXC001)")
+    
+    # ✅ CORRETO: Código direto, sem try/except
+    from clicknium import clicknium as cc, locator
+    cc.find_element(locator.tela.campo_cpf).set_text(var_dictInfoAdicional.get('cpf', ''))
+    cc.find_element(locator.tela.botao_consultar).click()
+    
+    Maestro.write_log('Process Finished')
+```
+
+**Exemplo de código INCORRETO (com try/except desnecessário):**
+```python
+@classmethod
+def execute(cls):
+    var_dictItem = GetTransaction.var_dictQueueItem
+    var_strReferencia = var_dictItem['referencia']
+    var_dictInfoAdicional = var_dictItem['info_adicionais']
+    
+    # ❌ INCORRETO: Try/except desnecessário
+    try:
+        Maestro.write_log(f'Processando item: {var_strReferencia}')
+    except Exception as e:
+        raise Exception(f"Erro ao logar: {e}")
+    
+    # ❌ INCORRETO: Tratar BusinessRuleException
+    try:
+        if not var_dictInfoAdicional.get('cpf'):
+            raise BusinessRuleException("CPF não informado")
+    except BusinessRuleException as e:
+        raise e  # ❌ NÃO fazer isso - apenas lançar diretamente
+    
+    # ❌ INCORRETO: Try/except genérico
+    try:
+        cc.find_element(locator.tela.campo_cpf).set_text(var_dictInfoAdicional.get('cpf', ''))
+    except Exception as e:
+        raise Exception(f"Erro: {e}")  # ❌ Framework já trata isso
+```
 
 **Exception genérica:** Para erros de sistema (permite retentativa)
 - O framework gerencia automaticamente as retentativas
 - **NÃO é necessário** adicionar código para isso
+- **NÃO é necessário** adicionar try/except - o framework captura e trata automaticamente
 
 ### 3. Logging
 - **Sempre usar `Maestro.write_log()`** para logs importantes
@@ -148,8 +217,64 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 - Princípio de fila como fonte única de dados - REGRA 4
 - Como especificar fonte de dados ao preencher a fila - REGRA 4
 
+**🚨 REGRA CRÍTICA - Fila no LoopStation (T2CProcess.execute()):**
+
+**⚠️ OBRIGATÓRIO:** No método `T2CProcess.execute()`, a fila **NÃO PODE ser modificada**. A fila só pode ser **CONSUMIDA** (ler dados).
+
+**O que PODE fazer no T2CProcess.execute():**
+- ✅ **Ler dados** do item atual: `GetTransaction.var_dictQueueItem`
+- ✅ **Acessar informações** do item: `var_dictItem['referencia']`, `var_dictItem['info_adicionais']`
+- ✅ **Popular fila do próximo robô** (se necessário) - usando `QueueManager.insert_new_queue_item()` com configuração da fila do próximo robô
+
+**O que NÃO PODE fazer no T2CProcess.execute():**
+- ❌ **NÃO atualizar status** do item atual da fila
+- ❌ **NÃO modificar** o item atual da fila
+- ❌ **NÃO inserir itens** na fila atual (apenas na fila do próximo robô, se necessário)
+- ❌ **NÃO usar QueueManager** para modificar a fila atual
+- ❌ **NÃO fazer update** de itens da fila atual
+
+**Exemplo CORRETO (apenas consumo):**
+```python
+@classmethod
+def execute(cls):
+    # ✅ CORRETO: Apenas ler dados da fila
+    var_dictItem = GetTransaction.var_dictQueueItem
+    var_strReferencia = var_dictItem['referencia']
+    var_dictInfoAdicional = var_dictItem['info_adicionais']
+    
+    # ✅ CORRETO: Usar dados da fila para processamento
+    cpf = var_dictInfoAdicional.get('cpf')
+    nome = var_dictInfoAdicional.get('nome')
+    
+    # ✅ CORRETO: Popular fila do próximo robô (se necessário)
+    # (usando configuração da fila do próximo robô)
+    QueueManager.insert_new_queue_item(
+        arg_strReferencia=novo_item_referencia,
+        arg_dictInfAdicional={'dados': 'processados'},
+        # ... configuração da fila do próximo robô ...
+    )
+    
+    # Processar item...
+```
+
+**Exemplo INCORRETO (tentando modificar fila atual):**
+```python
+@classmethod
+def execute(cls):
+    var_dictItem = GetTransaction.var_dictQueueItem
+    
+    # ❌ INCORRETO: Tentar atualizar status do item atual
+    QueueManager.update_queue_item_status(var_dictItem['id'], 'PROCESSANDO')
+    
+    # ❌ INCORRETO: Tentar modificar item atual
+    var_dictItem['status'] = 'PROCESSANDO'
+    
+    # ❌ INCORRETO: Tentar inserir na fila atual
+    QueueManager.insert_new_queue_item(...)  # Sem especificar fila do próximo robô
+```
+
 **Resumo:**
-- **Sempre usar `QueueManager`** para gerenciar fila
+- **Sempre usar `QueueManager`** para gerenciar fila (apenas em `add_to_queue()` e para popular fila do próximo robô)
 - **Acessar item atual via `GetTransaction.var_dictQueueItem`** no método `T2CProcess.execute()`
 - **Estrutura do item:**
   ```python
@@ -161,8 +286,8 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
       'obs': str
   }
   ```
-- **Adicionar itens:** Usar `QueueManager.insert_new_queue_item()` em `T2CInitAllApplications.add_to_queue()`
-- **Status possíveis:** `SUCESSO`, `BUSINESS ERROR`, `APP ERROR`
+- **Adicionar itens:** Usar `QueueManager.insert_new_queue_item()` em `T2CInitAllApplications.add_to_queue()` ou para popular fila do próximo robô
+- **Status possíveis:** `SUCESSO`, `BUSINESS ERROR`, `APP ERROR` (gerenciado automaticamente pelo framework)
 - **Ver PARTE 2 para detalhes completos de gerenciamento de fila**
 
 ### 8. Integrações
@@ -1552,11 +1677,37 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 
 **⚠️ IMPORTANTE:** Ao gerar tasks.md (comando `/t2c.tasks`), a LLM DEVE incluir estimativas de tempo realistas para cada tarefa.
 
+**🚨 REGRAS CRÍTICAS PARA GERAÇÃO DE TASKS:**
+
+1. **Tasks devem seguir a ordem EXATA das etapas no spec.md:**
+   - INIT: Seguir a ordem exata das etapas listadas na seção INIT do spec.md
+   - FILA: Seguir a ordem exata das etapas listadas na seção FILA do spec.md (se aplicável)
+   - LOOP STATION: **Seguir a ordem EXATA das etapas listadas na seção LOOP STATION do spec.md**
+   - END PROCESS: Seguir a ordem exata das etapas listadas na seção END PROCESS do spec.md
+
+2. **Tasks devem ser mais detalhadas (quebradas em mais tasks menores):**
+   - ❌ **NÃO criar tasks vagas** como "Processar item" ou "Inicializar sistemas"
+   - ✅ **Criar tasks específicas** para cada etapa ou grupo lógico de etapas relacionadas
+   - ✅ **Quebrar em mais tasks** para que a LLM consiga focar melhor ao gerar código
+   - ✅ **Cada etapa do LOOP STATION** deve ter sua própria task (ou grupo lógico de etapas relacionadas)
+
+3. **NÃO criar tasks para coisas que não precisam ser feitas:**
+   - ❌ **NÃO criar task** para "Inicializar API" (APIs não precisam inicialização)
+   - ❌ **NÃO criar task** para coisas que são automáticas ou não requerem código
+   - ✅ **Criar tasks apenas** para ações que requerem implementação de código
+
+4. **Descrições das tasks devem ser específicas:**
+   - ❌ **NÃO usar descrições vagas** como "Processar dados" ou "Validar informações"
+   - ✅ **Usar descrições específicas** como "Consultar CPF na API ReceitaWS", "Preencher formulário de cadastro", "Validar se CPF está na blacklist (EXC001)"
+
 #### Base de Estimativa
 
-- **Perfil considerado:** Desenvolvedor pleno (não mencionar isso no documento, apenas usar como referência interna)
+- **Perfil considerado:** Desenvolvedor júnior (não mencionar isso no documento, apenas usar como referência interna)
+- **Multiplicador de perfil júnior:** 1.5x (desenvolvedor júnior precisa de mais tempo para entender, implementar e debugar)
+- **Gordura obrigatória:** 30% (1.3x) - sempre adicionar para considerar dificuldades, erros e imprevistos
 - **Formato:** Horas (ex: "2 horas", "4 horas", "0.5 horas", "8 horas")
 - **Precisão:** Usar valores inteiros ou meias horas (0.5, 1, 1.5, 2, etc.)
+- **Foco:** Sempre preparar estimativa considerando possíveis erros, imprevistos e dificuldades que podem surgir
 
 #### 🗄️ Base de Dados de Complexidade de Sistemas
 
@@ -1582,12 +1733,28 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 
 3. **Calcular estimativa final:**
    ```
-   Estimativa Final = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores
+   Estimativa Base Ajustada = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores
+   
+   Estimativa Final = Estimativa Base Ajustada × 1.5 (Júnior) × 1.3 (30% Gordura)
+   ```
+   
+   **Simplificado:**
+   ```
+   Estimativa Final = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores × 1.5 (Júnior) × 1.3 (Gordura)
    ```
 
-4. **Documentar na justificativa:**
+4. **Considerar dificuldades e imprevistos:**
+   - ✅ **Sempre analisar a complexidade** da atividade considerando possíveis dificuldades
+   - ✅ **Preparar para erros** que podem ocorrer durante desenvolvimento
+   - ✅ **Considerar imprevistos** como: seletores que não funcionam, APIs que mudam, sistemas instáveis, documentação incompleta
+   - ✅ **Adicionar tempo extra** se a atividade envolve sistemas complexos, integrações novas, ou tecnologias desconhecidas
+   - ✅ **Considerar curva de aprendizado** para desenvolvedor júnior em tecnologias/frameworks novos
+
+5. **Documentar na justificativa:**
    - Sempre mencionar os multiplicadores aplicados
    - Explicar por que cada multiplicador foi usado
+   - Mencionar dificuldades e imprevistos considerados
+   - Explicar a gordura de 30% aplicada
 
 **Multiplicadores Base (se sistema não estiver na base):**
 - **Sistemas conhecidos (SAP, TOTVS, Oracle, etc.):** 1.0x
@@ -1622,8 +1789,10 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
   - Sistema (e-CAC): 1.8x
   - Interface (Web Legado): 1.3x
   - Seletores (Instáveis): 1.4x
-- **Cálculo:** 2h × 1.8 × 1.3 × 1.4 = 6.55h ≈ 7 horas
-- **Justificativa:** "Portal do governo (1.8x) + Interface legada (1.3x) + Seletores instáveis (1.4x) = 7 horas"
+  - Perfil Júnior: 1.5x
+  - Gordura (30%): 1.3x
+- **Cálculo:** 2h × 1.8 × 1.3 × 1.4 × 1.5 × 1.3 = 12.77h ≈ 13 horas
+- **Justificativa:** "Portal do governo (1.8x) + Interface legada (1.3x) + Seletores instáveis (1.4x) + Perfil júnior (1.5x) + Gordura 30% (1.3x) = 13 horas. Considerando dificuldades com portais do governo, seletores instáveis que podem quebrar, e tempo necessário para desenvolvedor júnior entender e debugar problemas."
 
 **⚠️ IMPORTANTE:**
 - **SEMPRE consultar a base de dados** antes de fazer estimativas
@@ -1633,7 +1802,9 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 
 #### Fatores a Considerar na Estimativa
 
-**1. Complexidade da Tarefa:**
+**⚠️ IMPORTANTE:** Todos os fatores abaixo devem ser considerados ANTES de aplicar os multiplicadores de júnior (1.5x) e gordura (1.3x). A estimativa base deve refletir a complexidade real da tarefa.
+
+**1. Complexidade da Tarefa (Estimativa Base - ANTES dos multiplicadores):**
 - **Simples (0.5-2h):** Leitura de arquivo, validação simples, configuração básica
 - **Média (2-4h):** Integração com sistema, múltiplas validações, lógica de negócio moderada
 - **Complexa (4-8h):** Conciliações, múltiplas integrações, lógica complexa, tratamento de erros extenso
@@ -1643,6 +1814,7 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 - Cada etapa do DDP adiciona tempo
 - Considerar: navegação, preenchimento de formulários, validações, tratamento de erros
 - Estimativa base: 0.5-1h por etapa simples, 1-2h por etapa complexa
+- **Para júnior:** Adicionar 50% a mais de tempo por etapa (curva de aprendizado)
 
 **3. Integrações:**
 - **Clicknium/Seletores:** +0.5-1h (criação e teste de seletores)
@@ -1661,29 +1833,51 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 - Tratamento básico: +0.5h por tipo de erro
 - Tratamento complexo: +1-2h por tipo de erro
 
-**6. Testes e Ajustes:**
-- Incluir 20-30% do tempo de desenvolvimento para testes e ajustes
+**6. Dificuldades e Imprevistos (SEMPRE considerar):**
+- ✅ **Seletores que não funcionam:** +1-2h (tempo para debugar e encontrar alternativas)
+- ✅ **APIs que mudam ou têm documentação incompleta:** +1-3h (tempo para entender e adaptar)
+- ✅ **Sistemas instáveis ou lentos:** +0.5-1h (tempo de espera e retentativas)
+- ✅ **Documentação incompleta ou desatualizada:** +1-2h (tempo para pesquisar e testar)
+- ✅ **Tecnologias/frameworks novos para o desenvolvedor:** +2-4h (curva de aprendizado)
+- ✅ **Erros inesperados durante desenvolvimento:** +1-2h (tempo para debugar)
+- ✅ **Integrações complexas ou não documentadas:** +2-4h (tempo para entender e implementar)
+- ✅ **Sistemas legados ou pouco conhecidos:** +1-3h (tempo para entender funcionamento)
+- **Nota:** A gordura de 30% já cobre parte disso, mas considere adicionar mais tempo se houver múltiplas dificuldades
+
+**7. Perfil Desenvolvedor Júnior (Multiplicador 1.5x aplicado no final):**
+- ✅ **Curva de aprendizado:** Mais tempo para entender código existente, frameworks, padrões
+- ✅ **Debugging:** Mais tempo para identificar e corrigir erros
+- ✅ **Pesquisa e documentação:** Mais tempo para pesquisar soluções e entender tecnologias
+- ✅ **Validação e testes:** Mais tempo para garantir que código funciona corretamente
+- ✅ **Refatoração:** Pode precisar revisar código várias vezes antes de ficar correto
+
+**8. Gordura de 30% (Multiplicador 1.3x aplicado no final):**
+- ✅ **Sempre aplicar** após todos os outros cálculos
+- ✅ **Cobre:** Imprevistos, erros não previstos, ajustes finais, tempo de revisão
+- ✅ **Prepara para:** Problemas que só aparecem durante desenvolvimento/testes
 
 #### Estimativas de Referência por Tipo de Task
 
-**INIT - Inicialização:**
-- **Inicializar 1 sistema simples:** 1-2h
-- **Inicializar 1 sistema complexo:** 2-4h
-- **Inicializar múltiplos sistemas:** 3-6h
-- **Preencher fila simples (leitura Excel/CSV):** 1-2h
-- **Preencher fila complexa (conciliações, validações):** 4-8h
-- **Preencher fila dispatcher (item vazio + popular performer):** 2-4h
+**⚠️ IMPORTANTE:** As estimativas abaixo são BASE (antes de aplicar multiplicadores de júnior 1.5x e gordura 1.3x). A estimativa final será: Base × 1.5 × 1.3.
 
-**LOOP STATION - Processamento:**
-- **Etapa simples (1 ação):** 1-2h
-- **Etapa média (2-3 ações):** 2-4h
-- **Etapa complexa (4+ ações, validações):** 4-8h
+**INIT - Inicialização (Estimativa Base):**
+- **Inicializar 1 sistema simples:** 1-2h → Final: 2-4h (com júnior + gordura)
+- **Inicializar 1 sistema complexo:** 2-4h → Final: 4-8h (com júnior + gordura)
+- **Inicializar múltiplos sistemas:** 3-6h → Final: 6-12h (com júnior + gordura)
+- **Preencher fila simples (leitura Excel/CSV):** 1-2h → Final: 2-4h (com júnior + gordura)
+- **Preencher fila complexa (conciliações, validações):** 4-8h → Final: 8-16h (com júnior + gordura)
+- **Preencher fila dispatcher (item vazio + popular performer):** 2-4h → Final: 4-8h (com júnior + gordura)
+
+**LOOP STATION - Processamento (Estimativa Base):**
+- **Etapa simples (1 ação):** 1-2h → Final: 2-4h (com júnior + gordura)
+- **Etapa média (2-3 ações):** 2-4h → Final: 4-8h (com júnior + gordura)
+- **Etapa complexa (4+ ações, validações):** 4-8h → Final: 8-16h (com júnior + gordura)
 - **Grupo lógico de etapas (3-5 etapas relacionadas):** 6-12h
 - **Processamento completo com múltiplas regras:** 8-16h
 
-**END PROCESS - Finalização:**
-- **Fechar sistemas:** 0.5-1h
-- **Enviar e-mail final:** 1-2h (incluindo template e formatação)
+**END PROCESS - Finalização (Estimativa Base):**
+- **Fechar sistemas:** 0.5-1h → Final: 1-2h (com júnior + gordura)
+- **Enviar e-mail final:** 1-2h → Final: 2-4h (com júnior + gordura, incluindo template e formatação)
 
 #### Estrutura do tasks.md com Estimativas
 
@@ -1698,8 +1892,11 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 - **Justificativa OBRIGATÓRIA deve incluir:**
   - Referência à base de dados (se sistema estiver listado) ou categoria aplicada
   - Multiplicadores aplicados (sistema, interface, documentação, seletores)
-  - Cálculo básico mostrando como chegou ao valor
+  - Multiplicador de júnior (1.5x) - sempre aplicado
+  - Gordura de 30% (1.3x) - sempre aplicada
+  - Cálculo básico mostrando como chegou ao valor final
   - Complexidade, número de etapas, integrações, exceções de negócio
+  - Dificuldades e imprevistos considerados
 
 #### Exemplo de Estimativa
 
@@ -1711,8 +1908,8 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 - **Arquivo:** T2CProcess.py
 - **Método:** execute()
 - **Descrição:** Realizar login no SAP, validar acesso, navegar até tela de processamento
-- **Estimativa:** 3 horas - Login (1h) + Validação de acesso (0.5h) + Navegação com seletores Clicknium (1h) + Tratamento de erros (0.5h)
-- **Justificativa:** Sistema conhecido (SAP - 1.0x), interface desktop estável, seletores estáveis. Base: 2h × 1.0 (sistema) × 1.0 (interface) × 1.0 (seletores) = 2h + 1h (tratamento erros) = 3h
+- **Estimativa:** 6 horas - Base: 2h × 1.0 (SAP) × 1.0 (interface) × 1.0 (seletores) × 1.5 (júnior) × 1.3 (gordura) = 3.9h ≈ 4h + 2h (dificuldades com login SAP e navegação) = 6h
+- **Justificativa:** Sistema conhecido (SAP - 1.0x), interface desktop estável, seletores estáveis. Base: 2h × 1.0 × 1.0 × 1.0 × 1.5 (júnior) × 1.3 (gordura) = 3.9h. Considerando dificuldades típicas: login SAP pode ter variações, navegação pode ter elementos dinâmicos, tempo para desenvolvedor júnior entender estrutura SAP. Total: 6 horas.
 - **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
 ```
 
@@ -1724,8 +1921,8 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 - **Arquivo:** T2CProcess.py
 - **Método:** execute()
 - **Descrição:** Acessar portal e-CAC, realizar login, consultar CNPJ e extrair dados
-- **Estimativa:** 7 horas - Consulta base (2h) × Portal governo (1.8x) × Interface legada (1.3x) × Seletores instáveis (1.4x) = 6.55h ≈ 7h
-- **Justificativa:** Portal do governo (e-CAC - 1.8x da base de dados) + Interface web legada (1.3x) + Seletores instáveis típicos de portais governo (1.4x). Base: 2h × 1.8 × 1.3 × 1.4 = 7h
+- **Estimativa:** 13 horas - Base: 2h × 1.8 (portal governo) × 1.3 (interface legada) × 1.4 (seletores instáveis) × 1.5 (júnior) × 1.3 (gordura) = 12.77h ≈ 13h
+- **Justificativa:** Portal do governo (e-CAC - 1.8x da base de dados) + Interface web legada (1.3x) + Seletores instáveis típicos de portais governo (1.4x) + Perfil júnior (1.5x) + Gordura 30% (1.3x). Base: 2h × 1.8 × 1.3 × 1.4 × 1.5 × 1.3 = 12.77h ≈ 13h. Considerando dificuldades: portais do governo são instáveis, seletores podem quebrar, login pode ter captcha ou validações extras, tempo para júnior entender estrutura do portal. Total: 13 horas.
 - **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
 ```
 
@@ -1737,8 +1934,8 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 - **Arquivo:** T2CProcess.py
 - **Método:** execute()
 - **Descrição:** Processar dados em sistema customizado interno, sem documentação disponível
-- **Estimativa:** 6 horas - Processamento base (2h) × Sistema menos conhecido (1.4x) × Sem documentação (1.5x) = 4.2h ≈ 4h + 2h (análise e testes) = 6h
-- **Justificativa:** Sistema customizado (1.4x) + Sem documentação técnica (1.5x) + Tempo adicional para análise reversa (2h). Base: 2h × 1.4 × 1.5 = 4.2h + 2h análise = 6h
+- **Estimativa:** 12 horas - Base: 2h × 1.4 (sistema menos conhecido) × 1.5 (sem documentação) × 1.5 (júnior) × 1.3 (gordura) = 8.19h ≈ 8h + 4h (análise reversa e dificuldades) = 12h
+- **Justificativa:** Sistema customizado (1.4x) + Sem documentação técnica (1.5x) + Perfil júnior (1.5x) + Gordura 30% (1.3x). Base: 2h × 1.4 × 1.5 × 1.5 × 1.3 = 8.19h ≈ 8h. Considerando dificuldades: sistema sem documentação requer análise reversa, desenvolvedor júnior precisa de mais tempo para entender funcionamento, possíveis erros durante exploração do sistema. Total: 12 horas.
 - **Status:** [ ] Pendente / [ ] Em Progresso / [ ] Concluído
 ```
 

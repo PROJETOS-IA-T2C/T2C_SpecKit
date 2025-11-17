@@ -722,15 +722,45 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estima
 
 1. Lê spec.md e business-rules.md
 2. Analisa os requisitos e regras
-3. Gera breakdown de tarefas organizado por fases:
-   - Init (T2CInitAllApplications)
-   - Process (T2CProcess)
-   - End Process (T2CCloseAllApplications)
-4. **Calcula estimativas de tempo** para cada tarefa (considerando desenvolvedor pleno)
+3. Gera breakdown de tarefas organizado por fases, **seguindo a ordem EXATA das etapas no spec.md**:
+   - Init (T2CInitAllApplications) - na ordem das etapas do INIT no spec.md
+   - Fila (T2CInitAllApplications.add_to_queue) - se aplicável
+   - Process (T2CProcess) - **na ordem EXATA das etapas do LOOP STATION no spec.md**
+   - End Process (T2CCloseAllApplications) - na ordem das etapas do END PROCESS no spec.md
+4. **Calcula estimativas de tempo** para cada tarefa (considerando desenvolvedor júnior + 30% de gordura + dificuldades/imprevistos)
 5. Cria tasks.md com:
    - Tabela de visão geral de estimativas no início
    - Cada tarefa com sua estimativa de tempo e justificativa
    - Resumo executivo com métricas de tempo
+
+## 🚨 REGRAS CRÍTICAS PARA GERAÇÃO DE TASKS
+
+**⚠️ OBRIGATÓRIO - Seguir Ordem Exata do spec.md:**
+
+1. **Tasks devem seguir a ordem EXATA das etapas no spec.md:**
+   - INIT: Seguir a ordem exata das etapas listadas na seção INIT do spec.md
+   - FILA: Seguir a ordem exata das etapas listadas na seção FILA do spec.md (se aplicável)
+   - LOOP STATION: **Seguir a ordem EXATA das etapas listadas na seção LOOP STATION do spec.md**
+   - END PROCESS: Seguir a ordem exata das etapas listadas na seção END PROCESS do spec.md
+
+2. **Tasks devem ser mais detalhadas (quebradas em mais tasks menores):**
+   - ❌ **NÃO criar tasks vagas** como "Processar item" ou "Inicializar sistemas"
+   - ✅ **Criar tasks específicas** para cada etapa ou grupo lógico de etapas relacionadas
+   - ✅ **Quebrar em mais tasks** para que a LLM consiga focar melhor ao gerar código
+   - ✅ **Cada etapa do LOOP STATION** deve ter sua própria task (ou grupo lógico de etapas relacionadas)
+
+3. **NÃO criar tasks para coisas que não precisam ser feitas:**
+   - ❌ **NÃO criar task** para "Inicializar API" (APIs não precisam inicialização)
+   - ❌ **NÃO criar task** para coisas que são automáticas ou não requerem código
+   - ✅ **Criar tasks apenas** para ações que requerem implementação de código
+
+4. **Descrições das tasks devem ser específicas:**
+   - ❌ **NÃO usar descrições vagas** como "Processar dados" ou "Validar informações"
+   - ✅ **Usar descrições específicas** como "Consultar CPF na API ReceitaWS", "Preencher formulário de cadastro", "Validar se CPF está na blacklist (EXC001)"
+
+5. **Ordem das tasks:**
+   - INIT → FILA (se aplicável) → LOOP STATION (na ordem das etapas) → END PROCESS
+   - Se múltiplos robôs: Todas tasks do robot1 primeiro, depois todas do robot2, etc.
 
 ## Arquivo Gerado
 
@@ -760,19 +790,39 @@ Antes de calcular qualquer estimativa, a LLM DEVE:
 
 4. **Calcular estimativa final:**
    ```
-   Estimativa Final = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores
+   Estimativa Base Ajustada = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores
+   
+   Estimativa Final = Estimativa Base Ajustada × 1.5 (Júnior) × 1.3 (30% Gordura)
+   ```
+   
+   **Simplificado:**
+   ```
+   Estimativa Final = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores × 1.5 (Júnior) × 1.3 (Gordura)
    ```
 
-5. **Documentar na justificativa:**
+5. **Considerar dificuldades e imprevistos:**
+   - ✅ **Sempre analisar a complexidade** da atividade considerando possíveis dificuldades
+   - ✅ **Preparar para erros** que podem ocorrer durante desenvolvimento
+   - ✅ **Considerar imprevistos** como: seletores que não funcionam, APIs que mudam, sistemas instáveis, documentação incompleta
+   - ✅ **Adicionar tempo extra** se a atividade envolve sistemas complexos, integrações novas, ou tecnologias desconhecidas
+   - ✅ **Considerar curva de aprendizado** para desenvolvedor júnior em tecnologias/frameworks novos
+
+6. **Documentar na justificativa:**
    - Sempre mencionar os multiplicadores aplicados da base de dados
    - Explicar por que cada multiplicador foi usado
    - Referenciar o sistema e categoria aplicada
+   - Mencionar dificuldades e imprevistos considerados
+   - Explicar a gordura de 30% aplicada
+   - Mencionar multiplicador de júnior (1.5x) aplicado
 
 **Regras de Estimativa:**
-- **Base:** Desenvolvedor pleno (não mencionar isso no documento, apenas usar como referência)
+- **Base:** Desenvolvedor júnior (não mencionar isso no documento, apenas usar como referência)
+- **Multiplicador júnior:** 1.5x (sempre aplicar)
+- **Gordura obrigatória:** 30% (1.3x) - sempre adicionar para considerar dificuldades, erros e imprevistos
 - **Formato:** Horas (ex: "2 horas", "4 horas", "0.5 horas")
-- **Justificativa:** DEVE incluir referência aos multiplicadores aplicados da base de dados
+- **Justificativa:** DEVE incluir referência aos multiplicadores aplicados da base de dados, multiplicador júnior, gordura, e dificuldades consideradas
 - **Tabela de visão geral:** Inclui tempo total, top 5 tasks mais demoradas, distribuição por fase e por robô
+- **Foco:** Sempre preparar estimativa considerando possíveis erros, imprevistos e dificuldades que podem surgir
 
 **⚠️ IMPORTANTE:** 
 - NUNCA fazer estimativas sem consultar `@system_complexity.json`

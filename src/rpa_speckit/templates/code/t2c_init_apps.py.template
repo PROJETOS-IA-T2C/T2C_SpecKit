@@ -5,7 +5,6 @@ from {{PROJECT_NAME}}.classes_t2c.utils.T2CMaestro import T2CMaestro as Maestro,
 from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import BusinessRuleException
 from {{PROJECT_NAME}}.classes_t2c.queue.T2CQueueManager import T2CQueueManager as QueueManager
 from {{PROJECT_NAME}}.classes_t2c.utils.T2CTracker import T2CTracker as Tracker,Item,ItemUpdate
-import {{PROJECT_NAME}}.classes_t2c.utils.T2CGenericReusable as GenericReusable
 
 # Imports dos pacotes externos
 {{IMPORTS}}
@@ -64,23 +63,11 @@ class T2CInitAllApplications:
         var_intMaxTentativas = cls._var_dictConfig["MaxRetryNumber"]
         
         for var_intTentativa in range(var_intMaxTentativas):
-            try:
-                Maestro.write_log("Iniciando aplicativos, tentativa " + (var_intTentativa+1).__str__())
-                
-                # {{INICIALIZACAO_APLICACOES}}
-
-            except BusinessRuleException as err:
-                raise err
-            except Exception as err:
-                Maestro.write_log(GenericReusable.get_computer_usage())
-                Maestro.write_log(arg_strMensagemLog="Erro, tentativa " + (var_intTentativa+1).__str__() + ": " + str(err), arg_enumLogLevel=LogLevel.ERROR, arg_enumErrorType=ErrorType.APP_ERROR)
-
-                if(var_intTentativa+1 == var_intMaxTentativas): 
-                    raise err
-                else: 
-                    # Inclua aqui o código responsável para reiniciar ao estado indicado para iniciar as aplicações novamente
-                    continue
-            else:
-                Maestro.write_log("InitAllApplications Finished")
-                break
+            Maestro.write_log("Iniciando aplicativos, tentativa " + (var_intTentativa+1).__str__())
+            
+            # {{INICIALIZACAO_APLICACOES}}
+            
+            # Se chegou aqui, inicialização foi bem-sucedida
+            Maestro.write_log("InitAllApplications Finished")
+            break
 
