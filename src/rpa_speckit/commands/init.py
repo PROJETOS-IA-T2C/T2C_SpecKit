@@ -346,7 +346,7 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 **ANTES DE QUALQUER OUTRA AÇÃO, a LLM DEVE:**
 
-1. **⚠️ OBRIGATÓRIO: Ler o DDP com ATENÇÃO TOTAL** (localizado em `specs/001-[nome]/DDP/ddp.pptx` ou caminho fornecido)
+1. **⚠️ OBRIGATÓRIO: Ler o DDP com ATENÇÃO TOTAL** (localizado em `specs/[nome_do_robo]/DDP/ddp.pptx`, `DDP/ddp.pptx` ou caminho fornecido)
    - Ler o DDP **COMPLETO** do início ao fim, **palavra por palavra**
    - **NÃO pular NENHUMA seção** - mesmo que pareça irrelevante
    - **NÃO fazer suposições** - se algo não está claro, revisar o DDP
@@ -510,13 +510,13 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
    
    ### 📂 Estrutura Proposta
    ```
-   specs/001-[nome]/
-   ├── robot1/
+   specs/
+   ├── prj_[Cliente]_[ID]_[Nome1]/ (ex: prj_KEA_ID01_Dispatcher)
    │   ├── spec.md
    │   ├── selectors.md
    │   ├── business-rules.md
    │   └── tests.md
-   ├── robot2/
+   ├── prj_[Cliente]_[ID]_[Nome2]/ (ex: prj_KEA_ID01_Performer)
    │   ├── spec.md
    │   └── ...
    └── tasks.md (será criado com /t2c.tasks)
@@ -566,26 +566,28 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 - ✅ **Aguardar** o comando explícito do usuário para gerar tasks.md
 
 ### Se Standalone (1 robô):
-- \`specs/001-[nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
-- \`specs/001-[nome]/tests.md\` - Cenários de teste e validações
-- \`specs/001-[nome]/selectors.md\` - Seletores Clicknium
-- \`specs/001-[nome]/business-rules.md\` - Regras de negócio
+- \`specs/prj_[Cliente]_[ID]_[Nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
+- \`specs/prj_[Cliente]_[ID]_[Nome]/tests.md\` - Cenários de teste e validações
+- \`specs/prj_[Cliente]_[ID]_[Nome]/selectors.md\` - Seletores Clicknium
+- \`specs/prj_[Cliente]_[ID]_[Nome]/business-rules.md\` - Regras de negócio
 - ❌ **NÃO criar** \`tasks.md\` - será criado apenas com o comando `/t2c.tasks`
 
 ### Se Múltiplos Robôs (quando regra obrigatória se aplicar):
-- \`specs/001-[nome]/robot1/spec.md\` - Especificação do robô 1 (Dispatcher)
-- \`specs/001-[nome]/robot1/tests.md\` - Testes do robô 1
-- \`specs/001-[nome]/robot1/selectors.md\` - Seletores do robô 1
-- \`specs/001-[nome]/robot1/business-rules.md\` - Regras de negócio do robô 1
-- \`specs/001-[nome]/robot2/spec.md\` - Especificação do robô 2 (Performer)
-- \`specs/001-[nome]/robot2/tests.md\` - Testes do robô 2
-- \`specs/001-[nome]/robot2/selectors.md\` - Seletores do robô 2
-- \`specs/001-[nome]/robot2/business-rules.md\` - Regras de negócio do robô 2
+- \`specs/prj_[Cliente]_[ID]_[Nome1]/spec.md\` - Especificação do robô 1 (ex: prj_Sigla_Dispatcher)
+- \`specs/prj_[Cliente]_[ID]_[Nome1]/tests.md\` - Testes do robô 1
+- \`specs/prj_[Cliente]_[ID]_[Nome1]/selectors.md\` - Seletores do robô 1
+- \`specs/prj_[Cliente]_[ID]_[Nome1]/business-rules.md\` - Regras de negócio do robô 1
+- \`specs/prj_[Cliente]_[ID]_[Nome2]/spec.md\` - Especificação do robô 2 (ex: prj_Sigla_Performer)
+- \`specs/prj_[Cliente]_[ID]_[Nome2]/tests.md\` - Testes do robô 2
+- \`specs/prj_[Cliente]_[ID]_[Nome2]/selectors.md\` - Seletores do robô 2
+- \`specs/prj_[Cliente]_[ID]_[Nome2]/business-rules.md\` - Regras de negócio do robô 2
 - ❌ **NÃO criar** \`tasks.md\` - será criado apenas com o comando `/t2c.tasks`
 
 **⚠️ IMPORTANTE:** 
-- Se houver múltiplos robôs, **NÃO criar** \`spec.md\` na raiz
-- Cada robô tem seu próprio \`spec.md\` dentro de sua pasta (\`robot1/\`, \`robot2/\`)
+- **Nomes das pastas dos robôs DEVE SEGUIR O PADRÃO** `prj_<Cliente>_<ID>_<Nome>` (ver Constitution)
+- **TODOS os robôs devem estar em pastas separadas DIRETAMENTE na raiz de `specs/`**
+- **NÃO** criar pasta intermediária `001-[nome]`
+- Cada robô tem seu próprio \`spec.md\` dentro de sua pasta nomeada corretamente
 - **NUNCA criar tasks.md** neste comando - aguardar comando `/t2c.tasks` do usuário
 
 ## Detalhes dos arquivos
@@ -727,7 +729,7 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estima
    - Fila (T2CInitAllApplications.add_to_queue) - se aplicável
    - Process (T2CProcess) - **na ordem EXATA das etapas do LOOP STATION no spec.md**
    - End Process (T2CCloseAllApplications) - na ordem das etapas do END PROCESS no spec.md
-4. **Calcula estimativas de tempo** para cada tarefa (considerando desenvolvedor júnior + 30% de gordura + dificuldades/imprevistos)
+4. **Calcula estimativas de tempo** para cada tarefa seguindo o Framework de Estimativa de Esforço (FEFP) da Constitution
 5. Cria tasks.md com:
    - Tabela de visão geral de estimativas no início
    - Cada tarefa com sua estimativa de tempo e justificativa
@@ -768,172 +770,71 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estima
   - Tabela de visão geral (resumo executivo, top 5 tasks, estimativas por fase/robô)
   - Tasks detalhadas com estimativas individuais
 
-## Estimativas de Tempo
+## Estimativas de Tempo (FEFP)
 
-**⚠️ OBRIGATÓRIO - Consultar Base de Dados de Complexidade:**
+**⚠️ OBRIGATÓRIO - Consultar `@constitution.md` Seção 5:**
 
 Antes de calcular qualquer estimativa, a LLM DEVE:
 
-1. **Consultar o arquivo `@system_complexity.json`** (localizado em `src/rpa_speckit/memory/system_complexity.json`)
-   - Este arquivo contém multiplicadores objetivos baseados em dados reais
-   - NÃO fazer estimativas baseadas em suposições - sempre consultar a base de dados
+1. **Consultar a Seção 5 (Framework de Estimativa de Esforço - FEFP) da Constitution**
+   - Seguir rigorosamente o método de 4 passos definido lá.
+   - **NÃO** inventar métodos de estimativa.
+   - **NÃO** usar multiplicadores que não estejam na Constitution.
 
-2. **Identificar os sistemas mencionados no spec.md:**
-   - Verificar se o sistema está listado na base de dados (sistemas conhecidos)
-   - Se não estiver, classificar por categoria (portal governo, legado, menos conhecido, customizado)
+2. **Passo a Passo Resumido (FEFP):**
+   - **Passo 1:** Decompor em tarefas orientadas à ação.
+   - **Passo 2:** Avaliar complexidade (Pontuação 4-12) baseada em Interação, Lógica, Dados e Resiliência.
+   - **Passo 3:** Determinar Tempo Base conforme tabela de pontuação.
+   - **Passo 4:** Calcular Estimativa Final = ArredondarParaCima(Tempo Base * 1.35, 0.5).
 
-3. **Aplicar multiplicadores conforme a base de dados:**
-   - Multiplicador do sistema (baseado na categoria ou sistema específico)
-   - Multiplicador de interface (Web Moderna, Web Legado, Desktop, Terminal)
-   - Multiplicador de documentação (Completa, Parcial, Sem documentação)
-   - Multiplicador de seletores (Estáveis, Instáveis, Dinâmicos)
-
-4. **Calcular estimativa final:**
-   ```
-   Estimativa Base Ajustada = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores
-   
-   Estimativa Final = Estimativa Base Ajustada × 1.5 (Júnior) × 1.3 (30% Gordura)
-   ```
-   
-   **Simplificado:**
-   ```
-   Estimativa Final = Estimativa Base × Multiplicador Sistema × Multiplicador Interface × Multiplicador Documentação × Multiplicador Seletores × 1.5 (Júnior) × 1.3 (Gordura)
-   ```
-
-5. **Considerar dificuldades e imprevistos:**
-   - ✅ **Sempre analisar a complexidade** da atividade considerando possíveis dificuldades
-   - ✅ **Preparar para erros** que podem ocorrer durante desenvolvimento
-   - ✅ **Considerar imprevistos** como: seletores que não funcionam, APIs que mudam, sistemas instáveis, documentação incompleta
-   - ✅ **Adicionar tempo extra** se a atividade envolve sistemas complexos, integrações novas, ou tecnologias desconhecidas
-   - ✅ **Considerar curva de aprendizado** para desenvolvedor júnior em tecnologias/frameworks novos
-
-6. **Documentar na justificativa:**
-   - Sempre mencionar os multiplicadores aplicados da base de dados
-   - Explicar por que cada multiplicador foi usado
-   - Referenciar o sistema e categoria aplicada
-   - Mencionar dificuldades e imprevistos considerados
-   - Explicar a gordura de 30% aplicada
-   - Mencionar multiplicador de júnior (1.5x) aplicado
-
-**Regras de Estimativa:**
-- **Base:** Desenvolvedor júnior (não mencionar isso no documento, apenas usar como referência)
-- **Multiplicador júnior:** 1.5x (sempre aplicar)
-- **Gordura obrigatória:** 30% (1.3x) - sempre adicionar para considerar dificuldades, erros e imprevistos
-- **Formato:** Horas (ex: "2 horas", "4 horas", "0.5 horas")
-- **Justificativa:** DEVE incluir referência aos multiplicadores aplicados da base de dados, multiplicador júnior, gordura, e dificuldades consideradas
-- **Tabela de visão geral:** Inclui tempo total, top 5 tasks mais demoradas, distribuição por fase e por robô
-- **Foco:** Sempre preparar estimativa considerando possíveis erros, imprevistos e dificuldades que podem surgir
+3. **Documentar na justificativa:**
+   - Explicar a pontuação atribuída (quais fatores aumentaram a complexidade).
+   - Mostrar o cálculo do tempo base e final.
 
 **⚠️ IMPORTANTE:** 
-- NUNCA fazer estimativas sem consultar `@system_complexity.json`
-- SEMPRE documentar quais multiplicadores foram aplicados
-- Ver seção 14 do `@constitution.md` para instruções detalhadas sobre como usar a base de dados
+- NUNCA fazer estimativas sem seguir o FEFP da Constitution.
+- SEMPRE documentar a pontuação de complexidade.
 
 ## Notas
 
 - Este comando é opcional - o desenvolvedor pode criar tasks.md manualmente
 - As tarefas geradas devem ser revisadas e ajustadas conforme necessário
 - As estimativas são baseadas na complexidade descrita no spec.md e business-rules.md""",
-        "t2c.implement": """# Implementar Framework T2C
-
-Gera o framework T2C completo baseado nas especificações preenchidas.
-
-## Uso
-
-\`\`\`
-/t2c.implement [caminho_da_spec] [--robot nome_do_robo]
-\`\`\`
-
-## Exemplos
-
-\`\`\`
-# Gerar todos os robôs (ou standalone)
-/t2c.implement specs/001-automacao-exemplo
-
-# Gerar apenas um robô específico (se múltiplos robôs)
-/t2c.implement specs/001-automacao-exemplo --robot robot1
-/t2c.implement specs/001-automacao-exemplo --robot robot2
-\`\`\`
-
-## Estrutura de Robôs
-
-O comando detecta automaticamente se o projeto é:
-- **Standalone**: Um único robô (spec.md na raiz)
-- **Múltiplos robôs**: Vários robôs (robot1/, robot2/, etc.)
-
-### Standalone
-\`\`\`
-specs/001-[nome]/
-├── spec.md
-├── selectors.md
-├── business-rules.md
-├── tests.md
-└── tasks.md
-\`\`\`
-
-### Múltiplos Robôs
-\`\`\`
-specs/001-[nome]/
-├── robot1/
-│   ├── spec.md
-│   ├── selectors.md
-│   ├── business-rules.md
-│   └── tests.md
-├── robot2/
-│   ├── spec.md
-│   ├── selectors.md
-│   ├── business-rules.md
-│   └── tests.md
-└── tasks.md  # Compartilhado
-\`\`\`
-
-## O que faz
-
-1. Detecta estrutura (standalone ou múltiplos robôs)
-2. Valida se todos os arquivos necessários estão preenchidos:
-   - spec.md (ARQUIVO PRINCIPAL - arquitetura completa)
-   - selectors.md
-   - business-rules.md
-   - tests.md
-   - tasks.md (compartilhado se múltiplos robôs)
-   - config/*.md
-3. Baixa o framework T2C do GitHub (organização privada)
-4. Gera estrutura completa:
-   - Standalone: \`generated/[nome-automacao]/\`
-   - Múltiplos: \`generated/[nome-automacao]-robot1/\`, \`generated/[nome-automacao]-robot2/\`, etc.
-5. Copia arquivos do framework base
-6. Gera arquivos customizados para cada robô:
-   - bot.py
-   - T2CProcess.py
-   - T2CInitAllApplications.py
-   - T2CCloseAllApplications.py
-   - Config.xlsx
-7. Substitui variáveis de template
-8. Gera requirements.txt, setup.py, README.md para cada robô
-
-## Parâmetros
-
-- \`caminho_da_spec\`: Caminho para o diretório da spec (ex: specs/001-automacao-exemplo)
-- \`--robot nome_do_robo\`: (Opcional) Gera apenas o robô especificado (ex: robot1, robot2). Se não especificado, gera todos os robôs.
-
-## Arquivos Gerados
-
-- **Standalone**: Estrutura completa em \`generated/[nome-automacao]/\`
-- **Múltiplos**: Estrutura completa em \`generated/[nome-automacao]-robot1/\`, \`generated/[nome-automacao]-robot2/\`, etc.
-
-## Pré-requisitos
-
-- Acesso ao repositório privado do framework T2C
-- Git configurado
-- Python 3.8+ instalado
-
-## Notas
-
-- O framework é gerado do zero a cada execução
-- Arquivos customizados são gerados baseados nas specs de cada robô
-- Arquivos do framework base são copiados (não modificados)
-- Se múltiplos robôs, cada um tem seu próprio framework completo gerado""",
-        "t2c.validate": """# Validar Especificações
+        "t2c.implement": """# Implementar Código Modular
+ 
+ Gera as classes especialistas (Page Objects, Business Logic, Utils) baseadas nas especificações.
+ 
+ ## Uso
+ 
+ \`\`\`
+ /t2c.implement [caminho_da_spec]
+ \`\`\`
+ 
+ ## O que faz
+ 
+ 1. Lê spec.md, business-rules.md e tasks.md
+ 2. Identifica as classes necessárias para cada tarefa
+ 3. Gera o código Python modular seguindo a `constitution.md`:
+    - Classes especialistas na pasta `generated/[sistema]/` (ex: `generated/sap/sap_login.py`)
+    - Page Objects para Clicknium
+    - Funções de tratamento de regras de negócio
+ 
+ ## 🚨 REGRAS ABSOLUTAS
+ 
+ 1. **Localização do Código:**
+    - O código DEVE ser gerado dentro da pasta `generated/`.
+    - Organize por sistema, ex: `generated/sap/`, `generated/totvs/`, `generated/utils/`.
+ 
+ 2. **Nomenclatura:**
+    - **SEGUIR RIGOROSAMENTE** as regras de nomenclatura da `constitution.md`.
+    - Classes em `PascalCase`.
+    - Arquivos em `snake_case`.
+ 
+ 3. **Escopo:**
+    - ❌ **NÃO GERAR** arquivos do framework core (`bot.py`, `T2CProcess.py`, etc.).
+    - ✅ **GERAR APENAS** classes especialistas que serão importadas pelos arquivos principais.
+ """,
+         "t2c.validate": """# Validar Especificações
 
 Valida a estrutura e completude dos arquivos de especificação.
 
@@ -1085,9 +986,9 @@ Quando o usuário digitar um comando slash no chat do Copilot, você deve:
 - **Uso**: `/t2c.tasks specs/001-exemplo`
 
 ### `/t2c.implement [caminho]`
-- **Arquivo de referência**: `.vscode/commands/t2c.implement.md`
-- **Função**: Gera framework T2C completo baseado nas especificações
-- **Uso**: `/t2c.implement specs/001-exemplo`
+ - **Arquivo de referência**: `.vscode/commands/t2c.implement.md`
+ - **Função**: Gera código modular (classes especialistas) baseado nas specs
+ - **Uso**: `/t2c.implement specs/001-exemplo`
 
 ### `/t2c.validate [caminho]`
 - **Arquivo de referência**: `.vscode/commands/t2c.validate.md`
@@ -1254,12 +1155,12 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md.
 - "Gerar tasks.md baseado nas specs"
 
 ### t2c.implement
-
-Gera o framework T2C completo baseado nas especificações.
-
-**Uso com Copilot:**
-- "Execute t2c.implement para specs/001-exemplo"
-- "Implementar framework T2C completo"
+ 
+ Gera o código modular (classes especialistas) baseado nas especificações.
+ 
+ **Uso com Copilot:**
+ - "Execute t2c.implement para specs/001-exemplo"
+ - "Gerar classes especialistas"
 
 ### t2c.validate
 
@@ -1322,23 +1223,23 @@ Projeto de automação RPA criado com RPA Spec-Kit.
    - O script instala dependências automaticamente se necessário
 4. **Completar Specs**: Revise e complete os arquivos .md gerados
 5. **Gerar Tasks** (Opcional): Execute `/t2c.tasks` para gerar tasks.md
-6. **Implementar**: Execute `/t2c.implement` para gerar o framework T2C completo
-
-## Comandos Disponíveis
-
-- `/t2c.extract-ddp` - Extrai informações de DDP.pptx
-- `/t2c.tasks` - Gera tasks.md baseado nas specs
-- `/t2c.implement` - Gera framework T2C completo
-- `/t2c.validate` - Valida estrutura e completude das specs
-
-## Próximos Passos
-
-1. Crie uma nova feature: `specs/001-[nome-da-automacao]/`
-2. Coloque o DDP.pptx na pasta DDP/
-3. Execute `/t2c.extract-ddp` para extrair informações
-4. Complete os arquivos .md conforme necessário
-5. Execute `/t2c.implement` para gerar o framework
-"""
+ 6. **Implementar**: Execute `/t2c.implement` para gerar as classes especialistas
+ 
+ ## Comandos Disponíveis
+ 
+ - `/t2c.extract-ddp` - Extrai informações de DDP.pptx
+ - `/t2c.tasks` - Gera tasks.md baseado nas specs
+ - `/t2c.implement` - Gera código modular (classes especialistas)
+ - `/t2c.validate` - Valida estrutura e completude das specs
+ 
+ ## Próximos Passos
+ 
+ 1. Crie uma nova feature: `specs/001-[nome-da-automacao]/`
+ 2. Coloque o DDP.pptx na pasta DDP/
+ 3. Execute `/t2c.extract-ddp` para extrair informações
+ 4. Complete os arquivos .md conforme necessário
+ 5. Execute `/t2c.implement` para gerar o código
+ """
     (project_path / "README.md").write_text(readme_content, encoding="utf-8")
     
     # .gitignore
