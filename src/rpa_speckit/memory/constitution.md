@@ -69,48 +69,103 @@ graph TD
 
 ### 2.3 O Robô Dispatcher: O Maestro da Orquestração
 
-O Dispatcher é um tipo especializado de robô cuja única responsabilidade é popular as filas de trabalho. Ele atua como o maestro que prepara a orquestra antes do concerto.
+O Dispatcher é um tipo especializado de robô cuja principal responsabilidade é **popular as filas de trabalho**.
 
-*   **Quando é Necessário?**
-    *   Quando os dados de entrada vêm de múltiplas fontes (ex: e-mails, pastas de rede, planilhas).
-    *   Quando é necessária uma lógica de filtragem complexa para determinar o que deve ser processado.
-    *   Quando os dados precisam ser enriquecidos ou pré-validados antes de entrarem na fila principal.
-*   **O que ele NÃO Faz:** Ele nunca executa a lógica de negócio principal do processo. Ele apenas prepara e enfileira o trabalho para os robôs Performers.
+*   **Quando é Necessário?** Sempre que houver uma fonte de dados em massa (Excel, E-mail, Banco de Dados, API List) que precisa ser iterada para criar itens transacionais.
+*   **Modos de Operação:**
+    *   **Standalone (Ingestion):** É o primeiro robô do processo. Ele não consome fila, ele é acionado por agendamento (Time Trigger). Sua função é ler a fonte bruta (ex: baixar e-mail) e criar itens na fila.
+    *   **Queue-Driven (Intermediate):** Em processos complexos, um Dispatcher pode consumir um item de uma fila "pai" (ex: ID de Processo) para gerar N itens em uma fila "filho" (ex: Lista de Notas Fiscais daquele processo).
+*   **O que ele NÃO Faz:** Ele nunca executa a lógica de negócio "pesada" ou demorada. Ele apenas prepara, formata e enfileira o trabalho para os robôs Performers.
+
+### 2.4 O Robô Performer: O Especialista da Execução
+
+O Performer é o robô que consome itens da fila e executa o trabalho pesado.
+
+*   **Regra Mandatória:** Todo Performer deve ser **Queue-Driven**. Ele não itera Excel, ele não lê pasta de e-mail em loop infinito. Ele pede um item para a fila, processa, e pede o próximo.
+*   **Por que?** Isso garante que múltiplos Performers possam trabalhar na mesma fila simultaneamente (escalabilidade horizontal).
 
 ---
 
-## 3. Princípios Avançados de Design de Arquitetura
+## 3. Princípios de Design de Arquitetura
+
+A decisão de quantos robôs criar é a mais crítica do projeto. Siga estes princípios rigorosamente.
 
 ### 3.1 O Princípio da Responsabilidade Única (PRU)
-Cada robô é um especialista. A quebra de responsabilidades é a base de um design limpo. Se um processo faz "A, B e C", e C é independente de A e B, considere separar em robôs distintos.
+Cada robô deve ter uma, e apenas uma, responsabilidade principal. Um robô que interage com o sistema A para extrair dados não deve ser o mesmo que implementa a lógica de negócio ou atualiza o sistema B. A especialização é a chave para a manutenibilidade e o reuso.
 
 ### 3.2 O Princípio do Acionamento por Fila (Queue-Driven)
-Todos os robôs performers devem ser acionados por filas, conforme definido na Seção 2.1. A fila é a única fonte de dados para o `T2CProcess.execute()`.
+**Regra Mandatória:** Filas são a única fonte de trabalho para robôs performers.
+*   Um robô Performer não deve monitorar ativamente pastas de rede, caixas de e-mail ou estados em um banco de dados.
+*   Esta abordagem passiva (baseada em eventos/itens de fila) garante o desacoplamento, a escalabilidade (múltiplos robôs podem consumir da mesma fila) e a resiliência (itens podem ser reprocessados em caso de falha).
 
-### 3.3 O Padrão da Fronteira Assíncrona (Ex: Verifai)
-Este padrão é **obrigatório** quando a automação depende de um serviço externo que não fornece uma resposta imediata (ex: OCR assíncrono, processamento humano, APIs lentas).
+### 3.3 O Padrão do Dispatcher
+Se um processo possui múltiplos pontos de entrada (ex: e-mail e portal) ou requer uma filtragem complexa para criar os itens de trabalho, um robô Dispatcher deve ser criado.
+*   **Responsabilidade:** Ler as fontes de dados, normalizar a informação e popular a fila de trabalho para os robôs performers.
+*   **O que NÃO faz:** Lógica de negócio complexa ou processamento transacional demorado.
 
-*   **O Problema:** Manter um robô "preso" esperando uma resposta que pode levar minutos ou horas é ineficiente.
-*   **A Solução (Obrigatória):** O fluxo é quebrado em dois robôs:
-    1.  **Robô Sender:** Sua lógica termina ao enviar o documento/solicitação e receber um ID de acompanhamento (job_id). Ele popula uma "fila de resultados pendentes" com este ID.
-    2.  **Robô Receiver:** Consome da fila de resultados pendentes, usa o job_id para consultar o status e, se pronto, continua o processo.
+### 3.4 O Padrão da Fronteira Assíncrona (Sender/Receiver)
+Este padrão é **OBRIGATÓRIO** quando a automação depende de um serviço externo que não fornece resposta imediata, como **IA (VerifAI, Document Intelligence)**, OCR assíncrono, Validação Humana ou APIs lentas.
+
+*   **Robô Sender:** Prepara a requisição, envia para o serviço externo (upload arquivo/texto), captura um `job_id` (ou transaction_id) e popula uma "fila de resultados pendentes".
+    *   **Ação:** Fire and Forget. O robô não espera.
+*   **Robô Receiver:** Consome da fila de "resultados pendentes", usa o `job_id` para consultar o status (polling) e, somente quando concluído, obtém os dados extraídos para continuar o fluxo.
+    *   **Benefício:** Evita timeout e travamento de licença enquanto a IA processa.
+
+**Regra para VerifAI/IDP:**
+*   Sempre que houver extração de dados via IA, o processo DEVE ser quebrado em Sender e Receiver.
+*   Exceção: Apenas se a API garantir resposta síncrona em < 30 segundos (o que é raro para OCR).
+
+### 3.5 Separação Transacional vs. Monitoramento
+Evite misturar **Criação/Ação Imediata** com **Monitoramento de Longo Prazo** no mesmo robô.
+*   **Cenário:** Criar pedido no SAP (rápido) e monitorar entrega (dias).
+*   **Solução:** Dividir em **Creator** (faz e termina) e **Monitor** (roda agendado para checar status).
+*   **Regra de Tracking:** O monitoramento deve ser centralizado em um robô "Master" que itera sobre os itens ativos, em vez de fragmentar o tracking em múltiplos robôs sequenciais.
+
+### 3.6 Integração com IA e VerifAI
+O uso de IA altera a complexidade e a arquitetura.
+1.  **Complexidade:** Substitui lógica complexa de Regex/OCR (Pontos 3) por integração de API (Pontos 1 ou 2). As estimativas devem refletir isso.
+2.  **Arquitetura:** Impõe o padrão Sender/Receiver (Seção 3.4).
+3.  **Fluxo de Dados:** O JSON retornado pela IA deve ser validado (cross-check) contra a fonte de dados original (ex: Notion) antes de prosseguir.
 
 ---
 
 ## 4. Nomenclatura e Contratos de Dados
 
-A padronização de nomes é crucial para a manutenção e identificação rápida de componentes.
+A padronização é essencial para a clareza e governança do ecossistema de automação.
 
 ### 4.1 Nomenclatura de Projetos (Robôs)
-*   **Estrutura:** `prj_<Cliente>_<ID>_<Nome>`
-*   **Exemplo:** `prjKEAID09ASN_CREATOR`
+
+*   **Estrutura:** `prj_<NomeEmpresa>_<IDProcesso>_<SubSiglaOpcional>_<NumeroSequencial>_<NomeSistema>`
+*   **Componentes:**
+    *   `prj`: Prefixo padrão.
+    *   `NomeEmpresa`: Cliente ou unidade de negócio.
+    *   `IDProcesso`: Identificador único do processo de negócio (ex: ID55, FIN03).
+    *   `SubSiglaOpcional`: Usado para agrupar robôs dentro de um sub-processo (ex: GFIP, ISS).
+    *   `NumeroSequencial`: Ordem lógica de execução do robô no fluxo (01, 02, ...).
+    *   `NomeSistema`: Principal sistema com o qual o robô interage.
+*   **Exemplo Prático:** `prj_PlanoEPlano_ID55_GFIP_03_DIGIT`
 
 ### 4.2 Nomenclatura de Filas
-*   **Estrutura:** `Queue_<Cliente>_<ID>_<Nome>`
-*   **Exemplo:** `QueueKEAID09ASNCREATIONREQUESTS`
+
+*   **Estrutura:** `Queue_<IDProcesso>_<NumeroSequencialRobôConsumidor>_<NomeConformeNecessidade>`
+*   **Componentes:**
+    *   `Queue`: Prefixo padrão.
+    *   `IDProcesso`: Mesmo ID do projeto.
+    *   `NumeroSequencialRobôConsumidor`: Número do robô que irá consumir desta fila (ex: se o Robô 04 consome, o número é 04).
+    *   `NomeConformeNecessidade`: Descrição sucinta do propósito dos itens na fila.
+*   **Exemplo Prático:** `Queue_ID55_04_PENDING_GFIP_VERIFY`
 
 ### 4.3 Schemas de Fila (O Contrato de Dados)
-Toda fila deve ter um schema de dados (payload) formalmente definido. No Framework T2C, isso é gerenciado no dicionário `info_adicionais` do item da fila.
+
+Toda fila deve ter um schema de dados (payload) formalmente definido. Este schema é o contrato imutável entre o robô produtor e o consumidor.
+
+**Formato de Definição:**
+
+| Campo | Tipo | Descrição | Exemplo |
+| :--- | :--- | :--- | :--- |
+| `caminho_arquivo` | String | Caminho de rede completo para o arquivo a ser processado. | `\\share\input\doc1.pdf` |
+| `id_transacao` | String | Identificador único da transação no sistema de origem. | `"TRN-2025-12345"` |
+| `prioridade` | Integer | Nível de prioridade do item (1-5). | `3` |
 
 ### 4.4 Padrões de Código (Variáveis, Classes e Métodos)
 Para manter o código legível e consistente:
@@ -125,40 +180,68 @@ Para manter o código legível e consistente:
 
 ## 5. Framework de Estimativa de Esforço (FEFP)
 
-Método padrão para estimar o esforço de desenvolvimento.
+Este framework transforma a estimativa de esforço de uma arte subjetiva para um processo de engenharia transparente e repetível. Ele assume uma persona de **Desenvolvedor Sênior** como base para as métricas, e aplica fatores de correção para outros níveis.
 
-**Passo 1: Decomposição em Tarefas Orientadas à Ação**
-Decompor o robô em Init, Main e End. Cada tarefa deve ser uma ação específica (ex: "Clicar em botão Login", "Extrair tabela de itens").
+### Passo 0: Nível de Complexidade do Projeto (NCP) e Entendimento
 
-**Passo 2: Avaliação de Complexidade**
-Pontuação (4-12) baseada em:
-1.  **Interação:** API/DB (1), Web Moderna (2), Legado/SAP (3).
-2.  **Lógica:** Linear (1), Condicional (2), Regras Cruzadas (3).
-3.  **Dados:** Estruturado (1), Semi (2), Não-estruturado (3).
-4.  **Resiliência:** Padrão (1), Retentativas (2), Recuperação Avançada (3).
+Antes de estimar tasks, define-se o tempo fixo para **Entendimento do Processo** (Leitura de DDP, Desenho de Solução, Validação de Acessos).
 
-**Passo 3: Tempo Base**
-*   4-5 pts: 1.0 - 1.5h
-*   6-7 pts: 2.0 - 3.0h
-*   8-9 pts: 4.0 - 6.0h
-*   10-12 pts: 7.0 - 8.0h
+| Complexidade | Características | Tempo de Entendimento (h) |
+| :--- | :--- | :--- |
+| **Baixa** | Fluxo linear, 1-2 sistemas, API predominante. | **4h** |
+| **Média** | Regras de negócio, mistura UI/API, fluxos simples. | **12h** |
+| **Alta** | Regras cruzadas, IA/VerifAI, UI Legada, 4+ Robôs. | **24h** |
 
-**Passo 4: Estimativa Final**
-`Tempo Final = ArredondarParaCima(Tempo Base * 1.35, 0.5)`
+### Passo 1: Decomposição em Micro-Tarefas
+
+Cada robô é quebrado em uma lista de tarefas.
+*   **Regra da Micro-Tarefa:** Nenhuma tarefa deve exceder **4 horas**. Se exceder, quebre em ações menores.
+*   **Regra de Clareza:** Use títulos curtos e descritivos para negócio (ex: "Validar Peso Bruto" em vez de "Parse JSON Payload").
+
+### Passo 2: Avaliação de Complexidade (Sistema de Pontuação)
+
+Para cada micro-tarefa, some os pontos dos **4 fatores** a seguir (4 a 12 pts).
+
+| Fator | Baixo (1 pt) | Médio (2 pts) | Alto (3 pts) |
+| :--- | :--- | :--- | :--- |
+| **1. Interação com Sistema** | APIs, Arquivos | Web Moderno | SAP, Citrix, IA Assíncrona |
+| **2. Lógica de Negócio** | Linear, sem condicional | 2-3 condicionais | Regras aninhadas, cruzamentos |
+| **3. Manipulação de Dados** | Estruturado | Semi-estruturado | Não-estruturado |
+| **4. Requisito de Resiliência** | Try/catch padrão | Retentativas | Rollback, Recuperação complexa |
+
+### Passo 3: Mapeamento de Pontuação para Tempo Base (Sênior)
+
+A pontuação define o **Tempo Base Sênior** (desenvolvedor experiente).
+
+| Pontuação Total | Nível de Complexidade | Tempo Base Sênior (h) |
+| :--- | :--- | :--- |
+| **4-5** | **Baixa** (Configurações, Leituras simples) | **2.0 - 4.0** |
+| **6-7** | **Média** (Lógica padrão, APIs) | **6.0 - 12.0** |
+| **8-9** | **Alta** (Regras complexas, UI instável) | **14.0 - 20.0** |
+| **10-12** | **Muito Alta** (Crítico, IA, Legado pesado) | **22.0 - 32.0** |
+
+### Passo 4: Cálculo da Estimativa Final Ajustada
+
+Para refletir a realidade de projetos (curva de aprendizado, ambiente, debug):
+
+1.  **Estimativa da Task:** `Tempo Task = Tempo Base Sênior`
+    *   (Nota: Os valores da tabela acima já contemplam o esforço real de projeto. Não usar multiplicadores extras).
+2.  **Arredondamento:** Arredondar sempre para cima (0.5h).
+
+### Passo 5: Testes Integrados e Homologação (Macro-Tasks)
+
+Adicionar tarefas explícitas ao final do cronograma para a estabilização do projeto. Estas não são percentuais ocultos, mas **tasks reais** que devem aparecer no backlog.
+
+*   **Regra de Cálculo:** A soma dessas tasks deve corresponder a aproximadamente **30% do Total de Horas de Desenvolvimento**.
+*   **Exemplos de Tasks de Teste:**
+    *   "Executar Teste Integrado (E2E) - Fluxo Feliz"
+    *   "Executar Teste de Exceções e Rollback"
+    *   "Acompanhar Homologação Assistida (UAT)"
+    *   "Ajustes de Bugs de Homologação"
 
 ---
 
-## 6. Apêndice: Exemplo de Aplicação (Projeto KEA)
-
-| Robô | Bloco | Ação | Pontuação | Tempo Base | Est. Ajustada |
-|---|---|---|---|---|---|
-| prj_KEA_ID01_INGESTION | Init | Conectar IMAP | 6 | 2.0 | 3.0 |
-| | Main | Extrair Regex | 9 | 5.0 | 7.0 |
-| | End | Enviar relatório | 6 | 2.0 | 3.0 |
-
----
-
-## 7. Guia Definitivo de Construção de Código
+## 6. Guia Definitivo de Construção de Código
 
 Este guia define as normas OBRIGATÓRIAS para a geração de qualquer linha de código. O objetivo é criar códigos **simples, práticos e robustos**.
 
