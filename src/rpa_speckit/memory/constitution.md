@@ -6,452 +6,237 @@ Este documento é a fonte canônica da verdade para o design, desenvolvimento e 
 
 ## 1. Introdução e Filosofia
 
-Este não é mais um guia; é a **Bíblia da Arquitetura de Automação**. Ele foi projetado para ser o único documento de referência necessário para qualquer pessoa (ou IA) projetar, nomear, estimar e implementar um projeto de RPA, garantindo que o resultado final siga os padrões de excelência definidos.
+Este não é mais um guia; é a **Bíblia da Arquitetura de Automação**. Ele foi projetado para ser o único documento de referência necessário para qualquer pessoa (ou IA) projetar, nomear, estimar e implementar um projeto de RPA.
 
 A filosofia central é a **decomposição inteligente**: processos de negócio complexos são quebrados em robôs especialistas, e robôs são quebrados em tarefas funcionais claras. Esta granularidade é a base para a resiliência e a previsibilidade.
 
+### 1.1 Diretriz de Comunicação (Simplicidade e Clareza)
+Ao documentar, explicar ou definir processos para stakeholders, **elimine o "techinês"**.
+*   ❌ **Evite:** "O robô consome o payload da fila e processa o milestone."
+*   ✅ **Prefira:** "O robô lê os dados do pedido e atualiza o status da etapa."
+*   **Regra:** A documentação deve ser direta, profissional e compreensível para uma pessoa de negócios não técnica. Evite metáforas infantis ou termos excessivamente técnicos em inglês no meio de frases em português.
+
 ---
 
-## 2. Componentes Fundamentais da Arquitetura de Automação
+## 2. Taxonomia dos Robôs (Definições Oficiais)
 
-Toda automação é construída a partir de um conjunto de componentes e padrões arquiteturais. Compreendê-los é o primeiro passo para um design robusto.
+Antes de desenhar qualquer solução, é obrigatório classificar cada robô em um dos tipos abaixo.
 
-### 2.1 Filas (Queues): O Coração da Automação
+### 2.1 Robô Dispatcher
+*   **Função:** Popular filas de trabalho ou atualizar a base de dados para um standalone.
+*   **Comportamento:** Linear (Executa uma vez do início ao fim).
+*   **Quando usar:** Quando há uma fonte de dados em massa (Excel, E-mail, Banco, API List) que precisa ser iterada para criar itens transacionais para próximos robôs, ou atualizar estruturas de dados para consumo em um robô standalone.
+*   **Características:**
+    *   Pode conter regras complexas de extração, filtragem ou transformação de dados antes de popular a fila.
+    *   Pode interagir com sistemas externos (APIs, bancos de dados, planilhas, etc.) conforme necessário para preparar o trabalho, desde que o foco seja sempre alimentar a fila ou preparar a base de dados, e não o processamento de negócio final.
+    *   O objetivo primário é organizar, disponibilizar e garantir o input adequado para a etapa seguinte da automação, de maneira eficiente, previsível e reentrante.
 
-A fila é o componente central do nosso ecossistema. Ela é a fonte da verdade para o trabalho a ser feito.
+### 2.2 Robô Performer 
+*   **Função:** Consumir itens de uma fila e executar a lógica de negócio.
+*   **Comportamento:** Cíclico/Transacional (Obter Item -> Processar -> Definir Status).
+*   **Características:** 
+    *   Sempre trabalha sobre uma fila (ou seja, recebe input padronizado e preparado, normalmente por um Dispatcher ou Standalone).
+    *   Ideal para processamento pesado, execução de regras de negócio complexas e interação direta com sistemas finais.
+    *   Cego para o mundo exterior (não monitora pastas/emails), apenas vê o item da fila.
+    *   **Regra de Ouro:** Deve ser sempre **Queue-Driven**.
 
-*   **O que é?** Uma lista estruturada de itens de trabalho. Cada item (ou "transação") representa uma unidade de processamento (ex: uma nota fiscal para validar, um cliente para cadastrar).
-*   **Por que é Obrigatória?**
-    *   **Desacoplamento:** O robô que cria o trabalho (Produtor) não precisa saber nada sobre o robô que o executa (Consumidor). Eles só precisam concordar com o "contrato" da fila.
-    *   **Escalabilidade:** Para aumentar a vazão, basta adicionar mais robôs consumidores à mesma fila, sem alterar a arquitetura.
-    *   **Resiliência:** Se um robô falhar ao processar um item, o item pode ser retentado automaticamente ou marcado para análise humana sem perder o trabalho.
-    *   **Auditabilidade:** As filas fornecem um log completo de todos os itens processados, pendentes e com falha.
+### 2.3 Robô Standalone
+*   **Função:** Possui as mesmas características do Performer, mas nesse caso o próprio robô cria e consome sua própria fila (internamente), geralmente em execuções mais simples, rápidas e diretas.
+*   **Comportamento:** Cíclico/Transacional (Obter Item -> Processar -> Definir Status).
+*   **Quando usar:**
+    *   Sempre que o input é simples ou facilmente acessível, evitando a necessidade de criar um Dispatcher separado (ex: ler um Excel local e processar as linhas).
+    *   Etapas intermediárias ou de passagem rápida (ex: ler status no Notion e enviar e-mail).
+*   **Vantagem:** Reduz a complexidade de arquitetura para processos menores, sem perda das garantias de robustez do padrão Performer.
 
-### 2.2 A Anatomia de um Robô: O Ciclo de Vida da Execução
+### 2.4 O Par Assíncrono (Sender & Receiver) - **MANDATÓRIO PARA VERIFAI**
+Padrão exclusivo para processamento de documentos com o Verifai (ou ferramentas de OCR assíncronas). **Este padrão pode ser repetido múltiplas vezes dentro de um mesmo macro-processo (ex: Extração Inicial -> Cotação -> Validação Final).**
 
-Todo robô, independentemente de sua função, deve seguir uma estrutura de execução padronizada em três estágios, inspirada no "Robotic Enterprise Framework" (REFramework).
+#### A. Robô Sender (O Iniciador)
+*   **Responsabilidade:** Preparar docs, enviar para o verifai e capturar o `Job_ID`.
+*   **Output:** Cria um item na fila do robô receiver com o `Job_ID`.
+*   **Regra:** Após despachar o ID para a fila, o robô **DEVE ENCERRAR**. Não espera o resultado e também não faz nenhuma outra atividade relacionada ao processo.
 
-#### 1. Init (Inicialização)
-*   **Propósito:** Preparar todo o ambiente necessário para a execução. É a fase de "tudo ou nada".
-*   **Ações Típicas:** Ler arquivos de configuração, obter credenciais, fazer login em todas as aplicações necessárias (SAP, portais web, etc.), inicializar variáveis.
-*   **Regra de Ouro:** Se qualquer passo no Init falhar, o robô deve encerrar a execução imediatamente e reportar o erro. Nenhum item da fila deve ser processado se o ambiente não estiver 100% pronto.
-*   **Implementação:** Método `T2CInitAllApplications.execute()`.
+#### B. Robô Receiver (O Coletor)
+*   **Responsabilidade:** Processar o resultado já pronto no Verifai, utilizando o `Job_ID`.
+*   **Ação:** Captura o resultado do processamento do documento no Verifai e continua o processo com as regras de negócio.
 
-#### 2. Main Transaction Loop (Onde o Trabalho Acontece)
-*   **Propósito:** Processar um item da fila por vez, de forma isolada e transacional.
-*   **Fluxo Obrigatório:**
-    1.  **Obter Item da Fila:** Pega o próximo item disponível. Se não houver itens, o loop termina e o robô vai para o End Process.
-    2.  **Processar Item:** Executa a lógica de negócio principal daquele robô.
-    3.  **Definir Status do Item:** Ao final do processamento, o robô deve marcar o item com um dos três status:
-        *   **Sucesso:** O item foi processado completamente e com sucesso.
-        *   **Exceção de Negócio:** O item não pôde ser processado devido a uma regra de negócio (ex: "documento inválido", "cliente não encontrado"). Isso não é um erro do robô; é um resultado esperado.
-        *   **Exceção de Aplicação:** Ocorreu um erro inesperado (ex: o sistema travou, um seletor não foi encontrado, a API retornou erro 500). O item deve ser retentado automaticamente, se configurado.
-*   **Implementação:** Método `T2CProcess.execute()`.
+### 2.5 O Padrão Pipeline (Daisy-Chain)
+Uma variação permitida onde o output de um robô serve imediatamente como input para a fila do próximo, sem depender exclusivamente de agendamentos baseados em varredura de banco de dados.
 
-#### 3. End Process (Finalização)
-*   **Propósito:** Encerrar a operação de forma limpa e segura.
-*   **Ações Típicas:** Fazer logout de todas as aplicações, fechar conexões com bancos de dados, gerar e enviar um relatório de resumo da execução.
-*   **Regra de Ouro:** O End Process deve ser executado sempre, quer o Main Loop tenha sido bem-sucedido, quer tenha sido interrompido por uma falha no Init.
-*   **Implementação:** Método `T2CCloseAllApplications.execute()`.
-
-```mermaid
-graph TD
-    Start --> Init;
-    Init --Sucesso--> MainLoop{Processar Itens?};
-    Init --Falha--> EndProcess;
-    MainLoop --Sim, há itens--> GetItem[Obter Item da Fila];
-    GetItem --> ProcessItem[Executar Lógica de Negócio];
-    ProcessItem --> SetStatus[Definir Status do Item];
-    SetStatus --> MainLoop;
-    MainLoop --Não, fila vazia--> EndProcess;
-    EndProcess --> Finish;
-```
-
-### 2.3 O Robô Dispatcher: O Maestro da Orquestração
-
-O Dispatcher é um tipo especializado de robô cuja principal responsabilidade é **popular as filas de trabalho**.
-
-*   **Quando é Necessário?** Sempre que houver uma fonte de dados em massa (Excel, E-mail, Banco de Dados, API List) que precisa ser iterada para criar itens transacionais.
-*   **Modos de Operação:**
-    *   **Standalone (Ingestion):** É o primeiro robô do processo. Ele não consome fila, ele é acionado por agendamento (Time Trigger). Sua função é ler a fonte bruta (ex: baixar e-mail) e criar itens na fila.
-    *   **Queue-Driven (Intermediate):** Em processos complexos, um Dispatcher pode consumir um item de uma fila "pai" (ex: ID de Processo) para gerar N itens em uma fila "filho" (ex: Lista de Notas Fiscais daquele processo).
-*   **O que ele NÃO Faz (Anti-Patterns Proibidos):**
-    *   ❌ **NUNCA** executa lógica de negócio complexa ou validações de regras (isso é papel do Performer).
-    *   ❌ **NUNCA** envia e-mails de negócio ou realiza ações em sistemas de destino (ex: criar pedido).
-    *   ❌ **NUNCA** interage com o VerifAI para obter resultados (ele apenas coleta os arquivos brutos).
-    *   **Regra:** Se o robô está tomando decisões de negócio ("Se valor > X, então..."), ele NÃO é um Dispatcher.
-
-### 2.4 O Robô Performer: O Especialista da Execução
-
-O Performer é o robô que consome itens da fila e executa o trabalho pesado.
-
-*   **Regra Mandatória:** Todo Performer deve ser **Queue-Driven**. Ele não itera Excel, ele não lê pasta de e-mail em loop infinito, ele não faz queries no Notion buscando status.
-*   **O que ele NÃO Faz (Anti-Patterns Proibidos):**
-    *   ❌ **NUNCA** tem uma etapa "Monitor" ou "Watch". Ele é cego para o mundo exterior; ele só enxerga a Fila.
-    *   ❌ Se você precisa monitorar e-mails para processar respostas, você precisa de um **Dispatcher** para ler o e-mail e criar um item de fila, e um **Performer** para processar esse item.
-*   **Por que?** Isso garante que múltiplos Performers possam trabalhar na mesma fila simultaneamente (escalabilidade horizontal).
+*   **Hibridismo:** Um robô pode atuar como *Performer* da Etapa A e *Dispatcher* da Etapa B simultaneamente.
+*   **Regra:** Ao finalizar sua tarefa com sucesso, o robô monta o payload e cria o item na fila do próximo robô especialista.
+*   **Vantagem:** Reduz latência entre etapas e isola falhas de componentes específicos (ex: OCR, API externa).
 
 ---
 
 ## 3. Princípios de Design de Arquitetura
 
-A decisão de quantos robôs criar é a mais crítica do projeto. Siga estes princípios rigorosamente.
+### 3.1 O Princípio da Responsabilidade Única (Isolamento de Loop)
+**Regra:** Um robô deve ter apenas UM loop principal de processamento.
 
-### 3.1 O Princípio da Responsabilidade Única (PRU)
+*   **Cenário Proibido:** Entrar em um site, iterar sobre uma lista de Clientes (Loop 1) e, para cada cliente, iterar sobre suas Notas Fiscais (Loop 2) para processá-las.
+*   **Solução Correta:**
+    *   **Robô 1:** Itera Clientes -> Extrai Notas -> Envia para Fila.
+    *   **Robô 2:** Consome Fila de Notas -> Processa Nota.
+*   **Exceção (Linearidade):** Se o processamento do "filho" é imediato e usa o mesmo contexto de navegação do "pai" sem riscos de quebra, pode-se manter junto (ex: Emitir Boleto A e logo em seguida Boleto B na mesma tela).
 
-Cada robô deve ter uma, e apenas uma, responsabilidade principal (Micro-Step). A especialização é a chave para a manutenibilidade e o reuso.
+### 3.2 O Princípio da Atomicidade de Estado (State-Driven)
+Este princípio vale para qualquer processo, independente da duração: o robô nunca deve ser responsável por mais de um estado/etapa do fluxo. Para cada etapa, o robô atua exclusivamente em um único estado. 
 
-*   **A Regra do "Um Verbo":** Se você descreve o robô usando "e" (ex: "Extrai notas E valida impostos E envia e-mail"), ele provavelmente está violando o PRU.
-    *   Robô A: "Ingerir" (Ingestão).
-    *   Robô B: "Extrair" (Processamento de IA).
-    *   Robô C: "Validar" (Regras de Negócio).
-    *   Robô D: "Notificar" (Envio de E-mails).
-*   **Proibição de Robôs "Canivete Suíço":** Um robô que interage com o sistema A para extrair dados **NÃO** deve ser o mesmo que implementa a lógica de negócio ou atualiza o sistema B.
-*   **Violação Comum:** Colocar "Validação de Negócio" dentro do robô "Dispatcher". O Dispatcher move dados; o Performer valida dados.
+*   O estado do processo nunca deve permanecer apenas na "memória" do robô.
+*   A responsabilidade de cada robô é mover o item de um Estado A para um Estado B, sem sobrepor etapas.
+    *   *Ex:* De "Novo" para "Aguardando Cotação".
+    *   *Ex:* De "Cotação Recebida" para "Aprovado".
 
-### 3.2 O Princípio do Acionamento por Fila (Queue-Driven)
-**Regra Mandatória:** Filas são a única fonte de trabalho para robôs performers.
-*   Um robô Performer não deve monitorar ativamente pastas de rede, caixas de e-mail ou estados em um banco de dados.
-*   Esta abordagem passiva (baseada em eventos/itens de fila) garante o desacoplamento, a escalabilidade (múltiplos robôs podem consumir da mesma fila) e a resiliência (itens podem ser reprocessados em caso de falha).
-
-### 3.3 O Padrão do Dispatcher
-Se um processo possui múltiplos pontos de entrada (ex: e-mail e portal) ou requer uma filtragem complexa para criar os itens de trabalho, um robô Dispatcher deve ser criado.
-*   **Responsabilidade:** Ler as fontes de dados, normalizar a informação e popular a fila de trabalho para os robôs performers.
-*   **O que NÃO faz:** Lógica de negócio complexa ou processamento transacional demorado.
-
-### 3.4 O Padrão da Fronteira Assíncrona (Sender/Receiver) - EXCLUSIVO PARA VERIFAI
-
-Este padrão é **OBRIGATÓRIO** e de uso **EXCLUSIVO** para automações que utilizam o **VERIFAI** (ou soluções de IDP/IA Assíncronas similares). Ele não deve ser aplicado levianamente para outras APIs lentas, a menos que haja justificativa técnica extrema.
-
-O objetivo é isolar o custo e a complexidade do processamento de IA, garantindo que o robô não fique ocioso aguardando respostas.
-
-#### Estrutura Obrigatória Sender/Receiver:
-
-1.  **Robô Sender (O Iniciador):**
-    *   **Responsabilidade Única:** Preparar os documentos/dados e enviá-los para o VerifAI.
-    *   **Ação:** Envia a requisição (upload) e captura IMEDIATAMENTE o `job_id` (ou `transaction_id`).
-    *   **Output:** Cria um item em uma fila intermediária (ex: `Queue_..._PENDING_RESULTS`) contendo o `job_id` e metadados essenciais.
-    *   **Regra de Ouro:** "Fire and Forget". O Sender JAMAIS espera o processamento terminar.
-    *   **Restrição Final (The Kill Switch):** Após despachar o `job_id` para a fila, o Sender **DEVE ENCERRAR IMEDIATAMENTE**. É proibido executar qualquer outra lógica de negócio, validação ou interação com outros sistemas após o envio. O robô "morre" ali para garantir a atomicidade do envio.
-
-2.  **Robô Receiver (O Coletor):**
-    *   **Responsabilidade Única:** Monitorar a conclusão do processamento no VerifAI e recuperar os dados.
-    *   **Mecanismo:** Consome o item da fila `PENDING_RESULTS`, usa o `job_id` para consultar o status (polling inteligente com backoff exponencial) e, somente quando `status == COMPLETED`, baixa o JSON de resultado.
-    *   **Output:**
-        *   Se Sucesso: Envia os dados extraídos para a próxima etapa (Fila de Processamento ou Sistema Final).
-        *   Se Falha na IA: Trata o erro conforme regra de negócio (Human in the Loop ou Rejeição).
-
-**Por que essa separação é Crítica para o VerifAI?**
-*   **Otimização de Licença:** Evita que um robô fique "preso" (dormindo) por minutos enquanto a IA processa documentos grandes.
-*   **Desacoplamento de Falhas:** Se o serviço de IA instabilizar, o Sender continua enfileirando trabalho, e o Receiver processa quando o serviço voltar, sem perda de dados.
-*   **Escalabilidade Independente:** Você pode ter 1 Sender (rápido) alimentando o serviço e 5 Receivers (mais lentos devido ao polling) para dar vazão.
-
-**Regra Absoluta:**
-*   Se o projeto usa **VerifAI**, a arquitetura DEVE ter, no mínimo, dois robôs (Sender e Receiver) ou um fluxo que suporte essa assincronicidade via filas. Não tente fazer tudo em um único loop síncrono.
-*   **Extensão da Regra (Sender/Receiver Recursivo):** Se o processo exige IA em momentos diferentes (ex: Extrair Pedido no início E Extrair Fatura no final), o padrão Sender/Receiver deve ser aplicado **novamente** para cada momento. Não tente reutilizar o mesmo robô para contextos de negócio diferentes só porque a tecnologia (IA) é a mesma.
-
-**O Princípio da Latência Infinita:**
-Ao desenhar a arquitetura com VerifAI, assuma que a resposta da IA demorará **24 horas** para chegar.
-*   Isso impede o erro comum de desenhar um fluxo "Extrair -> Validar -> Enviar" no mesmo robô.
-*   Se a resposta demora "24 horas" (no modelo mental), torna-se óbvio que o robô deve morrer após o envio e outro robô deve nascer para processar a resposta.
+### 3.3 Separação de Ingestão e Processamento (I/O vs CPU)
+Sempre que uma etapa envolver monitoramento ativo de uma fonte instável (E-mail, Pasta de Rede, Web Scraping lento) seguida de um processamento pesado ou custoso (IA, Verifai, Regras complexas), recomenda-se separar em dois robôs:
+1.  **Robô Coletor:** Apenas baixa, salva e enfileira. (Rápido, baixo risco de erro de negócio).
+2.  **Robô Processador:** Consome a fila e executa a regra. (Isolado da instabilidade da fonte).
 
 
-### 3.5 Separação Transacional vs. Monitoramento
-Evite misturar **Criação/Ação Imediata** com **Monitoramento de Longo Prazo** no mesmo robô.
-*   **Cenário:** Criar pedido no SAP (rápido) e monitorar entrega (dias).
-*   **Solução:** Dividir em **Creator** (faz e termina) e **Monitor** (roda agendado para checar status).
-*   **Regra de Tracking:** O monitoramento deve ser centralizado em um robô "Master" que itera sobre os itens ativos, em vez de fragmentar o tracking em múltiplos robôs sequenciais.
+## 4. Componentes Técnicos
 
-### 3.6 Integração com IA e VerifAI
-O uso de IA altera a complexidade e a arquitetura.
-1.  **Complexidade:** Substitui lógica complexa de Regex/OCR (Pontos 3) por integração de API (Pontos 1 ou 2). As estimativas devem refletir isso.
-2.  **Arquitetura:** Impõe o padrão Sender/Receiver (Seção 3.4).
-3.  **Fluxo de Dados:** O JSON retornado pela IA deve ser validado (cross-check) contra a fonte de dados original (ex: Notion) antes de prosseguir.
+### 4.1 Filas (Queues)
+*   **Obrigatório:** Schema definido (payload JSON).
+*   **Contrato:** Produtor e Consumidor devem concordar estritamente com os campos (ex: `caminho_arquivo`, `id_transacao`, `prioridade`).
 
-### 3.7 Princípio da Atomicidade de Estado (State-Driven Design)
-
-Em processos complexos de longa duração (dias/semanas), não use filas temporárias para guardar estado entre etapas distantes. Use o **Sistema de Registro (ex: Notion, Banco de Dados)** como a fonte da verdade do estado.
-
-*   **Padrão:** Cada robô deve ser responsável por **uma transição de estado**.
-    *   Robô A: Move de "Novo" -> "Aguardando Análise".
-    *   Robô B: Move de "Aguardando Análise" -> "Em Processamento".
-*   **Benefício:** Se o processo parar por 3 dias, o estado está seguro no Notion, não preso em uma fila volátil ou na memória de um robô.
-*   **A "Falácia da Tarefa Grande":** Não tente resolver o problema de ponta a ponta ("Receber -> Processar -> Concluir") em um único robô se houver interações externas no meio. Quebre em **Micro-Steps** atômicos.
-
-### 3.8 Padrão de Polling Baseado em Expectativa (Expectation-Based Polling)
-
-Ao verificar respostas assíncronas (e-mail de fornecedor, status de aprovação), **NÃO** crie um robô que varre a caixa de entrada inteira cegamente.
-
-*   **Como fazer:**
-    1.  O Robô lê o Sistema de Controle (Notion) buscando itens no status "Aguardando Resposta".
-    2.  Para cada item, ele usa um identificador único (Subject ID, Reference Number) para buscar **especificamente** aquela resposta.
-    3.  Se não encontrou: Item continua "Aguardando".
-    4.  Se encontrou: Processa e avança o status.
-*   **Por que:** Transforma um problema de "trigger incerto" em um processo linear e controlável de verificação.
-
-### 3.9 O Padrão "Mailroom" (Ingestão Pura)
-
-O primeiro passo de qualquer automação complexa deve ser uma **Ingestão Pura**.
-
-*   **Objetivo:** Tirar o dado da fonte volátil (E-mail) e colocar em uma fonte estruturada/persistente (Notion/Banco) o mais rápido possível, **SEM processar**.
-*   **Exemplo:** Robô 1 apenas lê o e-mail e cria a linha no Notion. O Robô 2 lê o Notion e começa a trabalhar.
-*   **Benefício:** Rastreabilidade imediata. "Recebemos o pedido, está no Notion".
+### 4.2 Anatomia da Execução (REFramework Simplificado)
+1.  **Init:** Config, Login, Kill Process. Falha aqui aborta tudo.
+2.  **Main Loop:**
+    *   `Get Transaction Item`
+    *   `Process Transaction` (Try/Catch de Negócio vs Sistema)
+    *   `Set Transaction Status` (Success, Business Rule Exception, System Exception)
+3.  **End Process:** Logout, Close, Relatórios.
 
 ---
 
-## 4. Nomenclatura e Contratos de Dados
+## 5. Nomenclatura e Padrões (Obrigatório)
 
-A padronização é essencial para a clareza e governança do ecossistema de automação.
+A padronização permite que qualquer desenvolvedor (ou IA) entenda o projeto apenas lendo os nomes dos arquivos.
 
-### 4.1 Nomenclatura de Projetos (Robôs)
+### 5.1 Projetos e Robôs
+`prj_<Empresa>_<IDProcesso>_<SubSigla>_<Seq>_<Sistema>`
+*   *Ex:* `prj_PlanoEPlano_ID55_GFIP_03_DIGIT`
 
-*   **Estrutura:** `prj_<NomeEmpresa>_<IDProcesso>_<SubSiglaOpcional>_<NumeroSequencial>_<NomeSistema>`
-*   **Componentes:**
-    *   `prj`: Prefixo padrão.
-    *   `NomeEmpresa`: Cliente ou unidade de negócio.
-    *   `IDProcesso`: Identificador único do processo de negócio (ex: ID55, FIN03).
-    *   `SubSiglaOpcional`: Usado para agrupar robôs dentro de um sub-processo (ex: GFIP, ISS).
-    *   `NumeroSequencial`: Ordem lógica de execução do robô no fluxo (01, 02, ...).
-    *   `NomeSistema`: Principal sistema com o qual o robô interage.
-*   **Exemplo Prático:** `prj_PlanoEPlano_ID55_GFIP_03_DIGIT`
+### 5.2 Filas
+`Queue_<IDProcesso>_<SeqConsumidor>_<Descricao>`
+*   *Ex:* `Queue_ID55_04_PENDING_GFIP_VERIFY`
 
-### 4.2 Nomenclatura de Filas
-
-*   **Estrutura:** `Queue_<IDProcesso>_<NumeroSequencialRobôConsumidor>_<NomeConformeNecessidade>`
-*   **Componentes:**
-    *   `Queue`: Prefixo padrão.
-    *   `IDProcesso`: Mesmo ID do projeto.
-    *   `NumeroSequencialRobôConsumidor`: Número do robô que irá consumir desta fila (ex: se o Robô 04 consome, o número é 04).
-    *   `NomeConformeNecessidade`: Descrição sucinta do propósito dos itens na fila.
-*   **Exemplo Prático:** `Queue_ID55_04_PENDING_GFIP_VERIFY`
-
-### 4.3 Schemas de Fila (O Contrato de Dados)
-
-Toda fila deve ter um schema de dados (payload) formalmente definido. Este schema é o contrato imutável entre o robô produtor e o consumidor.
-
-**Formato de Definição:**
-
-| Campo | Tipo | Descrição | Exemplo |
-| :--- | :--- | :--- | :--- |
-| `caminho_arquivo` | String | Caminho de rede completo para o arquivo a ser processado. | `\\share\input\doc1.pdf` |
-| `id_transacao` | String | Identificador único da transação no sistema de origem. | `"TRN-2025-12345"` |
-| `prioridade` | Integer | Nível de prioridade do item (1-5). | `3` |
-
-### 4.4 Padrões de Código (Variáveis, Classes e Métodos)
-Para manter o código legível e consistente:
-
-*   **Variáveis:** `var_<tipo><Nome>` (ex: `var_strNome`, `var_intContador`, `var_dictItem`).
-*   **Argumentos:** `arg_<tipo><Nome>` (ex: `arg_strReferencia`, `arg_dictDados`).
-*   **Constantes:** `CONS_<TIPO>_<NOME>` (ex: `CONS_STR_URL_BASE`).
-*   **Classes:** PascalCase (ex: `T2CProcess`, `T2CQueueManager`).
-*   **Métodos:** snake_case (ex: `execute()`, `add_to_queue()`).
+### 5.3 Variáveis e Código
+*   **Variáveis:** `var_strNome`, `var_intIdade`, `var_dictDados`, `var_listItens`.
+*   **Argumentos:** `arg_strCaminho`, `arg_dictConfig`.
+*   **Constantes:** `CONS_STR_URL_BASE`.
+*   **Classes:** PascalCase (`LeitorExcel`, `T2CProcess`).
+*   **Métodos:** snake_case (`ler_planilha`, `processar_item`).
 
 ---
 
-## 5. Framework de Estimativa de Esforço (FEFP)
+## 6. Framework de Estimativa (FEFP)
 
-Este framework transforma a estimativa de esforço de uma arte subjetiva para um processo de engenharia transparente e repetível. Ele assume uma persona de **Desenvolvedor Sênior** como base para as métricas, e aplica fatores de correção para outros níveis.
+Use esta tabela para calcular o esforço de desenvolvimento (Horas Sênior).
 
-### Passo 0: Nível de Complexidade do Projeto (NCP) e Entendimento
-
-Antes de estimar tasks, define-se o tempo fixo para **Entendimento do Processo** (Leitura de DDP, Desenho de Solução, Validação de Acessos).
-
-| Complexidade | Características | Tempo de Entendimento (h) |
+| Complexidade | Características | Tempo Base (h) |
 | :--- | :--- | :--- |
-| **Baixa** | Fluxo linear, 1-2 sistemas, API predominante. | **4h** |
-| **Média** | Regras de negócio, mistura UI/API, fluxos simples. | **12h** |
-| **Alta** | Regras cruzadas, IA/VerifAI, UI Legada, 4+ Robôs. | **24h** |
+| **Baixa** | Configurações, Leituras simples, 1 sistema. | **2 - 4** |
+| **Média** | Lógica padrão, APIs, Web Moderno. | **6 - 12** |
+| **Alta** | Regras complexas, UI instável (SAP/Citrix), VerifAI. | **14 - 20** |
+| **Muito Alta** | Crítico, Legado pesado, IA complexa. | **22 - 32** |
 
-### Passo 1: Decomposição em Micro-Tarefas
-
-Cada robô é quebrado em uma lista de tarefas.
-*   **Regra da Micro-Tarefa:** Nenhuma tarefa deve exceder **4 horas**. Se exceder, quebre em ações menores.
-*   **Regra de Clareza:** Use títulos curtos e descritivos para negócio (ex: "Validar Peso Bruto" em vez de "Parse JSON Payload").
-
-### Passo 2: Avaliação de Complexidade (Sistema de Pontuação)
-
-Para cada micro-tarefa, some os pontos dos **4 fatores** a seguir (4 a 12 pts).
-
-| Fator | Baixo (1 pt) | Médio (2 pts) | Alto (3 pts) |
-| :--- | :--- | :--- | :--- |
-| **1. Interação com Sistema** | APIs, Arquivos | Web Moderno | SAP, Citrix, IA Assíncrona |
-| **2. Lógica de Negócio** | Linear, sem condicional | 2-3 condicionais | Regras aninhadas, cruzamentos |
-| **3. Manipulação de Dados** | Estruturado | Semi-estruturado | Não-estruturado |
-| **4. Requisito de Resiliência** | Try/catch padrão | Retentativas | Rollback, Recuperação complexa |
-
-### Passo 3: Mapeamento de Pontuação para Tempo Base (Sênior)
-
-A pontuação define o **Tempo Base Sênior** (desenvolvedor experiente).
-
-| Pontuação Total | Nível de Complexidade | Tempo Base Sênior (h) |
-| :--- | :--- | :--- |
-| **4-5** | **Baixa** (Configurações, Leituras simples) | **2.0 - 4.0** |
-| **6-7** | **Média** (Lógica padrão, APIs) | **6.0 - 12.0** |
-| **8-9** | **Alta** (Regras complexas, UI instável) | **14.0 - 20.0** |
-| **10-12** | **Muito Alta** (Crítico, IA, Legado pesado) | **22.0 - 32.0** |
-
-### Passo 4: Cálculo da Estimativa Final Ajustada
-
-Para refletir a realidade de projetos (curva de aprendizado, ambiente, debug):
-
-1.  **Estimativa da Task:** `Tempo Task = Tempo Base Sênior`
-    *   (Nota: Os valores da tabela acima já contemplam o esforço real de projeto. Não usar multiplicadores extras).
-2.  **Arredondamento:** Arredondar sempre para cima (0.5h).
-
-### Passo 5: Testes Integrados e Homologação (Macro-Tasks)
-
-Adicionar tarefas explícitas ao final do cronograma para a estabilização do projeto. Estas não são percentuais ocultos, mas **tasks reais** que devem aparecer no backlog.
-
-*   **Regra de Cálculo:** A soma dessas tasks deve corresponder a aproximadamente **30% do Total de Horas de Desenvolvimento**.
-*   **Exemplos de Tasks de Teste:**
-    *   "Executar Teste Integrado (E2E) - Fluxo Feliz"
-    *   "Executar Teste de Exceções e Rollback"
-    *   "Acompanhar Homologação Assistida (UAT)"
-    *   "Ajustes de Bugs de Homologação"
+*   **Micro-Tasks:** Quebre tudo em tarefas de no máximo **4 horas**.
 
 ---
 
-## 6. Guia Definitivo de Construção de Código
+## 7. Guia de Construção de Código (IA Instructions)
 
-Este guia define as normas OBRIGATÓRIAS para a geração de qualquer linha de código. O objetivo é criar códigos **simples, práticos e robustos**.
+Ao solicitar código para a IA, o output deve seguir estritamente este formato modular.
 
-### 7.1 Nomenclatura Padrão e Rigorosa
+### O Que NÃO Fazer
+*   ❌ Não gerar `bot.py` inteiro.
+*   ❌ Não reescrever `InitAllApplications.py`.
 
-A aderência estrita a prefixos e estruturas é mandatória para identificação visual imediata.
+### O Que FAZER (Output Esperado)
+Gerar classes especialistas em `classes_t2c/`.
 
-| Artefato | Estrutura e Regras Principais | Exemplo |
-| :--- | :--- | :--- |
-| **Projeto** | `prj_<Empresa>_<Sigla/ID>_<SubSigla?>_<Seq>_<Sistema>` | `prj_LeroyMerlin_CCRT_01_SAP` |
-| **Pacotes** | `snake_case` | `conexao_banco`, `utils` |
-| **Módulos** | `snake_case` (Prefixo `_` se privado) | `banco_t2c.py`, `_helper.py` |
-| **Classes** | `PascalCase` (Prefixo `_` se privada) | `BancoT2C`, `_Logger` |
-| **Variáveis** | `var_<tipo><Conteudo>` (camelCase) | `var_strEmailRemetente` |
-| **Parâmetros** | `arg_<tipo><Conteudo>` (camelCase) | `arg_intTentativas` |
-| **Constantes** | `CONS_<TIPO>_<CONTEUDO>` (UPPER_SNAKE) | `CONS_FLT_PI` |
-| **Funções** | `snake_case()` (Prefixo `_` se privada) | `envia_email()`, `_validar()` |
-| **Exceções** | `PascalCase` (Sufixo Exception opcional) | `BusinessRuleException` |
-
-**Tipos de Dados e TypeHints:**
-*   Sempre usar TypeHints quando o tipo não for inferido automaticamente.
-*   Correlação obrigatória:
-    *   `str` -> `var_strNome`
-    *   `int` -> `var_intIdade`
-    *   `float` -> `var_fltValor`
-    *   `list` -> `var_listItens`
-    *   `dict` -> `var_dictDados`
-    *   `bool` -> `var_boolAtivo`
-
-### 7.2 Estrutura e Organização de Arquivos
-
-1.  **Separação por Sistema:** As pastas do projeto devem ser organizadas por sistema ou aplicação alvo (ex: `sap/`, `portal_governo/`, `salesforce/`).
-2.  **Pasta Utils:** Código genérico e reutilizável DEVE ir para a pasta `utils`. Não duplique lógica.
-3.  **Classes Autocontidas:** As classes devem funcionar de forma similar a bibliotecas (como pandas).
-    *   Preferir `@staticmethod` e `@classmethod` para evitar necessidade de instância desnecessária.
-    *   Profundidade de herança máxima: 4 níveis.
-
-### 7.3 Qualidade e Robustez do Código
-
-1.  **Comentários:** Use com bom senso. Explique o "porquê" de lógicas complexas. Não explique o óbvio (ex: não comente "clica no botão" acima de um comando `.click()`).
-2.  **Loops Seguros:**
-    *   Todo `while` deve ter **DUPLA CONDIÇÃO** de parada: a condição de negócio E um contador de tentativas máximas.
-    *   Isso previne loops infinitos que travam a automação.
-    ```python
-    tentativa = 0
-    while condicao_negocio and tentativa < max_tentativas:
-        # logica
-        tentativa += 1
-    ```
-3.  **Tratamento de Erros (Explicit is better than implicit):**
-    *   **Uso Proativo do Raise:** Use `raise` para interromper o fluxo assim que uma regra de negócio falhar.
-    *   **Evite Else/Ifs Aninhados:** Prefira "Guard Clauses" (verificações no início que dão raise/return).
-    *   **Distinção Clara:**
-        *   `Exception`: Erro de sistema/aplicação (o framework tenta novamente).
-        *   `BusinessRuleException`: Erro de negócio (o framework marca o item e segue para o próximo).
-4.  **Estruturas Condicionais:** Evite aninhamento profundo. Use `and`/`or` ou atribuições ternárias para simplificar.
-
-### 7.4 Diretrizes Específicas do Framework T2C
-
-1.  **Ponto de Entrada:** A inicialização de aplicações ocorre **exclusivamente** em `T2CInitAllApplications.py`.
-2.  **Maestro:** O framework suporta operação COM ou SEM Maestro.
-    *   Para dev/teste local: Pode deixar configs em branco.
-    *   Para Produção (RAAS): Uso do Maestro é OBRIGATÓRIO para contabilização.
-3.  **Relatórios Customizados:**
-    *   Para adicionar dados ao relatório analítico, não crie arquivos paralelos.
-    *   Edite `Script_Select_Analitico.sql` para extrair chaves do JSON `detalhes_item_fila`.
-    *   No código, use `update_add_details_queue_item` e `update_change_value_details_queue_item`.
-
-### 7.5 Técnicas Avançadas de Automação
-
-1.  **SAP:**
-    *   Sempre inicie o SAP **via código** (linha de comando/atalho) para garantir que o "Scripting support" seja ativado corretamente.
-    *   Use `cc.sap.login()` do Clicknium para login direto.
-2.  **Clicknium Locators Dinâmicos:**
-    *   Não crie múltiplos locators para elementos em lista.
-    *   Use a sintaxe `{{parametro}}` nas propriedades do locator.
-    *   Na chamada: `find_element(locator.item, locator_variables={'parametro': 'valor'})`.
-3.  **Data Scraper:** Sempre prefira o Data Scraper do Clicknium para extrair tabelas HTML inteiras em vez de iterar linhas.
-4.  **Pop-ups e Instabilidade:**
-    *   Se detecção automática falhar, use IA (Computer Vision) para reconhecer o pop-up.
-    *   Use biblioteca `tenacity` para retentativas inteligentes em ações instáveis (ex: abrir navegador).
-5.  **Contexto RAAS:**
-    *   A inserção de dados para processamento em RAAS ocorre via envio de e-mail para `raas@t2cgroup.com.br` (com credenciais específicas).
-
-### 7.6 Estratégia de Desenvolvimento Modular (Workflow de Tarefas)
-
-**O OBJETIVO ÚNICO:** A IA deve gerar apenas o código da **classe especialista** isolada que resolve a tarefa solicitada.
-
-**O QUE NÃO FAZER:**
-*   ❌ Não gerar ou reescrever `bot.py`.
-*   ❌ Não gerar ou reescrever `T2CProcess.py`.
-*   ❌ Não gerar ou reescrever `InitAllApplications.py`.
-
-**O QUE FAZER (Output Esperado):**
-1.  O código completo da nova classe (seguindo todas as regras de nomenclatura e boas práticas).
-2.  Um breve exemplo de como instanciar/chamar essa classe (para o desenvolvedor copiar e colar no arquivo principal).
-
-**Exemplo Prático de Entrega Esperada:**
-
-*Task:* "Ler planilha de input e validar linhas."
-
-**1. Arquivo para o Desenvolvedor Criar:** `classes_t2c/excel/leitor_input.py`
+**Exemplo: Classe de Leitura de Excel**
+Arquivo: `classes_t2c/excel/excel.py`
 
 ```python
-# Imports apenas do necessário
 import pandas as pd
-from {{PROJECT_NAME}}.classes_t2c.utils.T2CExceptions import BusinessRuleException
+from src.utils.T2CExceptions import BusinessRuleException
 
-class LeitorInput:
+class excel:
     """
     Classe especialista para manipulação do Excel de Input.
     """
-
     @staticmethod
-    def ler_e_validar_planilha(arg_strCaminhoArquivo: str) -> list:
-        """
-        Lê o Excel e valida se as colunas obrigatórias existem.
-        """
-        var_listDadosValidados = []
-        
+    def ler_e_validar(arg_strCaminho: str) -> list:
         try:
-            var_dfDados = pd.read_excel(arg_strCaminhoArquivo)
+            var_df = pd.read_excel(arg_strCaminho)
         except Exception as e:
-            raise Exception(f"Erro ao abrir arquivo Excel: {e}")
+            raise Exception(f"Erro crítico ao abrir Excel: {e}")
 
-        # Validação de Regra de Negócio
-        if "CPF" not in var_dfDados.columns:
-            raise BusinessRuleException("Coluna 'CPF' não encontrada na planilha de input.")
+        if "CPF" not in var_df.columns:
+            raise BusinessRuleException("Coluna obrigatória 'CPF' ausente.")
 
-        var_listDadosValidados = var_dfDados.to_dict('records')
-        
-        return var_listDadosValidados
+        return var_df.to_dict('records')
 ```
 
-**2. Snippet de Uso (Para o Dev colar no T2CProcess ou Init):**
+---
 
-```python
-# Importação
-from {{PROJECT_NAME}}.classes_t2c.excel.leitor_input import LeitorInput
+## 8. Exemplo de Arquitetura Real (Case: Cotação de Frete - KEA)
 
-# Chamada
-var_listItens = LeitorInput.ler_e_validar_planilha(r"C:\Caminho\Input.xlsx")
-```
+Abaixo, a aplicação prática da arquitetura para um processo de Cotação de Frete Internacional, exemplificando a separação de robôs e a **linguagem direta e funcional**.
+
+### Fase 1: Entrada de Dados e Validação
+
+**1. Robô de Triagem e Envio para Leitura (Dispatcher/Sender)**
+*   **Função:** Monitorar continuamente o Notion e o E-mail em busca de novos pedidos.
+*   **Ação:** Identifica a solicitação, baixa os documentos anexos (Fatura e Lista de Itens), padroniza os nomes dos arquivos e envia para a ferramenta de Leitura Inteligente (Verifai).
+*   **Objetivo:** Garantir que o documento seja legível e esteja pronto para processamento.
+
+**2. Robô de Validação e Disparo de Cotação (Performer/Receiver)**
+*   **Função:** Processar os dados extraídos pela leitura inteligente.
+*   **Ação:**
+    *   Cruza as informações lidas nos documentos contra o que foi preenchido no formulário do pedido (pesos, medidas, endereços).
+    *   Caso encontre divergências, marca o item para revisão humana.
+    *   Estando tudo correto, consulta a lista de fornecedores e envia os e-mails solicitando orçamento.
+*   **Objetivo:** Garantir a qualidade dos dados antes de contatar os fornecedores.
+
+### Fase 2: Gestão das Propostas
+
+**3. Robô de Monitoramento de Respostas (Dispatcher)**
+*   **Função:** Verificar o retorno das transportadoras.
+*   **Ação:**
+    *   Monitora a caixa de e-mail identificando respostas vinculadas aos pedidos em aberto.
+    *   Controla o prazo de resposta (72h ou 96h). Se o fornecedor não responder no prazo, envia um e-mail de cobrança automaticamente.
+*   **Objetivo:** Centralizar as respostas e garantir que os prazos sejam cumpridos.
+
+**4. Robô de Comparação de Preços (Performer)**
+*   **Função:** Analisar as ofertas recebidas.
+*   **Ação:**
+    *   Lê o conteúdo da proposta (no corpo do e-mail ou PDF anexo) para capturar preço, prazo de entrega e data de saída.
+    *   Atualiza o Notion com um quadro comparativo (Ranking) das melhores opções baseadas em preço e prazo.
+    *   Muda o status do pedido para "Aguardando Aprovação".
+*   **Objetivo:** Entregar os dados prontos para tomada de decisão do gestor.
+
+### Fase 3: Oficialização do Embarque
+
+**5. Robô de Verificação de Aprovação (Dispatcher)**
+*   **Função:** Identificar pedidos aprovados pelo gestor.
+*   **Ação:** Varre o Notion buscando itens onde a decisão humana foi tomada e verifica se todas as informações finais estão preenchidas corretamente para o cadastro.
+*   **Objetivo:** Separar o fluxo de decisão do fluxo de cadastro no sistema.
+
+**6. Robô de Cadastro no Sistema (Performer - Integração OSA)**
+*   **Função:** Registrar o embarque oficial.
+*   **Ação:** Acessa o sistema OSA e realiza o cadastro completo do embarque (criação do ASN), inserindo todos os detalhes técnicos e financeiros. Ao final, salva o número do protocolo gerado no Notion.
+*   **Objetivo:** Eliminar a digitação manual de dados complexos no sistema ERP.
+
+### Fase 4: Pós-Embarque
+
+**7. Robô de Rastreamento (Standalone)**
+*   **Função:** Acompanhar o trânsito da carga.
+*   **Ação:**
+    *   Diariamente, verifica a lista de embarques em andamento.
+    *   Consulta o status atualizado (Coleta, Em Trânsito, Desembaraço, Entrega) e atualiza tanto o sistema OSA quanto o Notion.
+    *   Encerra o processo quando a entrega é confirmada.
+*   **Objetivo:** Manter a visibilidade da operação atualizada sem intervenção manual.
