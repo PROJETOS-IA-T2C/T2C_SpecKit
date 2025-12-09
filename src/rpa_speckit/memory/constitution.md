@@ -42,7 +42,7 @@ Este documento define TODAS as regras, especificações, padrões, exemplos e te
 
 ### 1. Estrutura do Framework
 - **O Framework é fixo:** Não modificamos a estrutura core (`classes_t2c`, `framework`, etc.).
-- **Foco em Classes Especialistas:** Todo o código novo deve ser criado como "Helper Functions/Classes" dentro da pasta `code/` do robô específico.
+- **Foco em Classes Especialistas:** Todo o código novo deve ser criado como "Helper Functions/Classes" dentro da pasta `generated/` do robô específico.
 - **Orquestração:** Os arquivos principais (`T2CProcess.py`, etc.) apenas chamam as funções criadas nas classes especialistas.
 
 
@@ -307,7 +307,7 @@ def execute(cls):
 
 ### 11. Guia de Construção de Código (Helper Classes)
 
-**⚠️ MUDANÇA DE PARADIGMA:** Não geramos mais o código do framework (arquivos core). Focamos EXCLUSIVAMENTE na criação de classes especialistas (helpers) que encapsulam a lógica de cada sistema.
+**⚠️ Focamos EXCLUSIVAMENTE na criação de classes especialistas (helpers) que encapsulam a lógica de cada sistema.
 
 #### 🚫 O Que NÃO Fazer
 *   ❌ **NUNCA** gerar ou reescrever arquivos core do framework (`bot.py`, `T2CProcess.py`, `T2CInitAllApplications.py`, etc.).
@@ -321,7 +321,7 @@ O código deve ser gerado DENTRO da pasta do robô específico (onde está o `sp
 
 ```
 [pasta-do-robo]/             # Ex: specs/001-projeto/robot1/
-└── code/                    # Pasta raiz para código gerado
+└── generated/                    # Pasta raiz para código gerado
     ├── [NomeSistema]/       # Pasta do sistema (Ex: SAP, Email, Excel)
     │   └── [NomeSistema].py # Arquivo do módulo
 ```
@@ -332,7 +332,7 @@ O código deve ser gerado DENTRO da pasta do robô específico (onde está o `sp
 *   **Conteúdo:** Métodos, parâmetros e variáveis seguindo as boas práticas (ver PARTE 8).
 
 **Exemplo Prático (SAP):**
-Caminho: `.../robot1/code/SAP/SAP.py`
+Caminho: `.../robot1/generated/SAP/SAP.py`
 
 ```python
 from src.utils.T2CExceptions import BusinessRuleException
@@ -361,7 +361,7 @@ class SAP:
 ```
 
 **Exemplo Prático (Excel):**
-Caminho: `.../robot1/code/Excel/Excel.py`
+Caminho: `.../robot1/generated/Excel/Excel.py`
 
 ```python
 import pandas as pd
@@ -383,7 +383,7 @@ class Excel:
 
 **Resumo do Fluxo de Trabalho:**
 1.  Identificar o sistema/tarefa (ex: "Logar no SAP").
-2.  Criar/Atualizar a pasta `code/SAP/` dentro do diretório do robô.
+2.  Criar/Atualizar a pasta `generated/SAP/` dentro do diretório do robô.
 3.  Criar/Atualizar a classe `SAP` em `SAP.py`.
 4.  Adicionar o método estático correspondente (ex: `login`).
 5.  O código principal (T2CProcess) apenas chamará `SAP.login(...)`.
@@ -2541,7 +2541,7 @@ As pastas devem ser separadas entre sistemas/aplicações dentro da estrutura do
 **Estrutura recomendada:**
 ```
 specs/[nome-projeto]/[nome-robo]/
-├── code/                   # Pasta raiz para código gerado
+├── generated/                   # Pasta raiz para código gerado
 │   ├── SAP/                # Exemplo: Sistema SAP
 │   │   └── SAP.py          # Classe especialista SAP
 │   ├── Excel/              # Exemplo: Manipulação Excel

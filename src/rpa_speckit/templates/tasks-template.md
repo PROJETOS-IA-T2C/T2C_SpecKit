@@ -32,7 +32,7 @@
 - **Robô:** [robot1 / robot2]
 - **Consolida:** INIT: Etapa [X]
 - **Arquivo:** T2CInitAllApplications.py
-- **Classe Especialista (Sugerida):** `classes_t2c/[sistema]/[NomeClasse].py`
+- **Classe Especialista (Sugerida):** `generated/[sistema]/[NomeClasse].py`
 - **Descrição:** [O que deve ser feito. Ex: "Criar classe LoginSAP e chamar método de login no Init."]
 - **Estimativa:** [X horas] - [Base x Complexidade x 1.35]
 - **Status:** [ ] Pendente
@@ -45,7 +45,7 @@
 - **Robô:** [robot1]
 - **Consolida:** FILA: Etapa [X]
 - **Arquivo:** T2CInitAllApplications.py (add_to_queue)
-- **Classe Especialista (Sugerida):** `classes_t2c/[sistema]/[NomeClasse].py`
+- **Classe Especialista (Sugerida):** `generated/[sistema]/[NomeClasse].py`
 - **Descrição:** [Ex: "Criar classe LeitorExcel, ler input.xlsx e popular fila."]
 - **Estimativa:** [X horas] - [Base x Complexidade x 1.35]
 - **Status:** [ ] Pendente
@@ -60,7 +60,7 @@
 - **Robô:** [robot1]
 - **Consolida:** LOOP STATION: Etapa [1]
 - **Arquivo:** T2CProcess.py
-- **Classe Especialista (Sugerida):** `classes_t2c/[sistema]/[NomeClasse].py`
+- **Classe Especialista (Sugerida):** `generated/[sistema]/[NomeClasse].py`
 - **Descrição:** [Ex: "Criar método validar_cpf na classe Validador."]
 - **Estimativa:** [X horas] - [Base x Complexidade x 1.35]
 - **Status:** [ ] Pendente
@@ -75,7 +75,7 @@
 - **Robô:** [robot1]
 - **Consolida:** END PROCESS: Etapa [X]
 - **Arquivo:** T2CCloseAllApplications.py
-- **Classe Especialista (Sugerida):** `classes_t2c/[sistema]/[NomeClasse].py`
+- **Classe Especialista (Sugerida):** `generated/[sistema]/[NomeClasse].py`
 - **Descrição:** [Ex: "Chamar método logout na classe LoginSAP."]
 - **Estimativa:** [X horas] - [Base x Complexidade x 1.35]
 - **Status:** [ ] Pendente
