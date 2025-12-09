@@ -75,13 +75,20 @@ O Dispatcher é um tipo especializado de robô cuja principal responsabilidade �
 *   **Modos de Operação:**
     *   **Standalone (Ingestion):** É o primeiro robô do processo. Ele não consome fila, ele é acionado por agendamento (Time Trigger). Sua função é ler a fonte bruta (ex: baixar e-mail) e criar itens na fila.
     *   **Queue-Driven (Intermediate):** Em processos complexos, um Dispatcher pode consumir um item de uma fila "pai" (ex: ID de Processo) para gerar N itens em uma fila "filho" (ex: Lista de Notas Fiscais daquele processo).
-*   **O que ele NÃO Faz:** Ele nunca executa a lógica de negócio "pesada" ou demorada. Ele apenas prepara, formata e enfileira o trabalho para os robôs Performers.
+*   **O que ele NÃO Faz (Anti-Patterns Proibidos):**
+    *   ❌ **NUNCA** executa lógica de negócio complexa ou validações de regras (isso é papel do Performer).
+    *   ❌ **NUNCA** envia e-mails de negócio ou realiza ações em sistemas de destino (ex: criar pedido).
+    *   ❌ **NUNCA** interage com o VerifAI para obter resultados (ele apenas coleta os arquivos brutos).
+    *   **Regra:** Se o robô está tomando decisões de negócio ("Se valor > X, então..."), ele NÃO é um Dispatcher.
 
 ### 2.4 O Robô Performer: O Especialista da Execução
 
 O Performer é o robô que consome itens da fila e executa o trabalho pesado.
 
-*   **Regra Mandatória:** Todo Performer deve ser **Queue-Driven**. Ele não itera Excel, ele não lê pasta de e-mail em loop infinito. Ele pede um item para a fila, processa, e pede o próximo.
+*   **Regra Mandatória:** Todo Performer deve ser **Queue-Driven**. Ele não itera Excel, ele não lê pasta de e-mail em loop infinito, ele não faz queries no Notion buscando status.
+*   **O que ele NÃO Faz (Anti-Patterns Proibidos):**
+    *   ❌ **NUNCA** tem uma etapa "Monitor" ou "Watch". Ele é cego para o mundo exterior; ele só enxerga a Fila.
+    *   ❌ Se você precisa monitorar e-mails para processar respostas, você precisa de um **Dispatcher** para ler o e-mail e criar um item de fila, e um **Performer** para processar esse item.
 *   **Por que?** Isso garante que múltiplos Performers possam trabalhar na mesma fila simultaneamente (escalabilidade horizontal).
 
 ---
@@ -103,17 +110,41 @@ Se um processo possui múltiplos pontos de entrada (ex: e-mail e portal) ou requ
 *   **Responsabilidade:** Ler as fontes de dados, normalizar a informação e popular a fila de trabalho para os robôs performers.
 *   **O que NÃO faz:** Lógica de negócio complexa ou processamento transacional demorado.
 
-### 3.4 O Padrão da Fronteira Assíncrona (Sender/Receiver)
-Este padrão é **OBRIGATÓRIO** quando a automação depende de um serviço externo que não fornece resposta imediata, como **IA (VerifAI, Document Intelligence)**, OCR assíncrono, Validação Humana ou APIs lentas.
+### 3.4 O Padrão da Fronteira Assíncrona (Sender/Receiver) - EXCLUSIVO PARA VERIFAI
 
-*   **Robô Sender:** Prepara a requisição, envia para o serviço externo (upload arquivo/texto), captura um `job_id` (ou transaction_id) e popula uma "fila de resultados pendentes".
-    *   **Ação:** Fire and Forget. O robô não espera.
-*   **Robô Receiver:** Consome da fila de "resultados pendentes", usa o `job_id` para consultar o status (polling) e, somente quando concluído, obtém os dados extraídos para continuar o fluxo.
-    *   **Benefício:** Evita timeout e travamento de licença enquanto a IA processa.
+Este padrão é **OBRIGATÓRIO** e de uso **EXCLUSIVO** para automações que utilizam o **VERIFAI** (ou soluções de IDP/IA Assíncronas similares). Ele não deve ser aplicado levianamente para outras APIs lentas, a menos que haja justificativa técnica extrema.
 
-**Regra para VerifAI/IDP:**
-*   Sempre que houver extração de dados via IA, o processo DEVE ser quebrado em Sender e Receiver.
-*   Exceção: Apenas se a API garantir resposta síncrona em < 30 segundos (o que é raro para OCR).
+O objetivo é isolar o custo e a complexidade do processamento de IA, garantindo que o robô não fique ocioso aguardando respostas.
+
+#### Estrutura Obrigatória Sender/Receiver:
+
+1.  **Robô Sender (O Iniciador):**
+    *   **Responsabilidade Única:** Preparar os documentos/dados e enviá-los para o VerifAI.
+    *   **Ação:** Envia a requisição (upload) e captura IMEDIATAMENTE o `job_id` (ou `transaction_id`).
+    *   **Output:** Cria um item em uma fila intermediária (ex: `Queue_..._PENDING_RESULTS`) contendo o `job_id` e metadados essenciais.
+    *   **Regra de Ouro:** "Fire and Forget". O Sender JAMAIS espera o processamento terminar.
+    *   **Restrição Final (The Kill Switch):** Após despachar o `job_id` para a fila, o Sender **DEVE ENCERRAR IMEDIATAMENTE**. É proibido executar qualquer outra lógica de negócio, validação ou interação com outros sistemas após o envio. O robô "morre" ali para garantir a atomicidade do envio.
+
+2.  **Robô Receiver (O Coletor):**
+    *   **Responsabilidade Única:** Monitorar a conclusão do processamento no VerifAI e recuperar os dados.
+    *   **Mecanismo:** Consome o item da fila `PENDING_RESULTS`, usa o `job_id` para consultar o status (polling inteligente com backoff exponencial) e, somente quando `status == COMPLETED`, baixa o JSON de resultado.
+    *   **Output:**
+        *   Se Sucesso: Envia os dados extraídos para a próxima etapa (Fila de Processamento ou Sistema Final).
+        *   Se Falha na IA: Trata o erro conforme regra de negócio (Human in the Loop ou Rejeição).
+
+**Por que essa separação é Crítica para o VerifAI?**
+*   **Otimização de Licença:** Evita que um robô fique "preso" (dormindo) por minutos enquanto a IA processa documentos grandes.
+*   **Desacoplamento de Falhas:** Se o serviço de IA instabilizar, o Sender continua enfileirando trabalho, e o Receiver processa quando o serviço voltar, sem perda de dados.
+*   **Escalabilidade Independente:** Você pode ter 1 Sender (rápido) alimentando o serviço e 5 Receivers (mais lentos devido ao polling) para dar vazão.
+
+**Regra Absoluta:**
+*   Se o projeto usa **VerifAI**, a arquitetura DEVE ter, no mínimo, dois robôs (Sender e Receiver) ou um fluxo que suporte essa assincronicidade via filas. Não tente fazer tudo em um único loop síncrono.
+
+**O Princípio da Latência Infinita:**
+Ao desenhar a arquitetura com VerifAI, assuma que a resposta da IA demorará **24 horas** para chegar.
+*   Isso impede o erro comum de desenhar um fluxo "Extrair -> Validar -> Enviar" no mesmo robô.
+*   Se a resposta demora "24 horas" (no modelo mental), torna-se óbvio que o robô deve morrer após o envio e outro robô deve nascer para processar a resposta.
+
 
 ### 3.5 Separação Transacional vs. Monitoramento
 Evite misturar **Criação/Ação Imediata** com **Monitoramento de Longo Prazo** no mesmo robô.
