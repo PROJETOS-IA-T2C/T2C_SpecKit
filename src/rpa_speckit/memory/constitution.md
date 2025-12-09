@@ -98,7 +98,16 @@ O Performer é o robô que consome itens da fila e executa o trabalho pesado.
 A decisão de quantos robôs criar é a mais crítica do projeto. Siga estes princípios rigorosamente.
 
 ### 3.1 O Princípio da Responsabilidade Única (PRU)
-Cada robô deve ter uma, e apenas uma, responsabilidade principal. Um robô que interage com o sistema A para extrair dados não deve ser o mesmo que implementa a lógica de negócio ou atualiza o sistema B. A especialização é a chave para a manutenibilidade e o reuso.
+
+Cada robô deve ter uma, e apenas uma, responsabilidade principal (Micro-Step). A especialização é a chave para a manutenibilidade e o reuso.
+
+*   **A Regra do "Um Verbo":** Se você descreve o robô usando "e" (ex: "Extrai notas E valida impostos E envia e-mail"), ele provavelmente está violando o PRU.
+    *   Robô A: "Ingerir" (Ingestão).
+    *   Robô B: "Extrair" (Processamento de IA).
+    *   Robô C: "Validar" (Regras de Negócio).
+    *   Robô D: "Notificar" (Envio de E-mails).
+*   **Proibição de Robôs "Canivete Suíço":** Um robô que interage com o sistema A para extrair dados **NÃO** deve ser o mesmo que implementa a lógica de negócio ou atualiza o sistema B.
+*   **Violação Comum:** Colocar "Validação de Negócio" dentro do robô "Dispatcher". O Dispatcher move dados; o Performer valida dados.
 
 ### 3.2 O Princípio do Acionamento por Fila (Queue-Driven)
 **Regra Mandatória:** Filas são a única fonte de trabalho para robôs performers.
@@ -139,6 +148,7 @@ O objetivo é isolar o custo e a complexidade do processamento de IA, garantindo
 
 **Regra Absoluta:**
 *   Se o projeto usa **VerifAI**, a arquitetura DEVE ter, no mínimo, dois robôs (Sender e Receiver) ou um fluxo que suporte essa assincronicidade via filas. Não tente fazer tudo em um único loop síncrono.
+*   **Extensão da Regra (Sender/Receiver Recursivo):** Se o processo exige IA em momentos diferentes (ex: Extrair Pedido no início E Extrair Fatura no final), o padrão Sender/Receiver deve ser aplicado **novamente** para cada momento. Não tente reutilizar o mesmo robô para contextos de negócio diferentes só porque a tecnologia (IA) é a mesma.
 
 **O Princípio da Latência Infinita:**
 Ao desenhar a arquitetura com VerifAI, assuma que a resposta da IA demorará **24 horas** para chegar.
@@ -157,6 +167,35 @@ O uso de IA altera a complexidade e a arquitetura.
 1.  **Complexidade:** Substitui lógica complexa de Regex/OCR (Pontos 3) por integração de API (Pontos 1 ou 2). As estimativas devem refletir isso.
 2.  **Arquitetura:** Impõe o padrão Sender/Receiver (Seção 3.4).
 3.  **Fluxo de Dados:** O JSON retornado pela IA deve ser validado (cross-check) contra a fonte de dados original (ex: Notion) antes de prosseguir.
+
+### 3.7 Princípio da Atomicidade de Estado (State-Driven Design)
+
+Em processos complexos de longa duração (dias/semanas), não use filas temporárias para guardar estado entre etapas distantes. Use o **Sistema de Registro (ex: Notion, Banco de Dados)** como a fonte da verdade do estado.
+
+*   **Padrão:** Cada robô deve ser responsável por **uma transição de estado**.
+    *   Robô A: Move de "Novo" -> "Aguardando Análise".
+    *   Robô B: Move de "Aguardando Análise" -> "Em Processamento".
+*   **Benefício:** Se o processo parar por 3 dias, o estado está seguro no Notion, não preso em uma fila volátil ou na memória de um robô.
+*   **A "Falácia da Tarefa Grande":** Não tente resolver o problema de ponta a ponta ("Receber -> Processar -> Concluir") em um único robô se houver interações externas no meio. Quebre em **Micro-Steps** atômicos.
+
+### 3.8 Padrão de Polling Baseado em Expectativa (Expectation-Based Polling)
+
+Ao verificar respostas assíncronas (e-mail de fornecedor, status de aprovação), **NÃO** crie um robô que varre a caixa de entrada inteira cegamente.
+
+*   **Como fazer:**
+    1.  O Robô lê o Sistema de Controle (Notion) buscando itens no status "Aguardando Resposta".
+    2.  Para cada item, ele usa um identificador único (Subject ID, Reference Number) para buscar **especificamente** aquela resposta.
+    3.  Se não encontrou: Item continua "Aguardando".
+    4.  Se encontrou: Processa e avança o status.
+*   **Por que:** Transforma um problema de "trigger incerto" em um processo linear e controlável de verificação.
+
+### 3.9 O Padrão "Mailroom" (Ingestão Pura)
+
+O primeiro passo de qualquer automação complexa deve ser uma **Ingestão Pura**.
+
+*   **Objetivo:** Tirar o dado da fonte volátil (E-mail) e colocar em uma fonte estruturada/persistente (Notion/Banco) o mais rápido possível, **SEM processar**.
+*   **Exemplo:** Robô 1 apenas lê o e-mail e cria a linha no Notion. O Robô 2 lê o Notion e começa a trabalhar.
+*   **Benefício:** Rastreabilidade imediata. "Recebemos o pedido, está no Notion".
 
 ---
 
