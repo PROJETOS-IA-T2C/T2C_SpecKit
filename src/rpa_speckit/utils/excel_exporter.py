@@ -26,6 +26,31 @@ def copy_style(source_cell, target_cell):
         if source_cell.alignment: target_cell.alignment = copy(source_cell.alignment)
         if source_cell.protection: target_cell.protection = copy(source_cell.protection)
 
+def resolve_template_path(template_path):
+    """
+    Tenta resolver o caminho do template.
+    1. Verifica o caminho exato passado.
+    2. Verifica em .specify/templates/ se o caminho for apenas o nome do arquivo.
+    3. Verifica em src/rpa_speckit/templates/ se estiver rodando do source.
+    """
+    # 1. Caminho exato
+    if os.path.exists(template_path):
+        return template_path
+        
+    # 2. Caminho relativo a .specify/templates/
+    filename = os.path.basename(template_path)
+    common_paths = [
+        os.path.join(".specify", "templates", filename),
+        os.path.join("..", ".specify", "templates", filename),  # Se estiver dentro de specs/
+    ]
+    
+    for path in common_paths:
+        if os.path.exists(path):
+            print(f"Template encontrado automaticamente em: {path}")
+            return path
+            
+    return template_path  # Retorna o original para o erro ser tratado depois
+
 def export_to_excel(tasks_data, template_path, output_path, process_name="Processo RPA"):
     """
     Preenche o template Excel com os dados fornecidos.
@@ -37,11 +62,14 @@ def export_to_excel(tasks_data, template_path, output_path, process_name="Proces
         process_name (str): Nome do processo para preencher no cabeçalho.
     """
     
-    if not os.path.exists(template_path):
-        raise FileNotFoundError(f"Template não encontrado: {template_path}")
+    # Tentar resolver caminho do template
+    real_template_path = resolve_template_path(template_path)
+    
+    if not os.path.exists(real_template_path):
+        raise FileNotFoundError(f"Template não encontrado: {template_path} (também verifiquei .specify/templates/)")
 
-    print(f"Carregando template: {template_path}")
-    wb = openpyxl.load_workbook(template_path)
+    print(f"Carregando template: {real_template_path}")
+    wb = openpyxl.load_workbook(real_template_path)
     ws = wb.active
 
     START_ROW = 12
