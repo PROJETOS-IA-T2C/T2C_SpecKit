@@ -150,8 +150,14 @@ def _create_templates(project_path: Path):
             
             if template_resource.is_file():
                 # Ler conteúdo do recurso do pacote
-                template_content = template_resource.read_text(encoding="utf-8")
-                dest_template.write_text(template_content, encoding="utf-8")
+                try:
+                    # Tentar ler como texto UTF-8
+                    template_content = template_resource.read_text(encoding="utf-8")
+                    dest_template.write_text(template_content, encoding="utf-8")
+                except UnicodeDecodeError:
+                    # Se falhar (arquivos binários como .xlsx), ler como bytes
+                    template_content = template_resource.read_bytes()
+                    dest_template.write_bytes(template_content)
             else:
                 # Fallback: criar arquivo vazio se template não existir
                 dest_template.write_text(f"# {template_file}\n\n[Template não encontrado no pacote]", encoding="utf-8")
