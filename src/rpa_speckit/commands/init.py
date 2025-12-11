@@ -62,6 +62,10 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
     console.print("[cyan]Criando script de extração de DDP...[/cyan]")
     _create_extract_ddp_script(project_path)
     
+    # Criar script de exportação Excel
+    console.print("[cyan]Criando script de exportação Excel...[/cyan]")
+    _create_excel_export_script(project_path)
+    
     # Criar requirements.txt
     console.print("[cyan]Criando requirements.txt...[/cyan]")
     _create_requirements_txt(project_path)
@@ -320,10 +324,197 @@ if __name__ == "__main__":
     extract_script.write_text(script_content, encoding="utf-8")
 
 
+def _create_excel_export_script(project_path: Path):
+    """Cria script Python pronto para exportação Excel"""
+    scripts_dir = project_path / ".specify/scripts"
+    
+    script_content = r'''import openpyxl
+import json
+import sys
+import os
+from copy import copy
+
+def find_footer_row(ws, start_row, search_col=2):
+    """Procura a linha onde começa o rodapé (texto não vazio que não é task)."""
+    for row in range(start_row, start_row + 500):
+        cell_val = ws.cell(row=row, column=search_col).value
+        cell_val_c = ws.cell(row=row, column=search_col+1).value
+        text = str(cell_val) if cell_val else ""
+        text_c = str(cell_val_c) if cell_val_c else ""
+        
+        if "Saída do processo" in text or "Saída do processo" in text_c:
+            return row
+    return None
+
+def copy_style(source_cell, target_cell):
+    """Copia estilo de uma célula para outra."""
+    if source_cell.has_style:
+        if source_cell.font: target_cell.font = copy(source_cell.font)
+        if source_cell.border: target_cell.border = copy(source_cell.border)
+        if source_cell.fill: target_cell.fill = copy(source_cell.fill)
+        if source_cell.number_format: target_cell.number_format = copy(source_cell.number_format)
+        if source_cell.alignment: target_cell.alignment = copy(source_cell.alignment)
+        if source_cell.protection: target_cell.protection = copy(source_cell.protection)
+
+def resolve_template_path(template_path):
+    """
+    Tenta resolver o caminho do template.
+    1. Verifica o caminho exato passado.
+    2. Verifica em .specify/templates/ se o caminho for apenas o nome do arquivo.
+    3. Verifica em src/rpa_speckit/templates/ se estiver rodando do source.
+    """
+    # 1. Caminho exato
+    if os.path.exists(template_path):
+        return template_path
+        
+    # 2. Caminho relativo a .specify/templates/
+    filename = os.path.basename(template_path)
+    common_paths = [
+        os.path.join(".specify", "templates", filename),
+        os.path.join("..", ".specify", "templates", filename),  # Se estiver dentro de specs/
+    ]
+    
+    for path in common_paths:
+        if os.path.exists(path):
+            print(f"Template encontrado automaticamente em: {path}")
+            return path
+            
+    return template_path  # Retorna o original para o erro ser tratado depois
+
+def export_to_excel(tasks_data, template_path, output_path, process_name="Processo RPA"):
+    """
+    Preenche o template Excel com os dados fornecidos.
+    
+    Args:
+        tasks_data (list): Lista de dicts com chaves 'robot', 'name', 'description', 'estimate'.
+        template_path (str): Caminho do arquivo .xlsx template.
+        output_path (str): Caminho onde salvar o arquivo final.
+        process_name (str): Nome do processo para preencher no cabeçalho.
+    """
+    
+    # Tentar resolver caminho do template
+    real_template_path = resolve_template_path(template_path)
+    
+    if not os.path.exists(real_template_path):
+        raise FileNotFoundError(f"Template não encontrado: {template_path} (também verifiquei .specify/templates/)")
+
+    print(f"Carregando template: {real_template_path}")
+    wb = openpyxl.load_workbook(real_template_path)
+    ws = wb.active
+
+    START_ROW = 12
+    COL_BOT = 2
+    COL_ACTIVITY = 3
+    COL_TIME = 4
+
+    # 1. Encontrar Footer
+    footer_row = find_footer_row(ws, START_ROW)
+    
+    if not footer_row:
+        print("⚠️ Rodapé não encontrado. Usando append simples.")
+        footer_row = START_ROW + len(tasks_data) + 10
+
+    available_rows = footer_row - START_ROW
+    needed_rows = len(tasks_data)
+    
+    # 2. Ajustar Linhas (Inserir ou Deletar)
+    if needed_rows > available_rows:
+        rows_to_insert = needed_rows - available_rows
+        print(f"Inserindo {rows_to_insert} linhas...")
+        ws.insert_rows(footer_row, amount=rows_to_insert)
+        
+        # Copiar estilo da linha anterior
+        ref_row = footer_row - 1
+        for i in range(rows_to_insert):
+            target_row = footer_row + i
+            for col in range(1, 10):
+                copy_style(ws.cell(ref_row, col), ws.cell(target_row, col))
+                
+    elif needed_rows < available_rows:
+        rows_to_delete = available_rows - needed_rows
+        if rows_to_delete > 0:
+            print(f"Deletando {rows_to_delete} linhas excedentes...")
+            delete_start = START_ROW + needed_rows
+            ws.delete_rows(delete_start, amount=rows_to_delete)
+
+    # 3. Preencher Cabeçalho
+    ws["C6"] = process_name
+
+    # 4. Preencher Tasks
+    current_row = START_ROW
+    for task in tasks_data:
+        # Coluna B: Robô
+        cell_bot = ws.cell(row=current_row, column=COL_BOT)
+        if not isinstance(cell_bot, openpyxl.cell.cell.MergedCell):
+            cell_bot.value = task.get('robot', '')
+
+        # Coluna C: Atividade
+        activity_text = f"{task.get('name', '')}\n{task.get('description', '')}"
+        cell_act = ws.cell(row=current_row, column=COL_ACTIVITY)
+        
+        # Tratamento Merge
+        if isinstance(cell_act, openpyxl.cell.cell.MergedCell):
+             for rng in ws.merged_cells.ranges:
+                 if cell_act.coordinate in rng:
+                     ws.cell(row=rng.min_row, column=rng.min_col).value = activity_text
+                     break
+        else:
+            cell_act.value = activity_text
+            cell_act.alignment = openpyxl.styles.Alignment(wrap_text=True, vertical='top')
+
+        # Coluna D: Estimativa
+        cell_time = ws.cell(row=current_row, column=COL_TIME)
+        if not isinstance(cell_time, openpyxl.cell.cell.MergedCell):
+             # Tenta converter para float
+             try:
+                 val = float(task.get('estimate', 0))
+             except:
+                 val = task.get('estimate', 0)
+             cell_time.value = val
+
+        current_row += 1
+
+    wb.save(output_path)
+    try:
+        print(f"Arquivo salvo: {os.path.abspath(output_path)}")
+    except UnicodeEncodeError:
+        print(f"Arquivo salvo: {os.path.abspath(output_path)}".encode('utf-8', errors='ignore').decode('utf-8'))
+
+if __name__ == "__main__":
+    # Modo CLI: Recebe JSON via argumento ou stdin
+    # Exemplo uso: python excel_exporter.py '{"tasks": [...], "template": "...", "output": "..."}'
+    if len(sys.argv) > 1:
+        try:
+            # Se o argumento for um arquivo json
+            if sys.argv[1].endswith('.json') and os.path.exists(sys.argv[1]):
+                with open(sys.argv[1], 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            else:
+                # Tenta parsear string json direta
+                data = json.loads(sys.argv[1])
+            
+            export_to_excel(
+                data['tasks'], 
+                data['template'], 
+                data['output'],
+                data.get('process_name', 'Processo RPA')
+            )
+        except Exception as e:
+            print(f"Erro ao processar argumentos: {e}")
+            sys.exit(1)
+    else:
+        print("Uso: python excel_exporter.py '<json_data>'")
+'''
+    
+    export_script = scripts_dir / "excel_exporter.py"
+    export_script.write_text(script_content, encoding="utf-8")
+
+
 def _create_requirements_txt(project_path: Path):
     """Cria requirements.txt com dependências necessárias"""
     requirements_content = """# Dependências para scripts do projeto
 python-pptx>=0.6.21
+openpyxl>=3.1.0
 """
     (project_path / "requirements.txt").write_text(requirements_content, encoding="utf-8")
 
@@ -337,15 +528,15 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 ## Uso
 
-\`\`\`
+```
 /t2c.extract-ddp [caminho_do_ddp]
-\`\`\`
+```
 
 ## Exemplo
 
-\`\`\`
+```
 /t2c.extract-ddp specs/001-automacao-exemplo/DDP/ddp.pptx
-\`\`\`
+```
 
 ## 🚨 REGRA FUNDAMENTAL - LEITURA CUIDADOSA DO DDP
 
@@ -408,15 +599,15 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 **PASSO 1 - Execute APENAS este comando (SIMPLES):**
 
-\`\`\`bash
+```bash
 python .specify/scripts/extract-ddp.py
-\`\`\`
+```
 
 **OU se quiser especificar o arquivo:**
 
-\`\`\`bash
+```bash
 python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
-\`\`\`
+```
 
 **Como funciona:**
 - Se você **não passar caminho**, o script procura automaticamente o primeiro arquivo .pptx em `DDP/` ou `specs/*/DDP/`
@@ -567,34 +758,34 @@ python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
 ## Arquivos a preencher
 
 **🚨 REGRA CRÍTICA - NÃO CRIAR tasks.md:**
-- ❌ **NÃO criar** \`tasks.md\` neste comando
+- ❌ **NÃO criar** `tasks.md` neste comando
 - ❌ **NÃO gerar** tasks.md automaticamente
 - ✅ **tasks.md** deve ser criado APENAS quando o usuário executar o comando `/t2c.tasks`
 - ✅ **Aguardar** o comando explícito do usuário para gerar tasks.md
 
 ### Se Standalone (1 robô):
-- \`specs/prj_[Cliente]_[ID]_[Nome]/spec.md\` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
-- \`specs/prj_[Cliente]_[ID]_[Nome]/tests.md\` - Cenários de teste e validações
-- \`specs/prj_[Cliente]_[ID]_[Nome]/selectors.md\` - Seletores Clicknium
-- \`specs/prj_[Cliente]_[ID]_[Nome]/business-rules.md\` - Regras de negócio
-- ❌ **NÃO criar** \`tasks.md\` - será criado apenas com o comando `/t2c.tasks`
+- `specs/prj_[Cliente]_[ID]_[Nome]/spec.md` - Especificação técnica e arquitetura (ARQUIVO PRINCIPAL)
+- `specs/prj_[Cliente]_[ID]_[Nome]/tests.md` - Cenários de teste e validações
+- `specs/prj_[Cliente]_[ID]_[Nome]/selectors.md` - Seletores Clicknium
+- `specs/prj_[Cliente]_[ID]_[Nome]/business-rules.md` - Regras de negócio
+- ❌ **NÃO criar** `tasks.md` - será criado apenas com o comando `/t2c.tasks`
 
 ### Se Múltiplos Robôs (quando regra obrigatória se aplicar):
-- \`specs/prj_[Cliente]_[ID]_[Nome1]/spec.md\` - Especificação do robô 1 (ex: prj_Sigla_Dispatcher)
-- \`specs/prj_[Cliente]_[ID]_[Nome1]/tests.md\` - Testes do robô 1
-- \`specs/prj_[Cliente]_[ID]_[Nome1]/selectors.md\` - Seletores do robô 1
-- \`specs/prj_[Cliente]_[ID]_[Nome1]/business-rules.md\` - Regras de negócio do robô 1
-- \`specs/prj_[Cliente]_[ID]_[Nome2]/spec.md\` - Especificação do robô 2 (ex: prj_Sigla_Performer)
-- \`specs/prj_[Cliente]_[ID]_[Nome2]/tests.md\` - Testes do robô 2
-- \`specs/prj_[Cliente]_[ID]_[Nome2]/selectors.md\` - Seletores do robô 2
-- \`specs/prj_[Cliente]_[ID]_[Nome2]/business-rules.md\` - Regras de negócio do robô 2
-- ❌ **NÃO criar** \`tasks.md\` - será criado apenas com o comando `/t2c.tasks`
+- `specs/prj_[Cliente]_[ID]_[Nome1]/spec.md` - Especificação do robô 1 (ex: prj_Sigla_Dispatcher)
+- `specs/prj_[Cliente]_[ID]_[Nome1]/tests.md` - Testes do robô 1
+- `specs/prj_[Cliente]_[ID]_[Nome1]/selectors.md` - Seletores do robô 1
+- `specs/prj_[Cliente]_[ID]_[Nome1]/business-rules.md` - Regras de negócio do robô 1
+- `specs/prj_[Cliente]_[ID]_[Nome2]/spec.md` - Especificação do robô 2 (ex: prj_Sigla_Performer)
+- `specs/prj_[Cliente]_[ID]_[Nome2]/tests.md` - Testes do robô 2
+- `specs/prj_[Cliente]_[ID]_[Nome2]/selectors.md` - Seletores do robô 2
+- `specs/prj_[Cliente]_[ID]_[Nome2]/business-rules.md` - Regras de negócio do robô 2
+- ❌ **NÃO criar** `tasks.md` - será criado apenas com o comando `/t2c.tasks`
 
 **⚠️ IMPORTANTE:** 
 - **Nomes das pastas dos robôs DEVE SEGUIR O PADRÃO** `prj_<Cliente>_<ID>_<Nome>` (ver Constitution)
 - **TODOS os robôs devem estar em pastas separadas DIRETAMENTE na raiz de `specs/`**
 - **NÃO** criar pasta intermediária `001-[nome]`
-- Cada robô tem seu próprio \`spec.md\` dentro de sua pasta nomeada corretamente
+- Cada robô tem seu próprio `spec.md` dentro de sua pasta nomeada corretamente
 - **NUNCA criar tasks.md** neste comando - aguardar comando `/t2c.tasks` do usuário
 
 ## Detalhes dos arquivos
@@ -699,7 +890,7 @@ Ao criar ou atualizar qualquer arquivo de especificação (especialmente `spec.m
 - **SEMPRE consulte o `@constitution.md`** seção 0 sobre seguir estrutura dos templates
 
 **🚨 REGRA ABSOLUTA - tasks.md:**
-- ❌ **NUNCA criar** \`tasks.md\` neste comando
+- ❌ **NUNCA criar** `tasks.md` neste comando
 - ❌ **NÃO gerar** tasks.md automaticamente
 - ✅ **tasks.md** será criado APENAS quando o usuário executar explicitamente o comando `/t2c.tasks`
 - ✅ **Aguardar** o comando do usuário - não antecipar a criação de tasks.md
@@ -707,7 +898,7 @@ Ao criar ou atualizar qualquer arquivo de especificação (especialmente `spec.m
 ## Lembre-se
 
 - O script `.specify/scripts/extract-ddp.py` JÁ EXISTE no projeto e está pronto - apenas execute-o
-- Use os templates em \`.specify/templates/\` como referência para a estrutura
+- Use os templates em `.specify/templates/` como referência para a estrutura
 - Mantenha a numeração das regras (EXC001, EXC002, etc.)
 - Se os arquivos já existirem, atualize-os com as novas informações do DDP, mas **MANTENHA a estrutura do template**
 - **SEMPRE verifique** que **TODAS as etapas, TODAS as exceções, TODOS os sistemas e TODAS as regras** do DDP estão contempladas antes de criar os arquivos""",
@@ -717,15 +908,15 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estima
 
 ## Uso
 
-\`\`\`
+```
 /t2c.tasks [caminho_da_spec]
-\`\`\`
+```
 
 ## Exemplo
 
-\`\`\`
+```
 /t2c.tasks specs/001-automacao-exemplo
-\`\`\`
+```
 
 ## O que faz
 
@@ -773,7 +964,7 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estima
 
 ## Arquivo Gerado
 
-- \`specs/001-[nome]/tasks.md\` com:
+- `specs/001-[nome]/tasks.md` com:
   - Tabela de visão geral (resumo executivo, top 5 tasks, estimativas por fase/robô)
   - Tasks detalhadas com estimativas individuais
 
@@ -807,15 +998,73 @@ Antes de calcular qualquer estimativa, a LLM DEVE:
 - Este comando é opcional - o desenvolvedor pode criar tasks.md manualmente
 - As tarefas geradas devem ser revisadas e ajustadas conforme necessário
 - As estimativas são baseadas na complexidade descrita no spec.md e business-rules.md""",
+        "t2c.tasks-export": """# Exportar Tasks para Excel
+
+Exporta o conteúdo do arquivo `tasks.md` para um arquivo Excel formatado, usando um template padrão.
+
+## Uso
+
+```
+/t2c.tasks-export [caminho_do_tasks_json]
+```
+
+## O que faz
+
+1. Lê um arquivo JSON contendo os dados das tarefas (extraído de `tasks.md` pela LLM).
+2. Usa o script `.specify/scripts/excel_exporter.py` para gerar o Excel.
+3. Preenche o template `.specify/templates/Estimativa de Esforco - Template.xlsx`.
+4. Salva o resultado em um arquivo Excel formatado.
+
+## Como Usar (Para a LLM)
+
+**PASSO 1: Ler o arquivo `tasks.md`**
+- Identifique todas as tarefas, suas descrições e estimativas.
+- Identifique qual robô executa cada tarefa (ou se é geral).
+
+**PASSO 2: Criar estrutura JSON**
+- Crie um JSON com a seguinte estrutura:
+  ```json
+  {
+    "process_name": "Nome do Processo",
+    "template": ".specify/templates/Estimativa de Esforco - Template.xlsx",
+    "output": "Estimativa_Final.xlsx",
+    "tasks": [
+      {
+        "robot": "Nome do Robô",
+        "name": "Nome da Tarefa",
+        "description": "Descrição detalhada...",
+        "estimate": 1.5
+      },
+      ...
+    ]
+  }
+  ```
+
+**PASSO 3: Executar o script**
+- Passe o JSON como argumento para o script python (como string stringificada):
+
+```bash
+python .specify/scripts/excel_exporter.py '{"process_name": "...", "tasks": [...], ...}'
+```
+
+**⚠️ IMPORTANTE:**
+- O script `excel_exporter.py` JÁ EXISTE em `.specify/scripts/`.
+- O template JÁ EXISTE em `.specify/templates/`.
+- **NÃO CRIE** novos scripts python. Use o que já existe.
+- Se o JSON for muito grande, salve em um arquivo temporário `_temp_tasks.json` e passe o caminho do arquivo:
+  ```bash
+  python .specify/scripts/excel_exporter.py _temp_tasks.json
+  ```
+""",
         "t2c.implement": """# Implementar Código Modular
  
  Gera as classes especialistas (Page Objects, Business Logic, Utils) baseadas nas especificações.
  
  ## Uso
  
- \`\`\`
+ ```
  /t2c.implement [caminho_da_spec]
- \`\`\`
+ ```
  
  ## O que faz
  
@@ -847,15 +1096,15 @@ Valida a estrutura e completude dos arquivos de especificação.
 
 ## Uso
 
-\`\`\`
+```
 /t2c.validate [caminho_da_spec]
-\`\`\`
+```
 
 ## Exemplo
 
-\`\`\`
+```
 /t2c.validate specs/001-automacao-exemplo
-\`\`\`
+```
 
 ## O que faz
 
@@ -890,7 +1139,7 @@ def _create_cursor_commands(project_path: Path):
     commands_dir = project_path / ".cursor/commands"
     
     # Usar a mesma função para garantir conteúdo idêntico
-    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.tasks-export", "t2c.implement", "t2c.validate"]:
         content = _get_command_content(cmd_name)
         (commands_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
 
@@ -900,7 +1149,7 @@ def _create_github_prompts(project_path: Path):
     prompts_dir = project_path / ".github" / "prompts"
     
     # GitHub Copilot requer extensão .prompt.md (não apenas .md)
-    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.tasks-export", "t2c.implement", "t2c.validate"]:
         content = _get_command_content(cmd_name)
         # Copilot reconhece arquivos .prompt.md em .github/prompts/
         (prompts_dir / f"{cmd_name}.prompt.md").write_text(content, encoding="utf-8")
@@ -935,6 +1184,7 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
         settings["chat.promptFilesRecommendations"] = {
             "t2c.extract-ddp": True,
             "t2c.tasks": True,
+            "t2c.tasks-export": True,
             "t2c.implement": True,
             "t2c.validate": True
         }
@@ -961,7 +1211,7 @@ def _create_vscode_commands(commands_dir: Path):
     """Cria arquivos markdown de comandos EXATAMENTE como no Cursor (com slash commands)"""
     
     # Usar a mesma função para garantir conteúdo idêntico
-    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.tasks-export", "t2c.implement", "t2c.validate"]:
         content = _get_command_content(cmd_name)
         (commands_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
 
@@ -991,6 +1241,11 @@ Quando o usuário digitar um comando slash no chat do Copilot, você deve:
 - **Arquivo de referência**: `.vscode/commands/t2c.tasks.md`
 - **Função**: Gera arquivo tasks.md baseado em spec.md e business-rules.md
 - **Uso**: `/t2c.tasks specs/001-exemplo`
+
+### `/t2c.tasks-export [caminho]`
+- **Arquivo de referência**: `.vscode/commands/t2c.tasks-export.md`
+- **Função**: Exporta tasks.md para Excel usando template
+- **Uso**: `/t2c.tasks-export specs/001-exemplo`
 
 ### `/t2c.implement [caminho]`
  - **Arquivo de referência**: `.vscode/commands/t2c.implement.md`
@@ -1025,6 +1280,7 @@ Quando o usuário usar um slash command:
 └── commands/
     ├── t2c.extract-ddp.md  # Instruções completas para extrair DDP
     ├── t2c.tasks.md         # Instruções para gerar tasks.md
+    ├── t2c.tasks-export.md  # Instruções para exportar Excel
     ├── t2c.implement.md     # Instruções para implementar framework
     └── t2c.validate.md      # Instruções para validar specs
 ```
@@ -1074,6 +1330,23 @@ def _create_vscode_tasks(vscode_dir: Path):
                     "kind": "build",
                     "isDefault": False
                 }
+            },
+            {
+                "label": "T2C: Export Excel",
+                "type": "shell",
+                "command": "python",
+                "args": [
+                    "${workspaceFolder}/.specify/scripts/excel_exporter.py"
+                ],
+                "problemMatcher": [],
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                },
+                "group": {
+                    "kind": "build",
+                    "isDefault": False
+                }
             }
         ],
         "inputs": [
@@ -1107,6 +1380,7 @@ No chat do GitHub Copilot, use os slash commands diretamente:
 
 - **Extrair DDP**: `/t2c.extract-ddp` ou `/t2c.extract-ddp specs/001-exemplo/DDP/ddp.pptx`
 - **Gerar Tasks**: `/t2c.tasks specs/001-exemplo`
+- **Exportar Excel**: `/t2c.tasks-export specs/001-exemplo`
 - **Implementar Framework**: `/t2c.implement specs/001-exemplo`
 - **Validar Specs**: `/t2c.validate specs/001-exemplo`
 
@@ -1120,6 +1394,7 @@ Você também pode mencionar o comando diretamente:
 
 - **Extrair DDP**: "Execute o comando t2c.extract-ddp" ou "Extrair DDP usando t2c.extract-ddp"
 - **Gerar Tasks**: "Execute o comando t2c.tasks" ou "Gerar tasks usando t2c.tasks"
+- **Exportar Excel**: "Execute o comando t2c.tasks-export" ou "Exportar tasks usando t2c.tasks-export"
 - **Implementar Framework**: "Execute o comando t2c.implement" ou "Implementar framework usando t2c.implement"
 - **Validar Specs**: "Execute o comando t2c.validate" ou "Validar specs usando t2c.validate"
 
@@ -1130,6 +1405,7 @@ Você também pode mencionar o comando diretamente:
 3. Selecione uma das tasks disponíveis:
    - **T2C: Extract DDP** - Extrai DDP automaticamente
    - **T2C: Extract DDP (with file)** - Extrai DDP de um arquivo específico
+   - **T2C: Export Excel** - Executa script de exportação
 
 ### Método 4: Executar Scripts Diretamente
 
@@ -1141,6 +1417,9 @@ python .specify/scripts/extract-ddp.py
 
 # Extrair DDP de arquivo específico
 python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
+
+# Exportar Excel (passando JSON)
+python .specify/scripts/excel_exporter.py '{"tasks": [...]}'
 ```
 
 ## Comandos Disponíveis
@@ -1160,6 +1439,14 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md.
 **Uso com Copilot:**
 - "Execute t2c.tasks para specs/001-exemplo"
 - "Gerar tasks.md baseado nas specs"
+
+### t2c.tasks-export
+
+Exporta tasks.md para Excel.
+
+**Uso com Copilot:**
+- "Execute t2c.tasks-export para specs/001-exemplo"
+- "Exportar tasks para Excel"
 
 ### t2c.implement
  
@@ -1182,6 +1469,7 @@ Valida a estrutura e completude dos arquivos de especificação.
 Consulte os arquivos em `.vscode/commands/` para documentação detalhada de cada comando:
 - `t2c.extract-ddp.md`
 - `t2c.tasks.md`
+- `t2c.tasks-export.md`
 - `t2c.implement.md`
 - `t2c.validate.md`
 
@@ -1205,7 +1493,7 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 
 ## Estrutura do Projeto
 
-\`\`\`
+```
 {project_name}/
 ├── .specify/          # Configurações e templates
 │   ├── memory/        # Constitution do framework T2C
@@ -1221,7 +1509,7 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 │       └── DDP/        # DDPs (Documentos de Design de Processo)
 ├── generated/         # Framework T2C gerado
 └── DDP/               # DDPs gerais
-\`\`\`
+```
 
 ## Fluxo de Trabalho
 
@@ -1230,23 +1518,24 @@ Projeto de automação RPA criado com RPA Spec-Kit.
    - O script instala dependências automaticamente se necessário
 4. **Completar Specs**: Revise e complete os arquivos .md gerados
 5. **Gerar Tasks** (Opcional): Execute `/t2c.tasks` para gerar tasks.md
- 6. **Implementar**: Execute `/t2c.implement` para gerar as classes especialistas
- 
- ## Comandos Disponíveis
- 
- - `/t2c.extract-ddp` - Extrai informações de DDP.pptx
- - `/t2c.tasks` - Gera tasks.md baseado nas specs
- - `/t2c.implement` - Gera código modular (classes especialistas)
- - `/t2c.validate` - Valida estrutura e completude das specs
- 
- ## Próximos Passos
- 
- 1. Crie uma nova feature: `specs/001-[nome-da-automacao]/`
- 2. Coloque o DDP.pptx na pasta DDP/
- 3. Execute `/t2c.extract-ddp` para extrair informações
- 4. Complete os arquivos .md conforme necessário
- 5. Execute `/t2c.implement` para gerar o código
- """
+6. **Implementar**: Execute `/t2c.implement` para gerar as classes especialistas
+
+## Comandos Disponíveis
+
+- `/t2c.extract-ddp` - Extrai informações de DDP.pptx
+- `/t2c.tasks` - Gera tasks.md baseado nas specs
+- `/t2c.tasks-export` - Exporta tasks para Excel
+- `/t2c.implement` - Gera código modular (classes especialistas)
+- `/t2c.validate` - Valida estrutura e completude das specs
+
+## Próximos Passos
+
+1. Crie uma nova feature: `specs/001-[nome-da-automacao]/`
+2. Coloque o DDP.pptx na pasta DDP/
+3. Execute `/t2c.extract-ddp` para extrair informações
+4. Complete os arquivos .md conforme necessário
+5. Execute `/t2c.implement` para gerar o código
+"""
     (project_path / "README.md").write_text(readme_content, encoding="utf-8")
     
     # .gitignore
@@ -1300,4 +1589,3 @@ generated/
 Thumbs.db
 """
     (project_path / ".gitignore").write_text(gitignore_content, encoding="utf-8")
-
