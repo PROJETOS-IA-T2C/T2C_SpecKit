@@ -58,9 +58,17 @@ def init_project(project_name: str, ai_assistant: str, console: Console):
     console.print("[cyan]Criando templates...[/cyan]")
     _create_templates(project_path)
     
+    # Copiar template Excel de estimativa
+    console.print("[cyan]Copiando template de estimativa...[/cyan]")
+    _create_excel_template(project_path)
+    
     # Criar script de extração de DDP
     console.print("[cyan]Criando script de extração de DDP...[/cyan]")
     _create_extract_ddp_script(project_path)
+    
+    # Criar script de exportação Excel
+    console.print("[cyan]Criando script de exportação Excel...[/cyan]")
+    _create_excel_exporter_script(project_path)
     
     # Criar requirements.txt
     console.print("[cyan]Criando requirements.txt...[/cyan]")
@@ -134,7 +142,8 @@ def _create_templates(project_path: Path):
         "tests-template.md",
         "selectors-template.md",
         "business-rules-template.md",
-        "tasks-template.md"
+        "tasks-template.md",
+        "tasks-export-template.md"
     ]
     
     try:
@@ -170,9 +179,35 @@ def _create_templates(project_path: Path):
 
 
 def _create_extract_ddp_script(project_path: Path):
-    """Cria script Python pronto para extração de DDP"""
+    """Cria script Python pronto para extração de DDP copiando de utils"""
     scripts_dir = project_path / ".specify/scripts"
     
+    try:
+        # Usar importlib.resources para acessar script do pacote instalado
+        from rpa_speckit import utils
+        extractor_resource = resource_files(utils) / "ddp_extractor.py"
+        
+        if extractor_resource.is_file():
+            content = extractor_resource.read_text(encoding="utf-8")
+            (scripts_dir / "extract-ddp.py").write_text(content, encoding="utf-8")
+        else:
+            raise FileNotFoundError("Script ddp_extractor.py não encontrado no pacote")
+            
+    except (ImportError, FileNotFoundError, AttributeError):
+        # Fallback: tentar caminho relativo (modo desenvolvimento)
+        utils_dir = Path(__file__).parent.parent.parent / "utils"
+        internal_script = utils_dir / "ddp_extractor.py"
+        
+        if internal_script.exists():
+            shutil.copy2(internal_script, scripts_dir / "extract-ddp.py")
+        else:
+            # Fallback final: criar versão básica inline
+            print("AVISO: Script ddp_extractor.py não encontrado. Criando versão simplificada.")
+            _create_extract_ddp_inline(scripts_dir)
+
+
+def _create_extract_ddp_inline(scripts_dir: Path):
+    """Cria script inline caso a cópia falhe (fallback)"""
     # Usar raw string para evitar problemas com escape e encoding
     script_content = r'''#!/usr/bin/env python
 # -*- coding: utf-8 -*-
@@ -313,10 +348,233 @@ if __name__ == "__main__":
     extract_script.write_text(script_content, encoding="utf-8")
 
 
+def _create_excel_exporter_script(project_path: Path):
+    """Cria script Python para exportação Excel copiando de utils"""
+    scripts_dir = project_path / ".specify/scripts"
+    
+    try:
+        # Usar importlib.resources para acessar script do pacote instalado
+        from rpa_speckit import utils
+        exporter_resource = resource_files(utils) / "excel_exporter.py"
+        
+        if exporter_resource.is_file():
+            content = exporter_resource.read_text(encoding="utf-8")
+            (scripts_dir / "excel_exporter.py").write_text(content, encoding="utf-8")
+        else:
+            raise FileNotFoundError("Script excel_exporter.py não encontrado no pacote")
+            
+    except (ImportError, FileNotFoundError, AttributeError):
+        # Fallback: tentar caminho relativo (modo desenvolvimento)
+        utils_dir = Path(__file__).parent.parent.parent / "utils"
+        internal_script = utils_dir / "excel_exporter.py"
+        
+        if internal_script.exists():
+            shutil.copy2(internal_script, scripts_dir / "excel_exporter.py")
+        else:
+            # Fallback final: criar versão básica inline (se necessário, mas ideal é copiar)
+            print("AVISO: Script excel_exporter.py não encontrado. Criando versão simplificada.")
+            _create_excel_exporter_inline(scripts_dir)
+
+
+def _create_excel_exporter_inline(scripts_dir: Path):
+    """Cria script inline caso a cópia falhe (fallback)"""
+    script_content = r'''import openpyxl
+import json
+import sys
+import os
+from copy import copy
+
+def find_footer_row(ws, start_row, search_col=2):
+    """Procura a linha onde começa o rodapé (texto não vazio que não é task)."""
+    for row in range(start_row, start_row + 500):
+        cell_val = ws.cell(row=row, column=search_col).value
+        cell_val_c = ws.cell(row=row, column=search_col+1).value
+        text = str(cell_val) if cell_val else ""
+        text_c = str(cell_val_c) if cell_val_c else ""
+        
+        if "Saída do processo" in text or "Saída do processo" in text_c:
+            return row
+    return None
+
+def copy_style(source_cell, target_cell):
+    """Copia estilo de uma célula para outra."""
+    if source_cell.has_style:
+        if source_cell.font: target_cell.font = copy(source_cell.font)
+        if source_cell.border: target_cell.border = copy(source_cell.border)
+        if source_cell.fill: target_cell.fill = copy(source_cell.fill)
+        if source_cell.number_format: target_cell.number_format = copy(source_cell.number_format)
+        if source_cell.alignment: target_cell.alignment = copy(source_cell.alignment)
+        if source_cell.protection: target_cell.protection = copy(source_cell.protection)
+
+def export_to_excel(tasks_data, template_path, output_path, process_name="Processo RPA"):
+    """
+    Preenche o template Excel com os dados fornecidos.
+    
+    Args:
+        tasks_data (list): Lista de dicts com chaves 'robot', 'name', 'description', 'estimate'.
+        template_path (str): Caminho do arquivo .xlsx template.
+        output_path (str): Caminho onde salvar o arquivo final.
+        process_name (str): Nome do processo para preencher no cabeçalho.
+    """
+    
+    if not os.path.exists(template_path):
+        raise FileNotFoundError(f"Template não encontrado: {template_path}")
+
+    print(f"Carregando template: {template_path}")
+    wb = openpyxl.load_workbook(template_path)
+    ws = wb.active
+
+    START_ROW = 12
+    COL_BOT = 2
+    COL_ACTIVITY = 3
+    COL_TIME = 4
+
+    # 1. Encontrar Footer
+    footer_row = find_footer_row(ws, START_ROW)
+    
+    if not footer_row:
+        print("⚠️ Rodapé não encontrado. Usando append simples.")
+        footer_row = START_ROW + len(tasks_data) + 10
+
+    available_rows = footer_row - START_ROW
+    needed_rows = len(tasks_data)
+    
+    # 2. Ajustar Linhas (Inserir ou Deletar)
+    if needed_rows > available_rows:
+        rows_to_insert = needed_rows - available_rows
+        print(f"Inserindo {rows_to_insert} linhas...")
+        ws.insert_rows(footer_row, amount=rows_to_insert)
+        
+        # Copiar estilo da linha anterior
+        ref_row = footer_row - 1
+        for i in range(rows_to_insert):
+            target_row = footer_row + i
+            for col in range(1, 10):
+                copy_style(ws.cell(ref_row, col), ws.cell(target_row, col))
+                
+    elif needed_rows < available_rows:
+        rows_to_delete = available_rows - needed_rows
+        if rows_to_delete > 0:
+            print(f"Deletando {rows_to_delete} linhas excedentes...")
+            delete_start = START_ROW + needed_rows
+            ws.delete_rows(delete_start, amount=rows_to_delete)
+
+    # 3. Preencher Cabeçalho
+    ws["C6"] = process_name
+
+    # 4. Preencher Tasks
+    current_row = START_ROW
+    for task in tasks_data:
+        # Coluna B: Robô
+        cell_bot = ws.cell(row=current_row, column=COL_BOT)
+        if not isinstance(cell_bot, openpyxl.cell.cell.MergedCell):
+            cell_bot.value = task.get('robot', '')
+
+        # Coluna C: Atividade
+        activity_text = f"{task.get('name', '')}\n{task.get('description', '')}"
+        cell_act = ws.cell(row=current_row, column=COL_ACTIVITY)
+        
+        # Tratamento Merge
+        if isinstance(cell_act, openpyxl.cell.cell.MergedCell):
+             for rng in ws.merged_cells.ranges:
+                 if cell_act.coordinate in rng:
+                     ws.cell(row=rng.min_row, column=rng.min_col).value = activity_text
+                     break
+        else:
+            cell_act.value = activity_text
+            cell_act.alignment = openpyxl.styles.Alignment(wrap_text=True, vertical='top')
+
+        # Coluna D: Estimativa
+        cell_time = ws.cell(row=current_row, column=COL_TIME)
+        if not isinstance(cell_time, openpyxl.cell.cell.MergedCell):
+             # Tenta converter para float
+             try:
+                 val = float(task.get('estimate', 0))
+             except:
+                 val = task.get('estimate', 0)
+             cell_time.value = val
+
+        current_row += 1
+
+    wb.save(output_path)
+    try:
+        print(f"Arquivo salvo: {os.path.abspath(output_path)}")
+    except UnicodeEncodeError:
+        print(f"Arquivo salvo: {os.path.abspath(output_path)}".encode('utf-8', errors='ignore').decode('utf-8'))
+
+if __name__ == "__main__":
+    # Modo CLI: Recebe JSON via argumento ou stdin
+    # Exemplo uso: python excel_exporter.py '{"tasks": [...], "template": "...", "output": "..."}'
+    if len(sys.argv) > 1:
+        try:
+            # Se o argumento for um arquivo json
+            if sys.argv[1].endswith('.json') and os.path.exists(sys.argv[1]):
+                with open(sys.argv[1], 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            else:
+                # Tenta parsear string json direta
+                data = json.loads(sys.argv[1])
+            
+            export_to_excel(
+                data['tasks'], 
+                data['template'], 
+                data['output'],
+                data.get('process_name', 'Processo RPA')
+            )
+        except Exception as e:
+            print(f"Erro ao processar argumentos: {e}")
+            sys.exit(1)
+    else:
+        print("Uso: python excel_exporter.py '<json_data>'")
+'''
+    (scripts_dir / "excel_exporter.py").write_text(script_content, encoding="utf-8")
+
+
+def _create_excel_template(project_path: Path):
+    """Copia o template Excel para a pasta de templates do projeto"""
+    templates_dir = project_path / ".specify/templates"
+    template_name = "Estimativa de Esforco - Template.xlsx"
+    
+    try:
+        # Usar importlib.resources para acessar arquivos de utils (onde o template está guardado no pacote)
+        from rpa_speckit import utils
+        template_resource = resource_files(utils) / template_name
+        
+        if template_resource.is_file():
+            # Para arquivos binários como xlsx, precisamos ler bytes
+            content = template_resource.read_bytes()
+            (templates_dir / template_name).write_bytes(content)
+        else:
+            # Tentar procurar em templates também, caso tenha sido movido
+            from rpa_speckit import templates
+            template_resource_alt = resource_files(templates) / template_name
+            if template_resource_alt.is_file():
+                 content = template_resource_alt.read_bytes()
+                 (templates_dir / template_name).write_bytes(content)
+            else:
+                 print(f"AVISO: Template Excel {template_name} não encontrado no pacote.")
+
+    except (ImportError, FileNotFoundError, AttributeError):
+        # Fallback: tentar caminho relativo (modo desenvolvimento)
+        # Tenta em utils/ primeiro, depois na raiz do repo se estiver rodando local
+        utils_dir = Path(__file__).parent.parent.parent / "utils"
+        source_template = utils_dir / template_name
+        
+        if not source_template.exists():
+             # Tentar raiz do repo (caso especial de dev)
+             source_template = Path(__file__).parent.parent.parent.parent.parent / template_name
+        
+        if source_template.exists():
+            shutil.copy2(source_template, templates_dir / template_name)
+        else:
+            print(f"AVISO: Template Excel não encontrado em {source_template}")
+
+
 def _create_requirements_txt(project_path: Path):
     """Cria requirements.txt com dependências necessárias"""
     requirements_content = """# Dependências para scripts do projeto
 python-pptx>=0.6.21
+openpyxl>=3.1.2
 """
     (project_path / "requirements.txt").write_text(requirements_content, encoding="utf-8")
 
@@ -873,7 +1131,48 @@ Relatório indicando:
 ## Notas
 
 - Execute antes de /t2c.implement para garantir que tudo está pronto
-- Corrija os problemas indicados antes de prosseguir"""
+- Corrija os problemas indicados antes de prosseguir""",
+        "t2c.export-tasks": """# Exportar Tasks para Excel
+
+Gera uma planilha de estimativa preenchida com base no tasks.md.
+
+## Uso
+
+\`\`\`
+/t2c.export-tasks [caminho_tasks]
+\`\`\`
+
+## Exemplo
+
+\`\`\`
+/t2c.export-tasks specs/001-exemplo/tasks.md
+\`\`\`
+
+## O que faz
+
+1. Lê o arquivo `tasks.md` do projeto
+2. Extrai as tarefas, robôs e estimativas
+3. Executa o script Python `.specify/scripts/excel_exporter.py` para preencher o template Excel
+
+## Instruções para a LLM
+
+1. **Localizar Arquivos:**
+   - Tasks: O arquivo passado como argumento (ou procurar `tasks.md` nas specs)
+   - Script: `.specify/scripts/excel_exporter.py`
+   - Template: Procurar por arquivos `.xlsx` na raiz ou em `.specify/templates/` (ex: `Estimativa de Esforco - Template.xlsx`)
+
+2. **Extração:**
+   - Ler `tasks.md` e montar a estrutura de dados JSON com:
+     - `process_name`: Nome do processo (do cabeçalho ou nome da pasta)
+     - `template`: Caminho do template encontrado
+     - `output`: `Estimativa_[NomeProcesso].xlsx` (na raiz)
+     - `tasks`: Lista de objetos {robot, name, description, estimate}
+
+3. **Execução:**
+   - Executar o script Python passando o JSON como argumento.
+   - **NÃO** tente recriar a lógica Python. Use o script existente.
+   - **Comando:** `python .specify/scripts/excel_exporter.py '{"json_data"}'`
+"""
     }
     return commands.get(command_name, "")
 
@@ -883,7 +1182,7 @@ def _create_cursor_commands(project_path: Path):
     commands_dir = project_path / ".cursor/commands"
     
     # Usar a mesma função para garantir conteúdo idêntico
-    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate", "t2c.export-tasks"]:
         content = _get_command_content(cmd_name)
         (commands_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
 
@@ -893,7 +1192,7 @@ def _create_github_prompts(project_path: Path):
     prompts_dir = project_path / ".github" / "prompts"
     
     # GitHub Copilot requer extensão .prompt.md (não apenas .md)
-    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate", "t2c.export-tasks"]:
         content = _get_command_content(cmd_name)
         # Copilot reconhece arquivos .prompt.md em .github/prompts/
         (prompts_dir / f"{cmd_name}.prompt.md").write_text(content, encoding="utf-8")
@@ -929,7 +1228,8 @@ def _create_vscode_config(project_path: Path, ai_assistant: str):
             "t2c.extract-ddp": True,
             "t2c.tasks": True,
             "t2c.implement": True,
-            "t2c.validate": True
+            "t2c.validate": True,
+            "t2c.export-tasks": True
         }
         
         # Permitir execução automática de scripts em .specify/scripts/
@@ -954,7 +1254,7 @@ def _create_vscode_commands(commands_dir: Path):
     """Cria arquivos markdown de comandos EXATAMENTE como no Cursor (com slash commands)"""
     
     # Usar a mesma função para garantir conteúdo idêntico
-    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate"]:
+    for cmd_name in ["t2c.extract-ddp", "t2c.tasks", "t2c.implement", "t2c.validate", "t2c.export-tasks"]:
         content = _get_command_content(cmd_name)
         (commands_dir / f"{cmd_name}.md").write_text(content, encoding="utf-8")
 
@@ -969,7 +1269,7 @@ Este projeto usa comandos slash customizados (similar ao Cursor) que devem ser r
 
 Quando o usuário digitar um comando slash no chat do Copilot, você deve:
 
-1. **Reconhecer o comando**: Se o usuário digitar `/t2c.extract-ddp`, `/t2c.tasks`, `/t2c.implement`, ou `/t2c.validate`
+1. **Reconhecer o comando**: Se o usuário digitar `/t2c.extract-ddp`, `/t2c.tasks`, `/t2c.implement`, `/t2c.validate` ou `/t2c.export-tasks`
 2. **Ler o arquivo correspondente**: Consulte `.vscode/commands/[nome-do-comando].md` para entender o que fazer
 3. **Executar as instruções**: Siga EXATAMENTE as instruções do arquivo markdown
 
@@ -994,6 +1294,12 @@ Quando o usuário digitar um comando slash no chat do Copilot, você deve:
 - **Arquivo de referência**: `.vscode/commands/t2c.validate.md`
 - **Função**: Valida estrutura e completude dos arquivos de especificação
 - **Uso**: `/t2c.validate specs/001-exemplo`
+
+### `/t2c.export-tasks [caminho]`
+- **Arquivo de referência**: `.vscode/commands/t2c.export-tasks.md`
+- **Função**: Gera planilha de estimativa preenchendo template Excel
+- **Uso**: `/t2c.export-tasks specs/001-exemplo/tasks.md`
+
 
 ## Como Funcionar
 
@@ -1102,8 +1408,10 @@ No chat do GitHub Copilot, use os slash commands diretamente:
 - **Gerar Tasks**: `/t2c.tasks specs/001-exemplo`
 - **Implementar Framework**: `/t2c.implement specs/001-exemplo`
 - **Validar Specs**: `/t2c.validate specs/001-exemplo`
+- **Exportar Excel**: `/t2c.export-tasks specs/001-exemplo/tasks.md`
 
 O Copilot reconhecerá os slash commands e lerá automaticamente os arquivos em `.vscode/commands/` para entender o que fazer.
+
 
 **Nota**: O arquivo `.vscode/copilot-instructions.md` contém instruções para o Copilot sobre como processar esses comandos.
 
@@ -1170,6 +1478,14 @@ Valida a estrutura e completude dos arquivos de especificação.
 - "Execute t2c.validate para specs/001-exemplo"
 - "Validar todas as specs"
 
+### t2c.export-tasks
+
+Gera planilha de estimativa preenchendo template Excel.
+
+**Uso com Copilot:**
+- "Execute t2c.export-tasks para tasks.md"
+- "Exportar estimativa para Excel"
+
 ## Documentação Completa
 
 Consulte os arquivos em `.vscode/commands/` para documentação detalhada de cada comando:
@@ -1177,6 +1493,7 @@ Consulte os arquivos em `.vscode/commands/` para documentação detalhada de cad
 - `t2c.tasks.md`
 - `t2c.implement.md`
 - `t2c.validate.md`
+- `t2c.export-tasks.md`
 
 ## Dicas
 
@@ -1231,6 +1548,7 @@ Projeto de automação RPA criado com RPA Spec-Kit.
  - `/t2c.tasks` - Gera tasks.md baseado nas specs
  - `/t2c.implement` - Gera código modular (classes especialistas)
  - `/t2c.validate` - Valida estrutura e completude das specs
+ - `/t2c.export-tasks` - Exporta estimativa para Excel
  
  ## Próximos Passos
  
