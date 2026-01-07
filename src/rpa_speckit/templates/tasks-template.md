@@ -10,10 +10,12 @@
 
 ### Resumo Executivo
 
+> **⚠️ IMPORTANTE:** O "Tempo Total Estimado" deve ser EXATAMENTE a soma aritmética de todas as estimativas individuais das tasks. NÃO aplicar gordura adicional no total, pois cada task já tem gordura de 30% (1.3x) aplicada.
+
 | Métrica | Valor |
 |---------|-------|
 | **Total de Tasks** | [X] |
-| **Tempo Total Estimado** | [X horas] |
+| **Tempo Total Estimado** | [X horas] ← Soma EXATA de todas as estimativas (sem gordura adicional) |
 | **Tasks por Robô** | Robot1: [X] / Robot2: [X] |
 
 ### Top 5 Tasks (Maior Esforço)

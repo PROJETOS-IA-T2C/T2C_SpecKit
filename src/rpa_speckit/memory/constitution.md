@@ -1902,10 +1902,14 @@ Ao analisar o DDP, a LLM deve realizar uma análise contextual **usando as lista
 
 Ao gerar tasks.md, calcular automaticamente:
 - **Total de tasks:** Soma de todas as tasks
-- **Tempo total:** Soma de todas as estimativas
+- **Tempo total:** Soma EXATA de todas as estimativas individuais (SEM aplicar gordura adicional)
+  - ⚠️ **CRÍTICO:** O tempo total deve ser EXATAMENTE a soma aritmética de todas as estimativas das tasks
+  - ⚠️ **NÃO aplicar gordura adicional no total** - cada task individual já tem gordura de 30% (1.3x) aplicada
+  - ⚠️ **NÃO multiplicar o total por 1.3 ou qualquer outro fator** - apenas somar os valores das estimativas
+  - Exemplo: Se Task 1 = 6h, Task 2 = 13h, Task 3 = 12h, então Total = 6 + 13 + 12 = 31 horas (NÃO 31 × 1.3 = 40.3h)
 - **Top 5 tasks:** Ordenar por estimativa (maior para menor)
-- **Por fase:** Agrupar tasks por fase e somar estimativas
-- **Por robô:** Agrupar tasks por robô e somar estimativas (se múltiplos robôs)
+- **Por fase:** Agrupar tasks por fase e somar estimativas (também sem gordura adicional)
+- **Por robô:** Agrupar tasks por robô e somar estimativas (também sem gordura adicional)
 - **Percentuais:** Calcular % de cada task/fase/robô em relação ao total
 
 ---

@@ -1041,6 +1041,16 @@ Gera o arquivo tasks.md baseado em spec.md e business-rules.md, incluindo estima
   - Tabela de visão geral (resumo executivo, top 5 tasks, estimativas por fase/robô)
   - Tasks detalhadas com estimativas individuais
 
+## ⚠️ CÁLCULO DO TEMPO TOTAL - REGRA CRÍTICA
+
+**🚨 OBRIGATÓRIO - Tempo Total deve ser SOMA EXATA:**
+
+- **Tempo Total Estimado** = Soma EXATA de todas as estimativas individuais das tasks
+- **NÃO aplicar gordura adicional no total** - cada task já tem gordura de 30% (1.3x) aplicada
+- **NÃO multiplicar o total por 1.3 ou qualquer outro fator**
+- **Exemplo:** Se Task 1 = 6h, Task 2 = 13h, Task 3 = 12h, então Total = 6 + 13 + 12 = **31 horas** (NÃO 31 × 1.3 = 40.3h)
+- O mesmo se aplica para totais por fase e por robô - sempre soma exata, sem gordura adicional
+
 ## Estimativas de Tempo (FEFP)
 
 **⚠️ OBRIGATÓRIO - Consultar `@constitution.md` Seção 5:**
