@@ -155,7 +155,7 @@ def init(project_name):
         console.print(f"\n[bold green]✓[/bold green] Projeto [bold]{project_name}[/bold] criado com sucesso!")
         console.print("\n[bold cyan]Próximos passos:[/bold cyan]")
         console.print("  1. Abra o projeto no editor escolhido")
-        console.print("  2. Coloque o DDP.pptx em specs/001-[nome]/DDP/")
+        console.print("  2. Coloque o DDP (PPTX ou DOCX) em specs/001-[nome]/DDP/")
         console.print("  3. Execute o comando /t2c.extract-ddp para extrair informações")
         console.print("  4. Complete os arquivos .md conforme necessário")
         console.print("  5. Execute /t2c.implement para gerar o framework T2C")

@@ -188,7 +188,7 @@ def _create_extract_ddp_script(project_path: Path):
     script_content = r'''#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Script para extração de texto de arquivos DDP.pptx
+Script para extração de texto de arquivos DDP (PPTX ou DOCX)
 Este script já está pronto e não deve ser modificado.
 """
 import sys
@@ -196,6 +196,7 @@ import os
 import subprocess
 from pathlib import Path
 
+# Tentar importar bibliotecas necessárias
 try:
     from pptx import Presentation
 except ImportError:
@@ -210,47 +211,82 @@ except ImportError:
         print("Tente instalar manualmente: pip install python-pptx", file=sys.stderr)
         sys.exit(1)
 
+try:
+    from docx import Document
+except ImportError:
+    print("python-docx não está instalado. Instalando automaticamente...", file=sys.stderr)
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "python-docx>=1.1.0"], 
+                             stdout=sys.stderr, stderr=sys.stderr)
+        from docx import Document
+        print("python-docx instalado com sucesso!", file=sys.stderr)
+    except Exception as e:
+        print(f"Erro ao instalar python-docx: {e}", file=sys.stderr)
+        print("Tente instalar manualmente: pip install python-docx", file=sys.stderr)
+        sys.exit(1)
 
-def extract_ddp(pptx_path: str) -> str:
+
+def extract_ddp(ddp_path: str) -> str:
     """
-    Extrai texto de todos os slides de um arquivo DDP.pptx
+    Extrai texto de um arquivo DDP (PPTX ou DOCX)
     
     Args:
-        pptx_path: Caminho para o arquivo DDP.pptx (pode ser relativo, absoluto ou apenas nome do arquivo)
+        ddp_path: Caminho para o arquivo DDP (pode ser relativo, absoluto ou apenas nome do arquivo)
         
     Returns:
-        Texto formatado com conteúdo de todos os slides
+        Texto formatado com conteúdo do arquivo
     """
     # Converter para Path e resolver para absoluto (simples e direto)
-    pptx_file = Path(pptx_path).resolve()
+    ddp_file = Path(ddp_path).resolve()
     
     # Se não encontrar, procurar automaticamente nas pastas comuns
-    if not pptx_file.exists():
+    if not ddp_file.exists():
         # Procurar em DDP/ primeiro
         ddp_dir = Path("DDP")
         if ddp_dir.exists():
+            # Procurar por PPTX primeiro, depois DOCX
             pptx_files = list(ddp_dir.glob("*.pptx"))
+            docx_files = list(ddp_dir.glob("*.docx"))
             if pptx_files:
-                pptx_file = pptx_files[0].resolve()
+                ddp_file = pptx_files[0].resolve()
+            elif docx_files:
+                ddp_file = docx_files[0].resolve()
         
         # Se não encontrou, procurar em specs/*/DDP/
-        if not pptx_file.exists():
+        if not ddp_file.exists():
             for spec_dir in Path("specs").glob("*/DDP"):
                 if spec_dir.exists():
                     pptx_files = list(spec_dir.glob("*.pptx"))
+                    docx_files = list(spec_dir.glob("*.docx"))
                     if pptx_files:
-                        pptx_file = pptx_files[0].resolve()
+                        ddp_file = pptx_files[0].resolve()
+                        break
+                    elif docx_files:
+                        ddp_file = docx_files[0].resolve()
                         break
         
-        if not pptx_file.exists():
-            raise FileNotFoundError(f"DDP não encontrado: {pptx_path}")
+        if not ddp_file.exists():
+            raise FileNotFoundError(f"DDP não encontrado: {ddp_path}")
     
+    # Detectar tipo de arquivo pela extensão
+    file_ext = ddp_file.suffix.lower()
+    
+    if file_ext == '.pptx':
+        return _extract_pptx(ddp_file, ddp_path)
+    elif file_ext in ['.docx', '.doc']:
+        return _extract_docx(ddp_file, ddp_path)
+    else:
+        raise ValueError(f"Formato não suportado: {file_ext}. Use .pptx ou .docx")
+
+
+def _extract_pptx(pptx_file: Path, original_path: str) -> str:
+    """Extrai texto de um arquivo PPTX"""
     # Usar caminho absoluto sempre (simples)
     presentation = Presentation(str(pptx_file.absolute()))
     
     # Formatar texto para apresentar à LLM
     formatted_text = "# Conteúdo Extraído do DDP\n\n"
-    formatted_text += f"**Arquivo:** {pptx_path}\n\n"
+    formatted_text += f"**Arquivo:** {original_path}\n\n"
     formatted_text += f"**Total de slides:** {len(presentation.slides)}\n\n"
     formatted_text += "---\n\n"
     
@@ -271,6 +307,32 @@ def extract_ddp(pptx_path: str) -> str:
     return formatted_text
 
 
+def _extract_docx(docx_file: Path, original_path: str) -> str:
+    """Extrai texto de um arquivo DOCX"""
+    doc = Document(str(docx_file.absolute()))
+    
+    # Formatar texto para apresentar à LLM (mesmo formato do PPTX)
+    formatted_text = "# Conteúdo Extraído do DDP\n\n"
+    formatted_text += f"**Arquivo:** {original_path}\n\n"
+    
+    # Contar parágrafos não vazios como "slides"
+    paragraphs = [p for p in doc.paragraphs if p.text.strip()]
+    formatted_text += f"**Total de slides:** {len(paragraphs)}\n\n"
+    formatted_text += "---\n\n"
+    
+    # Passar parágrafo por parágrafo e extrair texto
+    slide_num = 1
+    for paragraph in doc.paragraphs:
+        text = paragraph.text.strip()
+        if text:  # Apenas parágrafos não vazios
+            formatted_text += f"## Slide {slide_num}\n\n"
+            formatted_text += text
+            formatted_text += "\n\n---\n\n"
+            slide_num += 1
+    
+    return formatted_text
+
+
 def main():
     """CLI para extração de DDP"""
     # Configurar encoding UTF-8 para stdout/stderr no Windows
@@ -284,24 +346,29 @@ def main():
     
     # Se não passou caminho, procurar automaticamente
     if len(sys.argv) < 2:
-        # Procurar arquivos .pptx nas pastas comuns
+        # Procurar arquivos .pptx e .docx nas pastas comuns
         search_dirs = [Path("DDP")]
         for spec_dir in Path("specs").glob("*/DDP"):
             search_dirs.append(spec_dir)
         
-        pptx_file = None
+        ddp_file = None
         for search_dir in search_dirs:
             if search_dir.exists():
+                # Procurar PPTX primeiro, depois DOCX
                 pptx_files = list(search_dir.glob("*.pptx"))
+                docx_files = list(search_dir.glob("*.docx"))
                 if pptx_files:
-                    pptx_file = pptx_files[0].resolve()
+                    ddp_file = pptx_files[0].resolve()
+                    break
+                elif docx_files:
+                    ddp_file = docx_files[0].resolve()
                     break
         
-        if not pptx_file:
-            print("Erro: Nenhum arquivo .pptx encontrado. Use: python .specify/scripts/extract-ddp.py <caminho>", file=sys.stderr)
+        if not ddp_file:
+            print("Erro: Nenhum arquivo .pptx ou .docx encontrado. Use: python .specify/scripts/extract-ddp.py <caminho>", file=sys.stderr)
             sys.exit(1)
         
-        ddp_path = str(pptx_file)
+        ddp_path = str(ddp_file)
     else:
         ddp_path = sys.argv[1]
     
@@ -309,6 +376,9 @@ def main():
         extracted_text = extract_ddp(ddp_path)
         print(extracted_text)
     except FileNotFoundError as e:
+        print(f"Erro: {e}", file=sys.stderr)
+        sys.exit(1)
+    except ValueError as e:
         print(f"Erro: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
@@ -524,7 +594,7 @@ def _get_command_content(command_name: str) -> str:
     commands = {
         "t2c.extract-ddp": """# Extrair DDP
 
-Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa preencher os arquivos de especificação.
+Extrai o texto de um arquivo DDP (PPTX ou DOCX) para que a LLM possa preencher os arquivos de especificação.
 
 ## Uso
 
@@ -536,6 +606,7 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 ```
 /t2c.extract-ddp specs/001-automacao-exemplo/DDP/ddp.pptx
+/t2c.extract-ddp specs/001-automacao-exemplo/DDP/ddp.docx
 ```
 
 ## 🚨 REGRA FUNDAMENTAL - LEITURA CUIDADOSA DO DDP
@@ -544,7 +615,7 @@ Extrai o texto de todos os slides de um arquivo DDP.pptx para que a LLM possa pr
 
 **ANTES DE QUALQUER OUTRA AÇÃO, a LLM DEVE:**
 
-1. **⚠️ OBRIGATÓRIO: Ler o DDP com ATENÇÃO TOTAL** (localizado em `specs/[nome_do_robo]/DDP/ddp.pptx`, `DDP/ddp.pptx` ou caminho fornecido)
+1. **⚠️ OBRIGATÓRIO: Ler o DDP com ATENÇÃO TOTAL** (localizado em `specs/[nome_do_robo]/DDP/`, `DDP/` ou caminho fornecido, pode ser .pptx ou .docx)
    - Ler o DDP **COMPLETO** do início ao fim, **palavra por palavra**
    - **NÃO pular NENHUMA seção** - mesmo que pareça irrelevante
    - **NÃO fazer suposições** - se algo não está claro, revisar o DDP
@@ -607,10 +678,12 @@ python .specify/scripts/extract-ddp.py
 
 ```bash
 python .specify/scripts/extract-ddp.py DDP/arquivo.pptx
+python .specify/scripts/extract-ddp.py DDP/arquivo.docx
 ```
 
 **Como funciona:**
-- Se você **não passar caminho**, o script procura automaticamente o primeiro arquivo .pptx em `DDP/` ou `specs/*/DDP/`
+- Se você **não passar caminho**, o script procura automaticamente o primeiro arquivo .pptx ou .docx em `DDP/` ou `specs/*/DDP/`
+- O script suporta tanto arquivos PowerPoint (.pptx) quanto Word (.docx)
 - Se você **passar caminho**, pode ser relativo ou absoluto - o script resolve automaticamente
 - **Instala dependências automaticamente** se necessário (python-pptx)
 - **SIMPLES**: Apenas execute o comando, o script faz TUDO sozinho
@@ -1354,7 +1427,7 @@ def _create_vscode_tasks(vscode_dir: Path):
                 "id": "ddpPath",
                 "type": "promptString",
                 "description": "Caminho do arquivo DDP (relativo ao workspace)",
-                "default": "DDP/ddp.pptx"
+                "default": "DDP/ddp.pptx ou DDP/ddp.docx"
             }
         ]
     }
@@ -1378,7 +1451,7 @@ Este diretório contém os comandos T2C disponíveis para uso com GitHub Copilot
 
 No chat do GitHub Copilot, use os slash commands diretamente:
 
-- **Extrair DDP**: `/t2c.extract-ddp` ou `/t2c.extract-ddp specs/001-exemplo/DDP/ddp.pptx`
+- **Extrair DDP**: `/t2c.extract-ddp` ou `/t2c.extract-ddp specs/001-exemplo/DDP/ddp.pptx` (suporta .pptx e .docx)
 - **Gerar Tasks**: `/t2c.tasks specs/001-exemplo`
 - **Exportar Excel**: `/t2c.tasks-export specs/001-exemplo`
 - **Implementar Framework**: `/t2c.implement specs/001-exemplo`
@@ -1426,7 +1499,7 @@ python .specify/scripts/excel_exporter.py '{"tasks": [...]}'
 
 ### t2c.extract-ddp
 
-Extrai o texto de todos os slides de um arquivo DDP.pptx.
+Extrai o texto de um arquivo DDP (PPTX ou DOCX).
 
 **Uso com Copilot:**
 - "Execute t2c.extract-ddp"
@@ -1514,7 +1587,7 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 ## Fluxo de Trabalho
 
 1. **Inicialização**: Projeto já inicializado ✓
-2. **Extrair DDP**: Coloque DDP.pptx em `specs/001-[nome]/DDP/` ou `DDP/` e execute `/t2c.extract-ddp`
+2. **Extrair DDP**: Coloque DDP (PPTX ou DOCX) em `specs/001-[nome]/DDP/` ou `DDP/` e execute `/t2c.extract-ddp`
    - O script instala dependências automaticamente se necessário
 4. **Completar Specs**: Revise e complete os arquivos .md gerados
 5. **Gerar Tasks** (Opcional): Execute `/t2c.tasks` para gerar tasks.md
@@ -1522,7 +1595,7 @@ Projeto de automação RPA criado com RPA Spec-Kit.
 
 ## Comandos Disponíveis
 
-- `/t2c.extract-ddp` - Extrai informações de DDP.pptx
+- `/t2c.extract-ddp` - Extrai informações de DDP (PPTX ou DOCX)
 - `/t2c.tasks` - Gera tasks.md baseado nas specs
 - `/t2c.tasks-export` - Exporta tasks para Excel
 - `/t2c.implement` - Gera código modular (classes especialistas)
