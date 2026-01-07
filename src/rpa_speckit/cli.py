@@ -9,6 +9,8 @@ from rich import box
 from rich.align import Align
 
 from rpa_speckit.commands.init import init_project
+from rpa_speckit.utils.ddp_extractor import extract_ddp
+from pathlib import Path
 
 console = Console()
 
@@ -161,6 +163,74 @@ def init(project_name):
         console.print("  5. Execute /t2c.implement para gerar o framework T2C")
     except Exception as e:
         console.print(f"\n[bold red]Erro ao criar projeto:[/bold red] {str(e)}")
+        raise click.Abort()
+
+
+@cli.command(name="extract-ddp")
+@click.argument("ddp_path", required=False)
+def extract_ddp_cmd(ddp_path):
+    """
+    Extrai texto de um arquivo DDP (PPTX ou DOCX).
+    
+    Se DDP_PATH não for fornecido, procura automaticamente em DDP/ ou specs/*/DDP/
+    """
+    try:
+        # Se não forneceu caminho, procurar automaticamente
+        if not ddp_path:
+            console.print("[yellow]Procurando arquivo DDP automaticamente...[/yellow]")
+            
+            # Procurar em DDP/ primeiro
+            ddp_dir = Path("DDP")
+            ddp_file = None
+            
+            if ddp_dir.exists():
+                # Procurar PPTX primeiro, depois DOCX
+                pptx_files = list(ddp_dir.glob("*.pptx"))
+                docx_files = list(ddp_dir.glob("*.docx"))
+                if pptx_files:
+                    ddp_file = pptx_files[0]
+                elif docx_files:
+                    ddp_file = docx_files[0]
+            
+            # Se não encontrou, procurar em specs/*/DDP/
+            if not ddp_file:
+                for spec_dir in Path("specs").glob("*/DDP"):
+                    if spec_dir.exists():
+                        pptx_files = list(spec_dir.glob("*.pptx"))
+                        docx_files = list(spec_dir.glob("*.docx"))
+                        if pptx_files:
+                            ddp_file = pptx_files[0]
+                            break
+                        elif docx_files:
+                            ddp_file = docx_files[0]
+                            break
+            
+            if not ddp_file:
+                console.print("[bold red]Erro:[/bold red] Nenhum arquivo DDP (.pptx ou .docx) encontrado.")
+                console.print("  Procurou em: DDP/ e specs/*/DDP/")
+                console.print("  Use: t2c extract-ddp <caminho_do_arquivo>")
+                raise click.Abort()
+            
+            ddp_path = str(ddp_file)
+            console.print(f"[green]Arquivo encontrado:[/green] {ddp_path}")
+        
+        # Extrair conteúdo
+        console.print(f"\n[cyan]Extraindo conteúdo de:[/cyan] {ddp_path}")
+        extracted_text = extract_ddp(ddp_path)
+        
+        # Exibir resultado
+        console.print("\n" + "="*80)
+        console.print(extracted_text)
+        console.print("="*80)
+        
+    except FileNotFoundError as e:
+        console.print(f"[bold red]Erro:[/bold red] {e}")
+        raise click.Abort()
+    except ValueError as e:
+        console.print(f"[bold red]Erro:[/bold red] {e}")
+        raise click.Abort()
+    except Exception as e:
+        console.print(f"[bold red]Erro ao extrair DDP:[/bold red] {str(e)}")
         raise click.Abort()
 
 
